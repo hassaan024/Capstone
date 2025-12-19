@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-export default function Login() {
+export default function Login(): JSX.Element {
   const nav = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
 
-  const onSubmit = (e) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // placeholder until OAuth is wired
     nav("/dashboard");
@@ -14,13 +14,12 @@ export default function Login() {
 
   const onGoogle = () => {
     // placeholder for OAuth redirect
-    // later: window.location.href = `${BACKEND_URL}/auth/google` or provider URL
+    // later: window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
     nav("/dashboard");
   };
 
   return (
     <div className="login">
-      {/* particles on the left */}
       <div className="particles" aria-hidden="true">
         {Array.from({ length: 14 }).map((_, i) => (
           <span
@@ -46,13 +45,18 @@ export default function Login() {
 
             <div className="kicker">Welcome back</div>
             <div className="h1" style={{ fontSize: "40px", marginTop: 10 }}>
-              Grow smarter with
-              <span style={{
-                background: "linear-gradient(135deg, var(--mint), var(--leaf))",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-              }}> timelines</span>.
+              Grow smarter with{" "}
+              <span
+                style={{
+                  background: "linear-gradient(135deg, var(--mint), var(--leaf))",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                }}
+              >
+                timelines
+              </span>
+              .
             </div>
 
             <p className="mini">
@@ -67,7 +71,7 @@ export default function Login() {
             </div>
 
             <div style={{ marginTop: 18, color: "var(--subtle)", fontWeight: 800, fontSize: 13 }}>
-              Tip: Keep your plant assumptions realistic — the simulator becomes more accurate as your inputs improve.
+              Tip: The simulator gets more accurate as your inputs improve.
             </div>
           </div>
         </div>
@@ -104,7 +108,7 @@ export default function Login() {
                 id="email"
                 className="input"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 placeholder="you@school.edu"
                 autoComplete="email"
               />
@@ -117,7 +121,7 @@ export default function Login() {
                 className="input"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
