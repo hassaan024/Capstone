@@ -1,175 +1,260 @@
 // src/pages/LandingPage.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import FeaturePieChart, {
-  FeatureCategory,
-  FeatureCategoryId,
-} from "../components/FeaturePieChart";
-import FeatureDetailPanel from "../components/FeatureDetailPanel";
-import FeatureCarousel from "../components/FeatureCarousel";
+import FeaturePieChart from "../components/FeaturePieChart";
+
+type FeatureId = "growth" | "climate" | "layout" | "finance" | "events";
+
+interface Feature {
+  id: FeatureId;
+  label: string;
+  short: string;
+  description: string;
+  bullets: string[];
+  color: string;
+}
+
+const features: Feature[] = [
+  {
+    id: "growth",
+    label: "Growth Timeline",
+    short: "Seed to bloom to wither.",
+    description:
+      "Model how each plant moves through its life cycle so you can line up seed dates, bloom windows, and wither times.",
+    bullets: [
+      "Time to sprout, bloom, and wither",
+      "See your garden at any date on a timeline",
+      "Spot gaps or overlaps in color and coverage",
+    ],
+    color: "#22c55e",
+  },
+  {
+    id: "climate",
+    label: "Climate & Soil",
+    short: "Match plants to your conditions.",
+    description:
+      "Use local climate expectations and soil nutrition to pick plants that can actually thrive where you live.",
+    bullets: [
+      "Temperature and humidity tolerances",
+      "Sunlight needs vs. your location",
+      "Stretch goal: soil nutrition modeling",
+    ],
+    color: "#38bdf8",
+  },
+  {
+    id: "layout",
+    label: "Garden Layout",
+    short: "Design the space, not just the list.",
+    description:
+      "Shape the house and garden in Unreal, place plants, and see how the layout evolves over time.",
+    bullets: [
+      "Place plants in the engine",
+      "House and garden shape customization",
+      "See visual changes as the timeline moves",
+    ],
+    color: "#a855f7",
+  },
+  {
+    id: "finance",
+    label: "Financial View",
+    short: "See cost and profit clearly.",
+    description:
+      "Estimate what your garden costs now and what it could be worth at peak bloom, especially for lumber or resale.",
+    bullets: [
+      "Cost of seeds and setup",
+      "Yearly maintenance cost",
+      "Value at bloom minus cost of seeds",
+    ],
+    color: "#f97316",
+  },
+  {
+    id: "events",
+    label: "Unexpected Events",
+    short: "Floods, frosts, and surprises.",
+    description:
+      "Tell the system about floods, heat waves, or other events and refresh the simulation to see the impact.",
+    bullets: [
+      "User-entered events like floods",
+      "Re-simulate plant health and outcomes",
+      "Compare “before vs. after” timelines",
+    ],
+    color: "#eab308",
+  },
+];
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedFeatureId, setSelectedFeatureId] =
-    useState<FeatureCategoryId | null>("lifecycle");
+  const [selectedId, setSelectedId] = useState<FeatureId>("growth");
 
-  const featureData: FeatureCategory[] = useMemo(
-    () => [
-      {
-        id: "lifecycle",
-        label: "Lifecycles",
-        value: 25,
-        accentColor: "#4ade80",
-      },
-      {
-        id: "timeline",
-        label: "Timeline & Sim",
-        value: 20,
-        accentColor: "#22c55e",
-      },
-      {
-        id: "climate",
-        label: "Climate Resilience",
-        value: 20,
-        accentColor: "#38bdf8",
-      },
-      {
-        id: "finance",
-        label: "Finance",
-        value: 20,
-        accentColor: "#f97316",
-      },
-      {
-        id: "layout",
-        label: "Layout",
-        value: 15,
-        accentColor: "#a855f7",
-      },
-    ],
-    []
-  );
+  const selectedFeature =
+    features.find((f) => f.id === selectedId) ?? features[0];
 
   return (
     <div className="leafy-landing-root">
-      <div className="ll-max-width">
-        <div className="leafy-landing-layout">
-          {/* Left: hero */}
-          <section className="ll-card leafy-hero-card">
-            <div className="leafy-hero-orbit" />
-            <div className="leafy-hero-content">
-              <div className="leafy-title-row">
-                <div className="leafy-logo-dot" />
-                <div>
-                  <div className="ll-pill">LeafyLedger</div>
-                  <div className="leafy-subtitle" style={{ marginTop: "0.3rem" }}>
-                    Plan, simulate, and price your garden like a portfolio.
-                  </div>
-                </div>
-              </div>
+      {/* Background accents */}
+      <div className="leafy-landing-bg-gradient" />
+      <div className="leafy-landing-bg-blob leafy-landing-bg-blob--left" />
+      <div className="leafy-landing-bg-blob leafy-landing-bg-blob--right" />
 
-              <h1 className="leafy-title-main">
-                Grow{" "}
-                <span className="leafy-title-highlight">
-                  smarter gardens
-                </span>{" "}
-                with data, not guesswork.
-              </h1>
-
-              <p className="leafy-subtitle">
-                LeafyLedger combines plant lifetimes, climate tolerance, and
-                financial modeling so you know{" "}
-                <strong>what to plant, when to plant it,</strong> and whether
-                it’s actually worth it.
-              </p>
-
-              <div className="leafy-hero-meta">
-                <div className="ll-pill">
-                  🌱 Lifecycle-aware simulations
-                </div>
-                <div className="ll-pill">🌦 Climate & stress testing</div>
-                <div className="ll-pill">💰 Yearly profit estimates</div>
-              </div>
-
-              <div className="leafy-hero-actions">
-                <button
-                  className="ll-btn ll-btn-primary"
-                  onClick={() => navigate("/login")}
-                >
-                  Get started
-                </button>
-                <button
-                  className="ll-btn ll-btn-ghost"
-                  onClick={() => {
-                    const el = document.getElementById("leafy-features");
-                    if (el) el.scrollIntoView({ behavior: "smooth" });
-                  }}
-                >
-                  Explore features
-                </button>
-              </div>
-
-              <div className="leafy-hero-footnote">
-                Visual simulation powered by Unreal Engine. Analytics dashboard
-                powered by LeafyLedger.
-              </div>
-            </div>
-          </section>
-
-          {/* Right: pie chart + detail */}
-          <section className="leafy-landing-right" id="leafy-features">
-            <div className="ll-card leafy-feature-panel">
-              <div className="leafy-feature-header">
-                <div>
-                  <div className="leafy-feature-title">
-                    Everything a garden needs — in one timeline.
-                  </div>
-                  <div className="leafy-feature-badge-row">
-                    <span className="ll-pill">Lifecycle</span>
-                    <span className="ll-pill">Climate</span>
-                    <span className="ll-pill">Layout</span>
-                    <span className="ll-pill">Finance</span>
-                  </div>
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-                  Click a segment to learn more
-                </div>
-              </div>
-
-              <div className="leafy-feature-body">
-                <div>
-                  <FeaturePieChart
-                    data={featureData}
-                    selectedId={selectedFeatureId}
-                    onSelect={(id) => setSelectedFeatureId(id)}
-                  />
-                </div>
-                <div>
-                  <p className="leafy-feature-description">
-                    LeafyLedger maps{" "}
-                    <strong>plant lifetimes, climate inputs, layout</strong> and{" "}
-                    <strong>costs</strong> into a single, navigable timeline.
-                    Move time forward or backward and watch your garden grow,
-                    bloom, and wither with real data behind every transition.
-                  </p>
-                  <div className="leafy-feature-highlight">
-                    • See when each plant needs to be seeded to hit a shared
-                    bloom window.  
-                    • Adapt to floods or heatwaves and instantly refresh the
-                    simulation.  
-                    • Check if the garden still pays off at the end of the year.
-                  </div>
-                </div>
-              </div>
-
-              <FeatureDetailPanel selectedId={selectedFeatureId} />
-            </div>
-
-            <div className="ll-card leafy-carousel-card">
-              <FeatureCarousel />
-            </div>
-          </section>
+      {/* NAVBAR */}
+      <header className="leafy-landing-nav">
+        <div className="leafy-landing-logo-row">
+          <div className="leafy-landing-logo-mark" />
+          <div className="leafy-landing-logo-text">LeafyLedger</div>
         </div>
-      </div>
+
+        <nav className="leafy-landing-nav-actions">
+          <button
+            type="button"
+            className="ll-btn ll-btn-ghost leafy-landing-nav-btn"
+            onClick={() => navigate("/login")}
+          >
+            Log in
+          </button>
+          <button
+            type="button"
+            className="ll-btn ll-btn-primary leafy-landing-nav-btn"
+            onClick={() => navigate("/login")}
+          >
+            Get started
+          </button>
+        </nav>
+      </header>
+
+      {/* MAIN CONTENT */}
+      <main className="leafy-landing-main">
+        {/* Centered hero banner (same width as map box) */}
+        <section className="leafy-landing-hero">
+          <div className="leafy-landing-hero-inner leafy-landing-shell">
+            <div className="leafy-hero-glow" />
+            <h1 className="leafy-landing-title">
+              Grow <span>smarter gardens</span>, not spreadsheets.
+            </h1>
+            <p className="leafy-landing-subtitle">
+              LeafyLedger pulls plant lifetimes, climate limits, layout, and
+              costs into one timeline so you can see how your garden will look
+              and perform before you plant it.
+            </p>
+
+            <div className="leafy-landing-tag-row">
+              <div className="ll-pill">Timeline of plant lifecycles</div>
+              <div className="ll-pill">Climate &amp; soil checks</div>
+              <div className="ll-pill">Cost vs. yield view</div>
+            </div>
+
+            <div className="leafy-landing-stats-row leafy-landing-stats-row--center">
+              <div className="leafy-landing-stat">
+                <div className="leafy-landing-stat-label">Simulation</div>
+                <div className="leafy-landing-stat-value">
+                  Unreal Engine visuals
+                </div>
+              </div>
+              <div className="leafy-landing-stat">
+                <div className="leafy-landing-stat-label">Planner</div>
+                <div className="leafy-landing-stat-value">
+                  Web dashboard insights
+                </div>
+              </div>
+            </div>
+
+            <div className="leafy-landing-cta-row leafy-landing-cta-row--center">
+              <button
+                type="button"
+                className="ll-btn ll-btn-primary"
+                onClick={() => navigate("/login")}
+              >
+                Get started
+              </button>
+              <button
+                type="button"
+                className="ll-btn ll-btn-ghost"
+                onClick={() =>
+                  document
+                    .getElementById("leafy-feature-map")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
+                Explore features
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature / pie chart section below hero */}
+        <section
+          id="leafy-feature-map"
+          className="leafy-landing-feature-section"
+        >
+          <div
+            className="leafy-landing-pie-card leafy-landing-shell"
+            aria-label="LeafyLedger feature map"
+          >
+            <div className="leafy-landing-pie-header">
+              <div>
+                <div className="leafy-landing-pie-title">Feature map</div>
+                <div className="leafy-landing-pie-subtitle">
+                  Tap any slice or chip to explore a part of LeafyLedger.
+                </div>
+              </div>
+            </div>
+
+            <div className="leafy-landing-pie-layout">
+              <div className="leafy-landing-pie-wrapper">
+                <FeaturePieChart
+                  features={features.map((f) => ({
+                    id: f.id,
+                    label: f.label,
+                    color: f.color,
+                  }))}
+                  selectedId={selectedId}
+                  onSelect={(id) => setSelectedId(id as FeatureId)}
+                />
+              </div>
+
+              <div className="leafy-landing-feature-panel">
+                {/* Feature names inside the section: chips + heading */}
+                <div className="leafy-landing-feature-chip-row">
+                  {features.map((feature) => {
+                    const isActive = feature.id === selectedId;
+                    return (
+                      <button
+                        key={feature.id}
+                        type="button"
+                        className={
+                          "leafy-landing-feature-chip" +
+                          (isActive
+                            ? " leafy-landing-feature-chip--active"
+                            : "")
+                        }
+                        onClick={() => setSelectedId(feature.id)}
+                      >
+                        {feature.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="leafy-landing-feature-main">
+                  <div className="leafy-landing-feature-heading">
+                    {selectedFeature.label}
+                  </div>
+                  <div className="leafy-landing-feature-short">
+                    {selectedFeature.short}
+                  </div>
+                  <p className="leafy-landing-feature-description">
+                    {selectedFeature.description}
+                  </p>
+                  <ul className="leafy-landing-feature-list">
+                    {selectedFeature.bullets.map((b) => (
+                      <li key={b}>{b}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 };

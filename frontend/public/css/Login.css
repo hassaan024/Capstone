@@ -1,15 +1,9 @@
-/* public/css/Login.css */
-
 .leafy-login-root {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 55%) minmax(0, 45%);
   align-items: stretch;
-  background: linear-gradient(
-    145deg,
-    rgba(15, 23, 42, 0.96),
-    rgba(15, 23, 42, 0.98)
-  );
+  background: radial-gradient(circle at 0% 0%, #0b1120 0, #020617 45%, #000000 100%);
 }
 
 /* ===========================
@@ -325,12 +319,17 @@
   align-items: center;
   justify-content: center;
   padding: 32px 24px;
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.96),
+    rgba(15, 23, 42, 0.98)
+  );
 }
 
 .leafy-login-card {
   width: 100%;
-  max-width: 420px;
-  padding: 24px 24px 26px;
+  max-width: 400px;
+  padding: 22px 22px 24px;
   border-radius: 24px;
   background: linear-gradient(
     145deg,
@@ -341,36 +340,35 @@
   box-shadow: 0px 18px 40px rgba(0, 0, 0, 0.6);
 }
 
-/* Header text */
-.leafy-login-card-header {
-  margin-bottom: 22px;
+/* New: header row with "Sign in" + "Learn more" */
+.leafy-login-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
 }
 
-.leafy-login-heading {
-  font-size: 22px;
-  font-weight: 700;
+.leafy-login-header-title {
+  font-size: 16px;
+  font-weight: 600;
   color: var(--ll-text-main);
 }
 
-.leafy-login-caption {
-  margin-top: 6px;
-  font-size: 14px;
+.leafy-login-header-link {
+  border: none;
+  background: transparent;
   color: var(--ll-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
 }
 
-/* Form */
+/* Form: email & password */
 .leafy-login-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
-}
-
-.leafy-login-label-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--ll-text-muted);
 }
 
 .leafy-login-input {
@@ -383,70 +381,42 @@
   font-size: 14px;
 }
 
+.leafy-login-input::placeholder {
+  color: var(--ll-text-muted);
+}
+
 .leafy-login-input:focus {
   outline: none;
   border-color: var(--ll-accent);
   box-shadow: 0px 0px 0px 1px rgba(34, 197, 94, 0.6);
 }
 
-/* Forgot password */
+/* Forgot password row */
 .leafy-login-forgot-row {
-  margin-top: 2px;
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  margin-bottom: 10px;
 }
 
-.leafy-login-forgot-link {
-  background: none;
+.leafy-login-forgot-btn {
   border: none;
-  padding: 0;
-  margin: 0;
+  background: transparent;
+  color: var(--ll-text-muted);
   font-size: 12px;
-  color: var(--ll-accent-soft);
   cursor: pointer;
-  text-decoration: none;
-  transition: color 150ms ease-out;
+  padding: 0;
+  text-decoration: underline;
 }
 
-.leafy-login-forgot-link:hover {
-  color: var(--ll-accent-2);
-}
-
-/* Sign-in & actions */
-.leafy-login-actions {
-  margin-top: 10px;
+/* Buttons stack */
+.leafy-login-buttons {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 4px;
 }
 
-/* Divider */
-.leafy-login-divider {
-  position: relative;
-  margin: 14px 0;
-  text-align: center;
-  font-size: 12px;
-  color: var(--ll-text-muted);
-}
-
-.leafy-login-divider::before,
-.leafy-login-divider::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 42%;
-  height: 1px;
-  background: rgba(148, 163, 184, 0.35);
-}
-
-.leafy-login-divider::before {
-  left: 0;
-}
-
-.leafy-login-divider::after {
-  right: 0;
-}
-
-/* Google / create account buttons */
 .leafy-login-google-btn {
   width: 100%;
   justify-content: center;
@@ -457,36 +427,11 @@
   height: 18px;
 }
 
+/* Create account button */
 .leafy-login-create-btn {
   width: 100%;
   justify-content: center;
   border-style: dashed;
-}
-
-/* Footer row */
-.leafy-login-footer-row {
-  margin-top: 14px;
-  font-size: 12px;
-  color: var(--ll-text-muted);
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.leafy-login-footer-link {
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  border: 1px solid var(--ll-border-strong);
-  background: transparent;
-  color: var(--ll-text-main);
-  cursor: pointer;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
-}
-
-.leafy-login-footer-link:hover {
-  background: rgba(15, 23, 42, 0.9);
-  border-color: var(--ll-accent);
 }
 
 /* ===========================
@@ -518,16 +463,7 @@
     padding: 18px 14px 20px;
   }
 
-  .leafy-login-heading {
-    font-size: 20px;
-  }
-
-  .leafy-login-caption {
-    font-size: 13px;
-  }
-
-  .leafy-login-footer-row {
-    flex-direction: column;
-    align-items: flex-start;
+  .leafy-login-form {
+    gap: 8px;
   }
 }

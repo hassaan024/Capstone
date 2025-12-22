@@ -18,10 +18,9 @@ const LoginPage: React.FC = () => {
 
   const handleForgotPassword = () => {
     console.log("Forgot password clicked (UI only for now)");
-    // Later: navigate("/forgot-password") or open modal
   };
 
-  const handleSignup = () => {
+  const handleCreateAccount = () => {
     console.log("Create account clicked (UI only for now)");
     // Later: navigate("/signup") or trigger signup flow
   };
@@ -111,88 +110,68 @@ const LoginPage: React.FC = () => {
       {/* Right form side */}
       <div className="leafy-login-form-side">
         <div className="leafy-login-card">
-          <div className="leafy-login-card-header">
-            <div className="leafy-login-heading">Sign in to LeafyLedger</div>
+          {/* Heading + Learn more */}
+          <div className="leafy-login-header-row">
+            <div className="leafy-login-header-title">Sign in</div>
+            <button
+              type="button"
+              className="leafy-login-header-link"
+              onClick={() => navigate("/")}
+            >
+              Learn more
+            </button>
           </div>
 
-          {/* Email/password form (simplified flow) */}
+          {/* Form: email → password → forgot → Google → create */}
           <form className="leafy-login-form" onSubmit={handleEmailLogin}>
-            <div>
-              <div className="leafy-login-label-row">
-                <span>Email</span>
-              </div>
-              <input
-                className="leafy-login-input"
-                type="email"
-                placeholder="you@leafyledger.app"
-              />
-            </div>
-            <div>
-              <div className="leafy-login-label-row">
-                <span>Password</span>
-              </div>
-              <input
-                className="leafy-login-input"
-                type="password"
-                placeholder="••••••••"
-              />
-            </div>
+            {/* 1. Email */}
+            <input
+              className="leafy-login-input"
+              type="email"
+              placeholder="Email"
+            />
 
+            {/* 2. Password */}
+            <input
+              className="leafy-login-input"
+              type="password"
+              placeholder="Password"
+            />
+
+            {/* 3. Forgot password */}
             <div className="leafy-login-forgot-row">
               <button
                 type="button"
-                className="leafy-login-forgot-link"
+                className="leafy-login-forgot-btn"
                 onClick={handleForgotPassword}
               >
                 Forgot password?
               </button>
             </div>
 
-            <div className="leafy-login-actions">
-              <button className="ll-btn ll-btn-primary" type="submit">
-                Sign in
+            {/* 4 + 5. Google + Create account buttons */}
+            <div className="leafy-login-buttons">
+              <button
+                type="button"
+                className="ll-btn ll-btn-primary leafy-login-google-btn"
+                onClick={handleGoogleLogin}
+              >
+                <img
+                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                  alt="Google logo"
+                />
+                Continue with Google
+              </button>
+
+              <button
+                type="button"
+                className="ll-btn ll-btn-ghost leafy-login-create-btn"
+                onClick={handleCreateAccount}
+              >
+                Create account
               </button>
             </div>
           </form>
-
-          <div className="leafy-login-divider">or sign in with</div>
-
-          {/* Google sign-in */}
-          <button
-            type="button"
-            className="ll-btn ll-btn-ghost leafy-login-google-btn"
-            style={{margin:"10px 0"}}
-            onClick={handleGoogleLogin}
-          >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google logo"
-            />
-            Continue with Google
-          </button>
-
-          {/* Create account */}
-          <button
-            type="button"
-            className="ll-btn ll-btn-ghost leafy-login-create-btn"
-            onClick={handleSignup}
-          >
-            Create a new account
-          </button>
-
-          <div className="leafy-login-footer-row">
-            {/* <span>
-              Just exploring?{" "}
-              <button
-                type="button"
-                className="leafy-login-footer-link"
-                onClick={() => navigate("/")}
-              >
-                Back to overview
-              </button>
-            </span> */}
-            {/* <span>OAuth will manage identities. No passwords stored here.</span> */}
-          </div>
         </div>
       </div>
     </div>

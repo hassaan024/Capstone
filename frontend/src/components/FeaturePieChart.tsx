@@ -1,78 +1,97 @@
 // src/components/FeaturePieChart.tsx
-import React from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import * as React from "react";
+import { PieChart, pieArcLabelClasses } from "@mui/x-charts/PieChart";
+import { useDrawingArea } from "@mui/x-charts/hooks";
+import { styled } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 
-export type FeatureCategoryId =
-  | "lifecycle"
-  | "timeline"
-  | "climate"
-  | "finance"
-  | "layout";
-
-export interface FeatureCategory {
-  id: FeatureCategoryId;
+export interface FeatureDatum {
+  id: string;
   label: string;
-  value: number;
-  accentColor: string;
+  color: string;
+}
+
+const StyledText = styled("text")(({ theme }: { theme: Theme }) => ({
+  fill: theme.palette.text.primary,
+  textAnchor: "middle",
+  dominantBaseline: "central",
+  fontSize: 18,
+}));
+
+interface PieCenterLabelProps {
+  children: React.ReactNode;
+}
+
+function PieCenterLabel({ children }: PieCenterLabelProps): React.ReactElement {
+  const { width, height, left, top } = useDrawingArea();
+  return (
+    <StyledText x={left + width / 2} y={top + height / 2}>
+      {children}
+    </StyledText>
+  );
 }
 
 interface FeaturePieChartProps {
-  data: FeatureCategory[];
-  selectedId: FeatureCategoryId | null;
-  onSelect: (id: FeatureCategoryId) => void;
+  features: FeatureDatum[];
+  selectedId: string;
+  onSelect: (id: string) => void;
 }
 
-const FeaturePieChart: React.FC<FeaturePieChartProps> = ({
-  data,
-  selectedId,
-  onSelect,
-}) => {
-  const handleClick = (entry: any) => {
-    onSelect(entry.id as FeatureCategoryId);
-  };
+export default function FeaturePieChart(
+  props: FeaturePieChartProps,
+): React.ReactElement {
+  const { features, selectedId, onSelect } = props;
+
+  // Equal slice values for now
+  const data = features.map((f) => ({
+    id: f.id,
+    label: f.label,
+    value: 1,
+    color: f.color,
+  }));
+
+  const total = data.reduce((acc, d) => acc + d.value, 0);
+
+  const innerRadius = 40;
+  const outerRadius = 120;
 
   return (
-    <div style={{ width: "100%", height: 210 }}>
-      <ResponsiveContainer>
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="label"
-            innerRadius={60}
-            outerRadius={90}
-            paddingAngle={3}
-            onClick={handleClick}
-          >
-            {data.map((entry) => (
-              <Cell
-                key={entry.id}
-                fill={entry.accentColor}
-                stroke="#020617"
-                strokeWidth={selectedId === entry.id ? 3 : 1}
-                style={{ cursor: "pointer" }}
-              />
-            ))}
-          </Pie>
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#020617",
-              border: "1px solid rgba(148, 163, 184, 0.6)",
-              borderRadius: 10,
-              fontSize: "0.8rem",
-            }}
-            formatter={(_, __, item) => [item?.payload?.label]}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="leafy-feature-chart-shell">
+      <PieChart
+        height={320}
+        series={[
+          {
+            innerRadius,
+            outerRadius,
+            data,
+            arcLabel: (item) => (item.label as string) ?? "",
+            valueFormatter: ({ value }) =>
+              `${value} of ${total} feature${total === 1 ? "" : "s"}`,
+            highlightScope: { fade: "global", highlight: "item" },
+            highlighted: { additionalRadius: 3 },
+            cornerRadius: 3,
+          },
+        ]}
+        sx={{
+          [`& .${pieArcLabelClasses.root}`]: {
+            fontSize: "11px",
+            fill: "#e5e7eb",
+          },
+          "& .MuiChartsPieArc-root": {
+            cursor: "pointer",
+          },
+        }}
+        hideLegend
+        onItemClick={(_event, params: any) => {
+          const index = params?.dataIndex as number;
+          if (Number.isInteger(index) && index >= 0 && index < data.length) {
+            onSelect(data[index].id);
+          }
+        }}
+      >
+        {/* Center label: “Features” */}
+        <PieCenterLabel>Features</PieCenterLabel>
+      </PieChart>
     </div>
   );
-};
-
-export default FeaturePieChart;
+}
