@@ -1,232 +1,146 @@
-/* =========================
-   LeafyLedger Design System
-   ========================= */
-   :root {
-    /* Brand greens */
-    --brand: #1bb673;           /* primary */
-    --brand-deep: #118352;      /* pressed / strong */
-    --brand-soft: #72e0ae;      /* highlight */
-  
-    /* Backgrounds */
-    --bg: #050a08;              /* app background */
-    --bg-surface-low: #0b1510;  /* hero, big cards */
-    --bg-surface-high: #111d16; /* detail panels, pie card */
-  
-    /* Text */
-    --text: #f5f9f4;
-    --muted: #c3d0c7;
-    --subtle: #8f9e93;
-  
-    /* Borders / lines */
-    --border-soft: rgba(255, 255, 255, 0.06);
-    --border-strong: rgba(255, 255, 255, 0.12);
-  
-    /* Accents */
-    --accent-warm: #ffd86b;
-    --danger: #f87171;
-  
-    /* Radii */
-    --radius-lg: 18px;
-    --radius-xl: 24px;
-  }
-  
-  
-  *{ box-sizing: border-box; }
-  html, body{ height: 100%; }
-  
-  body {
-    margin: 0;
-    background: radial-gradient(circle at top, #08140f 0%, #050a08 45%, #020403 100%);
-    color: var(--text);
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-      "Segoe UI", sans-serif;
-  }
-  
-  a{ color: inherit; text-decoration: none; }
-  button, input{ font-family: inherit; }
-  
-  .container{
-    width: min(var(--max), calc(100% - 40px));
-    margin: 0 auto;
-  }
-  
-  .glass{
-    background: var(--surface);
-    border: 1px solid var(--stroke);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-soft);
-  }
-  
-  .badge{
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: rgba(81,242,156,0.10);
-    border: 1px solid rgba(81,242,156,0.18);
-    color: var(--mint);
-    font-weight: 700;
-    letter-spacing: 0.3px;
-  }
-  
-  .badge .dot{
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--leaf);
-    box-shadow: 0 0 16px rgba(81,242,156,0.6);
-  }
-  
-  .btn {
-    font-weight: 800;
-    border-radius: 999px;
-    padding: 10px 18px;
-    font-size: 14px;
-    border-width: 1px;
-  }
-  
-  /* Primary = strong green */
-  .btn-primary {
-    background: linear-gradient(135deg, var(--brand), var(--brand-soft));
-    border-color: var(--border-strong);
-    color: rgba(255, 255, 255, 0.96);
-  }
-  .btn-primary:hover {
-    filter: brightness(1.07);
-  }
-  
-  /* Ghost = grey glass */
-  .btn-ghost {
-    background: rgba(17, 29, 22, 0.9);
-    border-color: var(--border-strong);
-    color: var(--muted);
-  }
-  .btn-ghost:hover {
-    background: rgba(27, 37, 32, 0.95);
-  }
-  
-  
-  .input{
-    width: 100%;
-    border-radius: 14px;
-    padding: 12px 14px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.10);
-    color: var(--text);
-    outline: none;
-    transition: box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
-  }
-  .input:focus{
-    border-color: rgba(81,242,156,0.35);
-    box-shadow: var(--ring);
-    background: rgba(255,255,255,0.08);
-  }
-  .label{
-    display: block;
-    margin: 0 0 8px;
-    color: var(--muted);
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.3px;
-  }
-  
-  .hr{
-    height: 1px;
-    background: rgba(255,255,255,0.10);
-    border: 0;
-  }
-  
-  .kicker{
-    color: var(--muted);
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    font-size: 12px;
-  }
-  
-  .h1{
-    font-size: clamp(34px, 4vw, 56px);
-    line-height: 1.02;
-    margin: 14px 0 10px;
-    letter-spacing: -0.02em;
-  }
-  
-  .p{
-    color: var(--muted);
-    font-size: 16px;
-    line-height: 1.6;
-    margin: 0;
-  }
-  
-  /* Subtle floating blobs */
-  .blob{
-    position: absolute;
-    inset: auto;
-    width: 520px;
-    height: 520px;
-    border-radius: 50%;
-    filter: blur(50px);
-    opacity: 0.35;
-    pointer-events: none;
-    animation: blobFloat 12s ease-in-out infinite;
-  }
-  @keyframes blobFloat{
-    0%,100%{ transform: translate(0,0) scale(1); }
-    50%{ transform: translate(30px,-24px) scale(1.05); }
-  }
-  
-  /* Tiny floating leaves particles */
-  .particles{
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .particles span{
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 999px 0 999px 999px;
-    transform: rotate(45deg);
-    background: rgba(81,242,156,0.35);
-    filter: blur(0.2px);
-    animation: drift 10s linear infinite;
-    opacity: 0.7;
-  }
-  @keyframes drift{
-    0%{ transform: translateY(40px) translateX(0) rotate(45deg); opacity: 0; }
-    15%{ opacity: 0.8; }
-    100%{ transform: translateY(-120vh) translateX(80px) rotate(160deg); opacity: 0; }
-  }
-  
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce){
-    *{ animation: none !important; transition: none !important; }
-  }
-  
-  /* Generic glass card */
-.glass {
-  background: linear-gradient(
-      135deg,
-      rgba(27, 182, 115, 0.12),
-      rgba(27, 182, 115, 0.02)
-    ),
-    rgba(11, 21, 16, 0.88);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--border-soft);
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(18px);
+/* public/css/global.css */
+
+/* 🌿 LeafyLedger Color Palette */
+:root {
+  --ll-bg: #020617;
+  --ll-surface: #050b14;
+  --ll-surface-alt: #07111f;
+  --ll-accent: #4ade80;
+  --ll-accent-soft: #bbf7d0;
+  --ll-accent-2: #22c55e;
+  --ll-accent-warn: #f97316;
+  --ll-accent-info: #38bdf8;
+  --ll-text-main: #e5e7eb;
+  --ll-text-muted:  #9ca3af;
+  --ll-border-subtle: #1f2933;
+  --ll-border-strong: #4b5563;
+  --ll-shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.5);
+  --ll-radius-xl: 24px;
+  --ll-radius-lg: 16px;
+  --ll-radius-md: 10px;
+  --ll-radius-pill: 999px;
+  --ll-transition-fast: 150ms ease-out;
+  --ll-transition-med: 220ms ease-out;
 }
 
-/* Smaller cards inside sections */
-.card,
-.benefitsCard,
-.fpPanelInner,
-.fpChartCard {
-  background: var(--bg-surface-high) !important;
-  border: 1px solid var(--border-soft) !important;
-  color: var(--text) !important;
+/* Global reset-ish */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, #0b1120 0, #020617 45%, #000 100%);
+  color: var(--ll-text-main);
+}
+
+/* Utility containers */
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ll-max-width {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Buttons */
+.ll-btn {
+  border-radius: var(--ll-radius-pill);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: transform var(--ll-transition-fast),
+    box-shadow var(--ll-transition-fast),
+    background-color var(--ll-transition-fast),
+    border-color var(--ll-transition-fast);
+}
+
+.ll-btn-primary {
+  background: linear-gradient(130deg, var(--ll-accent-2), var(--ll-accent));
+  color: #022c22;
+  box-shadow: 0 15px 30px rgba(34, 197, 94, 0.28);
+}
+
+.ll-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 20px 40px rgba(34, 197, 94, 0.35);
+}
+
+.ll-btn-ghost {
+  background: transparent;
+  border-color: var(--ll-border-strong);
+  color: var(--ll-text-main);
+}
+
+.ll-btn-ghost:hover {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+/* Badges/pills */
+.ll-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--ll-radius-pill);
+  font-size: 12px;
+  padding: 0.28rem 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-style: italic;
+  color: white;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* Simple glass card */
+.ll-card {
+  border-radius: var(--ll-radius-xl);
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(15, 23, 42, 0.96)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: var(--ll-shadow-soft);
+}
+
+/* Generic flex helpers */
+.ll-flex {
+  display: flex;
+}
+
+.ll-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Links */
+a {
+  color: var(--ll-accent-soft);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
 }
