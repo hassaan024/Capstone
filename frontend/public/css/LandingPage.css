@@ -300,7 +300,7 @@
 /* Recharts container wrapper */
 .leafy-feature-chart-shell {
   width: 100%;
-  max-width: 320px;
+  max-width: 350px;
 }
 
 /* Pie slices & labels are handled in the component via Recharts */

@@ -11,8 +11,8 @@ export interface FeatureDatum {
   color: string;
 }
 
-const StyledText = styled("text")(({ theme }: { theme: Theme }) => ({
-  fill: theme.palette.text.primary,
+const StyledText = styled("text")(() => ({
+  fill: "#ffffff",
   textAnchor: "middle",
   dominantBaseline: "central",
   fontSize: 18,
@@ -52,13 +52,13 @@ export default function FeaturePieChart(
 
   const total = data.reduce((acc, d) => acc + d.value, 0);
 
-  const innerRadius = 40;
-  const outerRadius = 120;
+  const innerRadius = 70;
+  const outerRadius = 170;
 
   return (
     <div className="leafy-feature-chart-shell">
       <PieChart
-        height={320}
+        height={400}
         series={[
           {
             innerRadius,
@@ -75,12 +75,12 @@ export default function FeaturePieChart(
         sx={{
           [`& .${pieArcLabelClasses.root}`]: {
             fontSize: "11px",
-            fill: "#e5e7eb",
+            fill: "#ffffff",
           },
           "& .MuiChartsPieArc-root": {
             cursor: "pointer",
           },
-        }}
+        }}        
         hideLegend
         onItemClick={(_event, params: any) => {
           const index = params?.dataIndex as number;
