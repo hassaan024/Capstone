@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { CreateGardenDto } from './dto/create-garden.dto.js';
-import { UpdateGardenDto } from './dto/update-garden.dto.js';
+import { CreateGardenDto } from './dto/create-garden.dto';
+import { UpdateGardenDto } from './dto/update-garden.dto';
+import { DatabaseService } from 'database/database.service';
 
 @Injectable()
 export class GardenService {
+  constructor(private readonly db: DatabaseService) {}
+
   create(createGardenDto: CreateGardenDto) {
     return 'This action adds a new garden';
   }
