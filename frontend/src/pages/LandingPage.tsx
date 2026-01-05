@@ -142,7 +142,7 @@ const LandingPage: React.FC = () => {
               <div className="ll-pill">Cost vs. yield view</div>
             </div>
 
-            <div className="leafy-landing-stats-row leafy-landing-stats-row--center">
+            {/* <div className="leafy-landing-stats-row leafy-landing-stats-row--center">
               <div className="leafy-landing-stat">
                 <div className="leafy-landing-stat-label">Simulation</div>
                 <div className="leafy-landing-stat-value">
@@ -155,9 +155,9 @@ const LandingPage: React.FC = () => {
                   Web dashboard insights
                 </div>
               </div>
-            </div>
+            </div> */}
 
-            <div className="leafy-landing-cta-row leafy-landing-cta-row--center">
+            {/* <div className="leafy-landing-cta-row leafy-landing-cta-row--center">
               <button
                 type="button"
                 className="ll-btn ll-btn-primary"
@@ -176,7 +176,7 @@ const LandingPage: React.FC = () => {
               >
                 Explore features
               </button>
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -190,12 +190,12 @@ const LandingPage: React.FC = () => {
             aria-label="LeafyLedger feature map"
           >
             <div className="leafy-landing-pie-header">
-              <div>
+              {/* <div> */}
                 <div className="leafy-landing-pie-title">Feature map</div>
                 <div className="leafy-landing-pie-subtitle">
                   Tap any slice or chip to explore a part of LeafyLedger.
                 </div>
-              </div>
+              {/* </div> */}
             </div>
 
             <div className="leafy-landing-pie-layout">
