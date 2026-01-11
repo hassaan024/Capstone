@@ -1,21 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// GENERAL
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider = "prisma-client-js"
 }
 
-// TABLES
 model User {
   id                Int      @id @default(autoincrement())
   email             String   @unique
@@ -23,65 +14,63 @@ model User {
   passwordHash      String
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
-  gardens           Garden[] 
+  gardens           Garden[]
 }
 
 model Garden {
-  id                Int      @id @default(autoincrement())
+  id                Int             @id @default(autoincrement())
   ownerId           Int
-  owner             User     @relation(fields: [ownerId], references: [id])
   name              String
   description       String
   latitude          Float
   longitude         Float
   timezone          String?
-  creationTimestamp DateTime @default(now())
-  lastUpdated       DateTime @updatedAt
-  plants            PlantInstance[]       
+  creationTimestamp DateTime        @default(now())
+  lastUpdated       DateTime        @updatedAt
+  owner             User            @relation(fields: [ownerId], references: [id])
+  plants            PlantInstance[]
 }
 
-model PlantInstance{
-  id                Int       @id   @default(autoincrement())
+model PlantInstance {
+  id                Int      @id @default(autoincrement())
   gardenId          Int
-  garden            Garden     @relation(fields: [gardenId], references: [id])
   speciesId         Int
-  species           Species    @relation(fields: [speciesId], references: [id])
-  soilId            Int    
-  soil              Soil       @relation(fields: [soilId], references: [id])
+  soilId            Int
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
+  garden            Garden   @relation(fields: [gardenId], references: [id])
+  soil              Soil     @relation(fields: [soilId], references: [id])
+  species           Species  @relation(fields: [speciesId], references: [id])
 }
 
 model Species {
-  id                Int     @id @default(autoincrement())
-  commonName        String  @unique
-  scientificName    String  @unique
-  growthRate        Float   
-  bloomRate         Float?  // optional, how fast it blooms (cm/week or days)
-  witherRate        Float?  // optional, rate of decay/dying
-  minTemp           Float?  // minimum temperature tolerated (°C)
-  maxTemp           Float?  // maximum temperature tolerated (°C)
-  minHumidity       Float?  // minimum humidity tolerated (%)
-  maxHumidity       Float?  // maximum humidity tolerated (%)
-  avgHoursSun       Float?  // average hours of sun/day
-  imgSrcUrl         String? // optional, URL of an image
-  notes             String? // optional free text
-  plantInstances    PlantInstance[] // back-relation to individual plants
+  id             Int             @id @default(autoincrement())
+  commonName     String          @unique
+  scientificName String          @unique
+  growthRate     Float
+  bloomRate      Float?
+  witherRate     Float?
+  minTemp        Float?
+  maxTemp        Float?
+  minHumidity    Float?
+  maxHumidity    Float?
+  avgHoursSun    Float?
+  imgSrcUrl      String?
+  notes          String?
+  plantInstances PlantInstance[]
 }
 
-
-model Soil{
-  id                 Int       @id   @default(autoincrement())
-  nitrogen           Float   // typically in percentage or ppm
-  phosphorus         Float   // % or ppm
-  potassium          Float   // % or ppm
-  pH                 Float   // 0–14
-  organicPercentage  Float?  // % of organic matter (optional)
-  type               SoilType  
-  plantInstances     PlantInstance[]
+model Soil {
+  id                Int             @id @default(autoincrement())
+  nitrogen          Float
+  phosphorus        Float
+  potassium         Float
+  pH                Float
+  organicPercentage Float?
+  type              SoilType
+  plantInstances    PlantInstance[]
 }
 
-// ENUMS
 enum SoilType {
   LOAM
   SANDY
