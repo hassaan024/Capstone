@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class AuthService {
   private client = new OAuth2Client(
-    'YOUR_GOOGLE_CLIENT_ID_HERE', // Match frontend
+    process.env.GOOGLE_CLIENT_ID, // Use environment variable
   );
 
   constructor(private prisma: PrismaService) {}
@@ -14,7 +14,7 @@ export class AuthService {
     try {
       const ticket = await this.client.verifyIdToken({
         idToken: token,
-        audience: 'YOUR_GOOGLE_CLIENT_ID_HERE',
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
       const payload = ticket.getPayload();
       

@@ -10,8 +10,10 @@ generator client {
 model User {
   id                Int      @id @default(autoincrement())
   email             String   @unique
-  displayName       String
-  passwordHash      String?
+  firstName         String
+  lastName          String
+  password          String?
+  provider          String   @default("local")
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
   gardens           Garden[]

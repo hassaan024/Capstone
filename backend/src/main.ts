@@ -5,7 +5,7 @@ import 'dotenv/config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
-  app.setGlobalPrefix('backend');
+  // app.setGlobalPrefix('backend'); // Removed to match frontend expectations
   console.log(`Listening on port ${process.env.BACKEND_PORT ?? 3000}`);
   await app.listen(process.env.BACKEND_PORT ?? 3000);
 }

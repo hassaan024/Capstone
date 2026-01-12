@@ -7,10 +7,12 @@ import { PlantInstanceModule } from './plant-instance/plant-instance.module';
 import { SpeciesModule } from './species/species.module';
 import { SoilModule } from './soil/soil.module';
 import { DatabaseModule } from './database/database.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     DatabaseModule,
+    AuthModule,
     UserModule,
     GardenModule,
     PlantInstanceModule,

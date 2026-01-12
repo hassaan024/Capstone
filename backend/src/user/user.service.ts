@@ -17,7 +17,7 @@ export class UserService {
       return await this.db.user.create({
         data: {
           ...createUserDto,
-          passwordHash: createUserDto.passwordHash ?? '',
+          password: createUserDto.password ?? undefined,
         },
       });
     } catch (err: unknown) {
