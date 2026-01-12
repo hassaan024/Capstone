@@ -205,16 +205,23 @@ const LoginPage: React.FC = () => {
               </div>
 
               <div className="leafy-login-buttons">
+                <button type="submit" className="ll-btn ll-btn-primary">
+                  Log In
+                </button>
+
+                <div className="leafy-login-divider">Or continue with</div>
+
                 <button
                   type="button"
-                  className="ll-btn ll-btn-primary leafy-login-google-btn"
+                  className="ll-btn ll-btn-ghost leafy-login-google-btn"
+                  style={{ border: "1px solid rgba(148, 163, 184, 0.4)" }}
                   onClick={() => handleGoogleLogin()}
                 >
                     <img
                       src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                       alt="Google logo"
                     />
-                    Continue with Google
+                    Google
                 </button>
 
                 <button
@@ -229,7 +236,7 @@ const LoginPage: React.FC = () => {
           ) : (
             /* REGISTER FORM */
             <form className="leafy-login-form" onSubmit={handleRegister}>
-              <div style={{ display: "flex", gap: "10px" }}>
+              <div className="leafy-login-row-split">
                 <input
                   className="leafy-login-input"
                   type="text"
@@ -266,7 +273,7 @@ const LoginPage: React.FC = () => {
 
               <div className="leafy-login-buttons">
                 <button type="submit" className="ll-btn ll-btn-primary">
-                  Sign Up
+                  Create Account
                 </button>
 
                 <button

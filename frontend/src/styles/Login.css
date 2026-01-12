@@ -434,6 +434,31 @@
   border-style: dashed;
 }
 
+/* New layout helpers */
+.leafy-login-row-split {
+  display: flex;
+  gap: 12px;
+}
+
+.leafy-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ll-text-muted);
+  font-size: 12px;
+  margin: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.leafy-login-divider::before,
+.leafy-login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.2);
+}
+
 /* ===========================
    RESPONSIVE
    =========================== */
