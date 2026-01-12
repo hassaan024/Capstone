@@ -1,28 +1,80 @@
 // src/pages/LoginPage.tsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useGoogleLogin } from "@react-oauth/google";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const [isRegistering, setIsRegistering] = React.useState(false);
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
 
-  // Placeholder: later this will trigger your real OAuth redirect
-  const handleGoogleLogin = () => {
-    console.log("Google OAuth login clicked");
-    // window.location.href = "https://your-oauth-endpoint"; // later
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (codeResponse) => {
+        console.log("Google Login Success:", codeResponse);
+        try {
+            const res = await fetch("http://localhost:3000/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: codeResponse.access_token }), // Adjust depending on flow (id_token vs access_token)
+            });
+            const data = await res.json();
+            console.log("Backend response:", data);
+        } catch (err) {
+            console.error("Backend error:", err);
+        }
+    },
+    onError: (error) => console.log("Google Login Failed:", error),
+  });
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Registering:", { email, firstName, lastName });
+    try {
+        const res = await fetch("http://localhost:3000/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password, firstName, lastName }),
+        });
+        const data = await res.json();
+        console.log("Registration response:", data);
+        if (res.ok) {
+            alert("Account created! Please log in.");
+            setIsRegistering(false);
+        } else {
+            alert("Registration failed: " + data.message);
+        }
+    } catch (err) {
+        console.error("Registration error:", err);
+    }
   };
 
-  const handleEmailLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Email/password sign-in (UI only for now)");
+    console.log("Logging in:", email);
+    try {
+        const res = await fetch("http://localhost:3000/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        console.log("Login response:", data);
+         if (res.ok) {
+            alert("Login successful!");
+            // set user context, redirect...
+        } else {
+            alert("Login failed: " + (data.message || "Unknown error"));
+        }
+    } catch (err) {
+        console.error("Login error:", err);
+    }
   };
 
   const handleForgotPassword = () => {
     console.log("Forgot password clicked (UI only for now)");
-  };
-
-  const handleCreateAccount = () => {
-    console.log("Create account clicked (UI only for now)");
-    // Later: navigate("/signup") or trigger signup flow
   };
 
   return (
@@ -112,7 +164,9 @@ const LoginPage: React.FC = () => {
         <div className="leafy-login-card">
           {/* Heading + Learn more */}
           <div className="leafy-login-header-row">
-            <div className="leafy-login-header-title">Sign in</div>
+            <div className="leafy-login-header-title">
+              {isRegistering ? "Create Account" : "Sign in"}
+            </div>
             <button
               type="button"
               className="leafy-login-header-link"
@@ -122,56 +176,109 @@ const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Form: email → password → forgot → Google → create */}
-          <form className="leafy-login-form" onSubmit={handleEmailLogin}>
-            {/* 1. Email */}
-            <input
-              className="leafy-login-input"
-              type="email"
-              placeholder="Email"
-            />
+          {!isRegistering ? (
+            /* LOGIN FORM */
+            <form className="leafy-login-form" onSubmit={handleEmailLogin}>
+              <input
+                className="leafy-login-input"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <input
+                className="leafy-login-input"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
 
-            {/* 2. Password */}
-            <input
-              className="leafy-login-input"
-              type="password"
-              placeholder="Password"
-            />
+              <div className="leafy-login-forgot-row">
+                <button
+                  type="button"
+                  className="leafy-login-forgot-btn"
+                  onClick={handleForgotPassword}
+                >
+                  Forgot password?
+                </button>
+              </div>
 
-            {/* 3. Forgot password */}
-            <div className="leafy-login-forgot-row">
-              <button
-                type="button"
-                className="leafy-login-forgot-btn"
-                onClick={handleForgotPassword}
-              >
-                Forgot password?
-              </button>
-            </div>
+              <div className="leafy-login-buttons">
+                <button
+                  type="button"
+                  className="ll-btn ll-btn-primary leafy-login-google-btn"
+                  onClick={() => handleGoogleLogin()}
+                >
+                    <img
+                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                      alt="Google logo"
+                    />
+                    Continue with Google
+                </button>
 
-            {/* 4 + 5. Google + Create account buttons */}
-            <div className="leafy-login-buttons">
-              <button
-                type="button"
-                className="ll-btn ll-btn-primary leafy-login-google-btn"
-                onClick={handleGoogleLogin}
-              >
-                <img
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google logo"
+                <button
+                  type="button"
+                  className="ll-btn ll-btn-ghost leafy-login-create-btn"
+                  onClick={() => setIsRegistering(true)}
+                >
+                  Create account
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* REGISTER FORM */
+            <form className="leafy-login-form" onSubmit={handleRegister}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <input
+                  className="leafy-login-input"
+                  type="text"
+                  placeholder="First Name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
                 />
-                Continue with Google
-              </button>
+                <input
+                  className="leafy-login-input"
+                  type="text"
+                  placeholder="Last Name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+              <input
+                className="leafy-login-input"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <input
+                className="leafy-login-input"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
 
-              <button
-                type="button"
-                className="ll-btn ll-btn-ghost leafy-login-create-btn"
-                onClick={handleCreateAccount}
-              >
-                Create account
-              </button>
-            </div>
-          </form>
+              <div className="leafy-login-buttons">
+                <button type="submit" className="ll-btn ll-btn-primary">
+                  Sign Up
+                </button>
+
+                <button
+                  type="button"
+                  className="ll-btn ll-btn-ghost"
+                  onClick={() => setIsRegistering(false)}
+                >
+                  Back to Login
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

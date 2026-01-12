@@ -1,20 +1,20 @@
 // src/index.tsx
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App";
-import "../public/css/global.css";
-import "../public/css/LandingPage.css";
-import "../public/css/Login.css";
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import { GoogleOAuthProvider } from '@react-oauth/google'
+import 'bootstrap/dist/css/bootstrap.min.css'
+import "./styles/global.css";
+import "./styles/LandingPage.css";
+import "./styles/Login.css";
+import App from './App'
 
-const root = ReactDOM.createRoot(
-  document.getElementById("root") as HTMLElement
-);
-
-root.render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID_HERE">
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </GoogleOAuthProvider>
+  </StrictMode>,
 );
