@@ -1,19 +1,94 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  displayName       String
+  passwordHash      String?
+  creationTimestamp DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+  gardens           Garden[]
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String?  // Optional for Google Auth users
-  firstName String?
-  lastName  String?
-  provider  String   @default("local") // "local" or "google"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Garden {
+  id                Int             @id @default(autoincrement())
+  ownerId           Int
+  name              String
+  description       String?
+  latitude          Float
+  longitude         Float
+  timezone          String?
+  creationTimestamp DateTime        @default(now())
+  lastUpdated       DateTime        @updatedAt
+  owner             User            @relation(fields: [ownerId], references: [id])
+  plants            PlantInstance[]
+}
+
+model PlantInstance {
+  id                Int      @id @default(autoincrement())
+  gardenId          Int
+  speciesId         Int
+  soilId            Int
+  heightCm          Float?   // height in cm, optional
+  ageDays           Int?     // age of plant in days, optional
+  healthStatus      HealthStatus?  
+  lastWatered       DateTime? 
+  notes             String?  // any notes
+  creationTimestamp DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+  garden            Garden   @relation(fields: [gardenId], references: [id])
+  soil              Soil     @relation(fields: [soilId], references: [id])
+  species           Species  @relation(fields: [speciesId], references: [id])
+}
+
+model Species {
+  id             Int             @id @default(autoincrement())
+  commonName     String          @unique
+  scientificName String          @unique
+  growthRate     Float
+  bloomRate      Float?
+  witherRate     Float?
+  minTemp        Float?
+  maxTemp        Float?
+  minHumidity    Float?
+  maxHumidity    Float?
+  avgHoursSun    Float?
+  imgSrcUrl      String?
+  notes          String?
+  plantInstances PlantInstance[]
+}
+
+model Soil {
+  id                Int             @id @default(autoincrement())
+  nitrogen          Float
+  phosphorus        Float
+  potassium         Float
+  pH                Float
+  organicPercentage Float?
+  type              SoilType
+  plantInstances    PlantInstance[]
+}
+
+enum HealthStatus {
+  Healthy
+  Wilting
+  Sick
+  Dead
+  NeedsWater
+}
+
+enum SoilType {
+  LOAM
+  SANDY
+  CLAY
+  SILT
+  PEAT
+  CHALK
 }
