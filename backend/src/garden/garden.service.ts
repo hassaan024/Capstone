@@ -1,29 +1,83 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateGardenDto } from './dto/create-garden.dto';
 import { UpdateGardenDto } from './dto/update-garden.dto';
 import { DatabaseService } from 'database/database.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class GardenService {
   constructor(private readonly db: DatabaseService) {}
 
-  create(createGardenDto: CreateGardenDto) {
-    return 'This action adds a new garden';
+  async create(createGardenDto: CreateGardenDto) {
+    try {
+      return await this.db.garden.create({
+        data: {
+          description: createGardenDto.description ?? '',
+          timezone: createGardenDto.timezone ?? undefined,
+          ...createGardenDto,
+        },
+      });
+    } catch (err: unknown) {
+      // Narrow to PrismaClientKnownRequestError
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2003') {
+          throw new BadRequestException(
+            `Invalid ownerId: ${createGardenDto.ownerId} does not exist`,
+          );
+        }
+      }
+      throw new BadRequestException((err as Error).message ?? 'Unknown error');
+    }
   }
 
   findAll() {
-    return `This action returns all garden`;
+    return this.db.garden.findMany();
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} garden`;
+    return this.db.garden.findUnique({
+      where: {
+        id: id,
+      },
+    });
   }
 
-  update(id: number, updateGardenDto: UpdateGardenDto) {
-    return `This action updates a #${id} garden`;
+  async update(id: number, updateGardenDto: UpdateGardenDto) {
+    try {
+      return await this.db.garden.update({
+        where: { id },
+        data: updateGardenDto,
+      });
+    } catch (err: unknown) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Garden with id ${id} not found`);
+      }
+      throw new BadRequestException((err as Error).message ?? 'Unknown error');
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} garden`;
+  async remove(id: number) {
+    try {
+      return await this.db.garden.delete({
+        where: {
+          id: id,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Garden with id ${id} not found`);
+      }
+      throw new BadRequestException((err as Error).message ?? 'Unknown error');
+    }
   }
 }

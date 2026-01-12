@@ -11,7 +11,7 @@ model User {
   id                Int      @id @default(autoincrement())
   email             String   @unique
   displayName       String
-  passwordHash      String
+  passwordHash      String?
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
   gardens           Garden[]
@@ -21,7 +21,7 @@ model Garden {
   id                Int             @id @default(autoincrement())
   ownerId           Int
   name              String
-  description       String
+  description       String?
   latitude          Float
   longitude         Float
   timezone          String?
@@ -36,6 +36,11 @@ model PlantInstance {
   gardenId          Int
   speciesId         Int
   soilId            Int
+  heightCm          Float?   // height in cm, optional
+  ageDays           Int?     // age of plant in days, optional
+  healthStatus      HealthStatus?  
+  lastWatered       DateTime? 
+  notes             String?  // any notes
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
   garden            Garden   @relation(fields: [gardenId], references: [id])
@@ -69,6 +74,14 @@ model Soil {
   organicPercentage Float?
   type              SoilType
   plantInstances    PlantInstance[]
+}
+
+enum HealthStatus {
+  Healthy
+  Wilting
+  Sick
+  Dead
+  NeedsWater
 }
 
 enum SoilType {
