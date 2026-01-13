@@ -149,10 +149,10 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="leafy-login-bottom-hint">
+            {/* <div className="leafy-login-bottom-hint">
               Visual simulation runs in Unreal Engine. LeafyLedger keeps the
               numbers behind it honest.
-            </div>
+            </div> */}
           </div>
         </div>
 
