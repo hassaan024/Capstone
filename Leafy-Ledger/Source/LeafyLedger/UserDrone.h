@@ -1,0 +1,41 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Character.h"
+#include "UserDrone.generated.h"
+
+class APlant;
+class AUserDroneController;
+
+UCLASS()
+class LEAFYLEDGER_API AUserDrone : public ACharacter
+{
+	GENERATED_BODY()
+
+public:
+	// Sets default values for this character's properties
+	AUserDrone();
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+	void MoveForward(float Value);
+	void MoveRight(float Value);
+	void LeftMouse();
+
+	UPROPERTY(BlueprintReadWrite)
+	TSubclassOf<APlant> SelectedPlant;
+	AUserDroneController* PC;
+
+	FVector GetMouseRaycast();
+public:	
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+};
