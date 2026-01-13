@@ -6,6 +6,9 @@
 #include "GameFramework/Character.h"
 #include "UserDrone.generated.h"
 
+class APlant;
+class AUserDroneController;
+
 UCLASS()
 class LEAFYLEDGER_API AUserDrone : public ACharacter
 {
@@ -21,7 +24,13 @@ protected:
 
 	void MoveForward(float Value);
 	void MoveRight(float Value);
+	void LeftMouse();
 
+	UPROPERTY(BlueprintReadWrite)
+	TSubclassOf<APlant> SelectedPlant;
+	AUserDroneController* PC;
+
+	FVector GetMouseRaycast();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
