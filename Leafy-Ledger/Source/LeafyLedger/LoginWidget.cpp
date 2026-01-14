@@ -9,12 +9,12 @@ bool ULoginWidget::Initialize()
 
     if (BTN_Login)
     {
-        BTN_Login->OnClicked.AddDynamic(this, &ULoginWidget::OnContinue);
+        BTN_Login->OnClicked.AddDynamic(this, &ULoginWidget::OnPress);
     }
     return true;
 }
 
-void ULoginWidget::OnContinue()
+void ULoginWidget::OnPress()
 {
     if (UGameInstance* GI = GetGameInstance())
     {

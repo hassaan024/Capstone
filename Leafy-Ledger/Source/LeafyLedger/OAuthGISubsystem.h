@@ -46,7 +46,7 @@ public:
 
     bool IsLoggedIn() const { return bLoggedIn; }
 
-    // Call this once your OAuth callback exchange finishes successfully
+    // Called once OAuth callback exchange finishes successfully
     void MarkLoginSucceeded()
     {
         bLoggedIn = true;
@@ -61,8 +61,9 @@ public:
 
 private:
     // Config
+    // These should be obfuscated later
     FString ClientId = TEXT("1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com");
-    FString ClientSecret = TEXT("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"); // OK for prototyping; see note below.
+    FString ClientSecret = TEXT("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");
     FString Scope = TEXT("openid email profile");
 
     // Loopback listener state
@@ -83,33 +84,3 @@ private:
 
     bool bLoggedIn = false;
 };
-
-
-
-//UCLASS()
-//class YOURPROJECT_API UYourGoogleAuthSubsystem : public UGameInstanceSubsystem
-//{
-//    GENERATED_BODY()
-//
-//public:
-//    FOnLoginSucceeded OnLoginSucceeded;
-//    FOnLoginFailed OnLoginFailed;
-//
-//    bool IsLoggedIn() const { return bLoggedIn; }
-//
-//    // Call this once your OAuth callback exchange finishes successfully
-//    void MarkLoginSucceeded()
-//    {
-//        bLoggedIn = true;
-//        OnLoginSucceeded.Broadcast();
-//    }
-//
-//    void MarkLoginFailed(const FString& Error)
-//    {
-//        bLoggedIn = false;
-//        OnLoginFailed.Broadcast(Error);
-//    }
-//
-//private:
-//    bool bLoggedIn = false;
-//};

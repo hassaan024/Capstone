@@ -18,7 +18,6 @@ void AMenuController::BeginPlay()
     Auth->OnLoginSucceeded.AddUObject(this, &AMenuController::ShowMainMenu);
     Auth->OnLoginFailed.AddUObject(this, &AMenuController::HandleLoginFailed);
 
-
     // Initial screen
     if (Auth->IsLoggedIn())
     {

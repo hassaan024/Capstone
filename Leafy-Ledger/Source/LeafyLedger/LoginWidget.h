@@ -25,5 +25,5 @@ protected:
     UButton* BTN_Login;
 
     UFUNCTION()
-    void OnContinue();
+    void OnPress();
 };

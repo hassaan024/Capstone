@@ -106,7 +106,7 @@ void UOAuthGISubsystem::StopLoopbackListener()
 
 void UOAuthGISubsystem::OpenSystemBrowser(const FString& AuthUrl)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Google Auth URL:\n%s"), *AuthUrl);
+    UE_LOG(LogTemp, Warning, TEXT("Google Auth Url:\n%s"), *AuthUrl);
 
     // Opens user’s default browser (Windows)
     FPlatformProcess::LaunchURL(*AuthUrl, nullptr, nullptr);
