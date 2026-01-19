@@ -7,3 +7,7 @@
   2- run docker build in the package.json (npm run docker:build)
   3- migrate a version of the prisma schema to the database container (npm run docker:migrate)
   4- look at docker logs running on the backend container (npm run docker:logs)
+
+NOTE: after the intial build and migrate you can just do this
+  1- run (npm run docker:up) # this just chains the build in the background and the logs
+
