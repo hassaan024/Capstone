@@ -41,10 +41,6 @@ export class DatabaseService
 
     console.log(`USING THIS CONNECTION URL ${connection_url}`);
 
-    // Use the Postgres adapter so Prisma Client can execute queries without a Rust engine
-    // const adapter: PrismaPostgresAdapter = new PrismaPostgresAdapter({
-    //   connectionString: connection_url,
-    // });
     super();
     this.tableMap = {
       User: this.user,

@@ -6,6 +6,13 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "docker:clear_database": "docker compose down -v",
+    "docker:build": "docker compose up -d",
+    "docker:rebuild": "docker compose up --build",
+    "docker:log": "docker compose logs -f backend",
+    "docker:status:linux": "sudo systemctl status docker",
+    "docker:status:other": "docker info",
+    "docker:migrate": "docker compose exec backend npm run migrate",
     "generate": "npx prisma generate",
     "migrate": "npx prisma migrate dev",
     "start": "nest start",
