@@ -7,6 +7,8 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import "./styles/global.css";
 import "./styles/LandingPage.css";
 import "./styles/Login.css";
+import "./styles/Dashboard.css";
+import "./styles/Settings.css";
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(
