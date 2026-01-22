@@ -130,19 +130,19 @@ const Settings: React.FC = () => {
 
       <div className="settings-container">
         <header className="settings-header">
+          <div className="settings-header-title">
+            <span style={{ fontSize: '1.2rem' }}>⚙️</span>
+            Account Settings
+          </div>
           <button 
             onClick={() => navigate("/dashboard")} 
             className="settings-back-btn"
           >
-            ← Back to Dashboard
+            Back to Dashboard
           </button>
         </header>
 
         <div className="settings-content">
-          <div className="settings-title-section">
-            <h1 className="settings-title">Account Settings</h1>
-            <p className="settings-subtitle">Manage your account preferences</p>
-          </div>
 
           {/* Account Info - Read Only */}
           <div className="settings-card">
