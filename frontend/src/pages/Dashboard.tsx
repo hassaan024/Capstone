@@ -93,7 +93,10 @@ const Dashboard: React.FC = () => {
                 <span className="dashboard-action-icon">📊</span>
                 View Analytics
               </button>
-              <button className="ll-btn ll-btn-ghost dashboard-action-btn">
+              <button 
+                className="ll-btn ll-btn-ghost dashboard-action-btn"
+                onClick={() => navigate('/browse')}
+              >
                 <span className="dashboard-action-icon">🌱</span>
                 Browse Species
               </button>

@@ -2,15 +2,30 @@
 export const API_BASE_URL = 'http://localhost:4000/backend';
 
 // API helper functions
-export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
+// API helper functions
+const get = async (url: string) => {
+  const response = await fetch(`${API_BASE_URL}${url}`);
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.statusText}`);
+  }
+  return { data: await response.json() };
+};
+
+const post = async (url: string, body: any) => {
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
     },
-    ...options,
+    body: JSON.stringify(body),
   });
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.statusText}`);
+  }
+  return { data: await response.json() };
+};
 
-  return response;
+export const api = { get, post };
+export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    return fetch(`${API_BASE_URL}${endpoint}`, options);
 };
