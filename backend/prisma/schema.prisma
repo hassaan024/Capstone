@@ -62,6 +62,8 @@ model Species {
   avgHoursSun    Float?
   imgSrcUrl      String?
   notes          String?
+  trefleId       Int?            @unique // ID from Trefle API
+  wateringFreq   String?         // e.g., "Frequent", "Average", "Minimum"
   plantInstances PlantInstance[]
 }
 
