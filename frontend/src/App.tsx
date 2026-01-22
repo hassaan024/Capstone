@@ -5,6 +5,7 @@ import { AuthProvider } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
+import BrowseSpecies from "./pages/BrowseSpecies";
 import Settings from "./pages/Settings";
 
 const App: React.FC = () => {
@@ -14,6 +15,7 @@ const App: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/browse" element={<BrowseSpecies />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </AuthProvider>

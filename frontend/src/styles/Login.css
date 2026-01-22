@@ -417,6 +417,10 @@
   margin-top: 4px;
 }
 
+.leafy-login-buttons .ll-btn {
+  justify-content: center;
+}
+
 .leafy-login-google-btn {
   width: 100%;
   justify-content: center;

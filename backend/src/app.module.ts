@@ -1,26 +1,25 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { UserModule } from './user/user.module';
-import { GardenModule } from './garden/garden.module';
-import { PlantInstanceModule } from './plant-instance/plant-instance.module';
-import { SpeciesModule } from './species/species.module';
-import { SoilModule } from './soil/soil.module';
-import { DatabaseModule } from './database/database.module';
-import { AuthModule } from './auth/auth.module';
+import { AppController } from './app.controller.js';
+import { AppService } from './app.service.js';
+import { DatabaseModule } from 'database/database.module';
+import { UserModule } from './user/user.module.js';
+import { GardenModule } from './garden/garden.module.js';
+import { SoilModule } from './soil/soil.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { TrefleModule } from './trefle/trefle.module.js';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     UserModule,
-    AuthModule,
     GardenModule,
-    PlantInstanceModule,
-    SpeciesModule,
     SoilModule,
+    AuthModule,
+    TrefleModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
-
