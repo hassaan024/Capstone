@@ -3,7 +3,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE_URL } from "../utils/api";
+import { BACKEND_BASE_URL, GOOGLE_OAUTH_CLIENT_ID} from "../utils/constants";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,18 +24,20 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (codeResponse) => {
-        console.log("Google Login Success:", codeResponse);
+    flow: 'auth-code', // tells it to return a authentication code for the backend to exchange with a token
+    onSuccess: async ({ code }) => {
+        console.log("User granted permission throught google.");
+        console.log(code)
         try {
-            const res = await fetch(`${API_BASE_URL}/auth/google`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: codeResponse.access_token }),
-            });
-            const data = await res.json();
-            console.log("Backend response:", data);
+          const res = await fetch(`${BACKEND_BASE_URL}/auth/google/react`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+          });
+          const userData = await res.json();
+          console.log("Logged-in user through google:", userData);
         } catch (err) {
-            console.error("Backend error:", err);
+            console.error("Error hitting backend oauth endpoint:", err);
         }
     },
     onError: (error) => console.log("Google Login Failed:", error),
@@ -59,7 +61,7 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-        const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        const res = await fetch(`${BACKEND_BASE_URL}/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, firstName, lastName }),
@@ -93,7 +95,7 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-        const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        const res = await fetch(`${BACKEND_BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),

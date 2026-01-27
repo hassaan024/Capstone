@@ -15,6 +15,13 @@ model User {
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
   gardens           Garden[]
+  // stuff from google
+  googleId          String? @unique
+  verifiedEmail     Boolean?
+  googleDisplayName String? 
+  givenName         String?
+  familyName        String?
+  picture           String?
 }
 
 model Garden {

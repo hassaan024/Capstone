@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run free_port && vite",
+    "free_port": "fuser -k 5173/tcp 2>/dev/null || true",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

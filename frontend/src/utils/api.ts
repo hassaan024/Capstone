@@ -1,10 +1,9 @@
-// API configuration
-export const API_BASE_URL = 'http://localhost:4000/backend';
+import { BACKEND_BASE_URL } from "./constants";
 
 // API helper functions
 // API helper functions
 const get = async (url: string) => {
-  const response = await fetch(`${API_BASE_URL}${url}`);
+  const response = await fetch(`${BACKEND_BASE_URL}${url}`);
   if (!response.ok) {
     throw new Error(`API Error: ${response.statusText}`);
   }
@@ -12,7 +11,7 @@ const get = async (url: string) => {
 };
 
 const post = async (url: string, body: any) => {
-  const response = await fetch(`${API_BASE_URL}${url}`, {
+  const response = await fetch(`${BACKEND_BASE_URL}${url}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -27,5 +26,5 @@ const post = async (url: string, body: any) => {
 
 export const api = { get, post };
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-    return fetch(`${API_BASE_URL}${endpoint}`, options);
+    return fetch(`${BACKEND_BASE_URL}${endpoint}`, options);
 };
