@@ -2,6 +2,7 @@
 
 
 #include "MenuController.h"
+#include "OAuthGISubsystem.h"
 
 void AMenuController::BeginPlay()
 {

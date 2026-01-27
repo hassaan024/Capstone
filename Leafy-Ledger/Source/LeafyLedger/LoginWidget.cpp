@@ -2,6 +2,8 @@
 
 
 #include "LoginWidget.h"
+#include "OAuthGISubsystem.h" 
+#include "Kismet/GameplayStatics.h"
 
 bool ULoginWidget::Initialize()
 {
