@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE_URL } from "../utils/api";
+import { BACKEND_BASE_URL } from "../utils/constants";
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ const Settings: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/user/${user.id}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}/user/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName }),
@@ -71,7 +71,7 @@ const Settings: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      const res = await fetch(`${BACKEND_BASE_URL}/auth/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -103,7 +103,7 @@ const Settings: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/user/${user.id}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}/user/${user.id}`, {
         method: "DELETE",
       });
       

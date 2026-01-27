@@ -10,6 +10,10 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+    command: npm run start:dev
 
   postgres_db:
     image: postgres:16-alpine
