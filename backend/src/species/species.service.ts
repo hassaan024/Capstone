@@ -7,10 +7,91 @@ import { CreateSpeciesDto } from './dto/create-species.dto';
 import { UpdateSpeciesDto } from './dto/update-species.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
+import { TrefleService } from '../trefle/trefle.service.js';
 
 @Injectable()
 export class SpeciesService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly trefleService: TrefleService,
+  ) {}
+
+  async saveSpecies(userId: number, trefleId: number) {
+    // 1. Check if species exists in our DB
+    let species = await this.db.species.findUnique({
+      where: { trefleId },
+    });
+
+    // 2. If not, fetch from Trefle and create it
+    if (!species) {
+      const trefleData = await this.trefleService.getDetails(trefleId);
+      if (!trefleData || !trefleData.data) {
+        throw new NotFoundException(`Species with trefleId ${trefleId} not found in Trefle`);
+      }
+      const plant = trefleData.data;
+
+      // Map Trefle data to our schema
+      // Note: We are using safe defaults or nulls for missing data
+      species = await this.db.species.create({
+        data: {
+          commonName: plant.common_name || plant.scientific_name,
+          scientificName: plant.scientific_name,
+          trefleId: plant.id,
+          imgSrcUrl: plant.image_url,
+          growthRate: 0.0, // Default placeholders as Trefle might not have these specific numeric rates
+          bloomRate: 0.0,
+          witherRate: 0.0,
+          wateringFreq: 'Average',
+        },
+      });
+    }
+
+    // 3. Connect to user
+    await this.db.user.update({
+      where: { id: userId },
+      data: {
+        savedSpecies: {
+          connect: { id: species.id },
+        },
+      },
+    });
+
+    return { message: 'Species saved successfully', species };
+  }
+
+  async unsaveSpecies(userId: number, trefleId: number) {
+    const species = await this.db.species.findUnique({
+      where: { trefleId },
+    });
+
+    if (!species) {
+      throw new NotFoundException('Species not found in database');
+    }
+
+    await this.db.user.update({
+      where: { id: userId },
+      data: {
+        savedSpecies: {
+          disconnect: { id: species.id },
+        },
+      },
+    });
+
+    return { message: 'Species unsaved successfully' };
+  }
+
+  async getSavedSpecies(userId: number) {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      include: {
+        savedSpecies: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+    return user.savedSpecies;
+  }
+
 
   async create(createSpeciesDto: CreateSpeciesDto) {
     try {

@@ -5,6 +5,8 @@ interface PlantDetailsModalProps {
   plantId: number;
   isOpen: boolean;
   onClose: () => void;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
 }
 
 interface PlantDetails {
@@ -24,15 +26,17 @@ interface PlantDetails {
   };
 }
 
-const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, onClose }) => {
+const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, onClose, isSaved, onToggleSave }) => {
   const [details, setDetails] = useState<PlantDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     if (isOpen && plantId) {
       setLoading(true);
       setError('');
+      setShowInfo(false); // Reset info on open
       api.get(`/trefle/species/${plantId}`)
         .then((res: { data: { data: PlantDetails } }) => {
           setDetails(res.data.data);
@@ -94,6 +98,82 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
                       {growth?.ph_minimum ?? '?'} - {growth?.ph_maximum ?? '?'}
                     </div>
                   </div>
+                </div>
+
+                <div className="modal-actions-wrapper" style={{ marginTop: '2rem' }}>
+                    <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', alignItems: 'center' }}>
+                    
+                    <button
+                        onClick={() => setShowInfo(!showInfo)}
+                        style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '50%',
+                            width: '36px',
+                            height: '36px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'white',
+                            fontSize: '1.2rem'
+                        }}
+                        title="What is this?"
+                    >
+                        ℹ️
+                    </button>
+
+                    <button 
+                        onClick={onToggleSave}
+                        style={{
+                        padding: '0.75rem 1.5rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: isSaved ? '#3b82f6' : '#10b981',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '1rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                    >
+                        <span>{isSaved ? '✅ Saved' : '🔖 Save for Later'}</span>
+                    </button>
+                    </div>
+
+                    {showInfo && (
+                        <div style={{
+                            marginTop: '1rem',
+                            padding: '1rem',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '8px',
+                            color: '#bfdbfe',
+                            fontSize: '0.9rem',
+                            position: 'relative',
+                            animation: 'fadeIn 0.2s ease-out'
+                        }}>
+                            <button 
+                                onClick={() => setShowInfo(false)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '0.5rem',
+                                    right: '0.5rem',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#bfdbfe',
+                                    cursor: 'pointer',
+                                    fontSize: '1rem'
+                                }}
+                            >
+                                ✕
+                            </button>
+                            <strong>Save for Later:</strong> Collecting plants here allows you to easily access them when you open the garden planner in Unreal Engine. Build your dream palette!
+                        </div>
+                    )}
                 </div>
               </div>
             </div>

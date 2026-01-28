@@ -7,6 +7,7 @@ import { GardenModule } from './garden/garden.module.js';
 import { SoilModule } from './soil/soil.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TrefleModule } from './trefle/trefle.module.js';
+import { SpeciesModule } from './species/species.module.js';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -18,6 +19,7 @@ import { ConfigModule } from '@nestjs/config';
     SoilModule,
     AuthModule,
     TrefleModule,
+    SpeciesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

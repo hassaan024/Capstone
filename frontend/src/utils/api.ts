@@ -24,7 +24,17 @@ const post = async (url: string, body: any) => {
   return { data: await response.json() };
 };
 
-export const api = { get, post };
+const del = async (url: string) => {
+  const response = await fetch(`${BACKEND_BASE_URL}${url}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.statusText}`);
+  }
+  return { data: await response.json() };
+};
+
+export const api = { get, post, del };
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     return fetch(`${BACKEND_BASE_URL}${endpoint}`, options);
 };
