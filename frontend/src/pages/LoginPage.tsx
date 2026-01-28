@@ -34,10 +34,19 @@ const LoginPage: React.FC = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code }),
           });
-          const userData = await res.json();
-          console.log("Logged-in user through google:", userData);
+          const data = await res.json();
+          
+          if (res.ok) {
+            console.log("Logged-in user through google:", data);
+            login(data.user);
+            navigate("/dashboard");
+          } else {
+             console.error("Backend login failed:", data);
+             setMessage({ type: 'error', text: data.message || 'Google login failed' });
+          }
         } catch (err) {
             console.error("Error hitting backend oauth endpoint:", err);
+            setMessage({ type: 'error', text: 'Could not connect to server' });
         }
     },
     onError: (error) => console.log("Google Login Failed:", error),
