@@ -26,6 +26,8 @@ interface PlantDetails {
   };
 }
 
+import { FaSun, FaTint, FaThermometerHalf, FaFlask, FaInfoCircle, FaCheck, FaBookmark, FaRegBookmark, FaTimes } from 'react-icons/fa';
+
 const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, onClose, isSaved, onToggleSave }) => {
   const [details, setDetails] = useState<PlantDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close-btn" onClick={onClose}>&times;</button>
+        <button className="modal-close-btn" onClick={onClose}><FaTimes /></button>
         
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'white' }}>Loading plant data...</div>
@@ -79,21 +81,21 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
 
                 <div className="modal-grid">
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label">☀️ Light (0-10)</div>
+                    <div className="modal-stat-label"><FaSun /> Light (0-10)</div>
                     <div className="modal-stat-value">{growth?.light ?? 'N/A'}</div>
                   </div>
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label">💧 Humidity</div>
+                    <div className="modal-stat-label"><FaTint /> Humidity</div>
                     <div className="modal-stat-value">{growth?.atmospheric_humidity ?? 'N/A'}/10</div>
                   </div>
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label">🌡️ Temp Range</div>
+                    <div className="modal-stat-label"><FaThermometerHalf /> Temp Range</div>
                     <div className="modal-stat-value">
                       {growth?.minimum_temperature?.deg_f ?? '?'}°F - {growth?.maximum_temperature?.deg_f ?? '?'}°F
                     </div>
                   </div>
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label">🧪 Soil pH</div>
+                    <div className="modal-stat-label"><FaFlask /> Soil pH</div>
                     <div className="modal-stat-value">
                       {growth?.ph_minimum ?? '?'} - {growth?.ph_maximum ?? '?'}
                     </div>
@@ -120,7 +122,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
                         }}
                         title="What is this?"
                     >
-                        ℹ️
+                        <FaInfoCircle />
                     </button>
 
                     <button 
@@ -140,7 +142,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }}
                     >
-                        <span>{isSaved ? '✅ Saved' : '🔖 Save for Later'}</span>
+                        <span>{isSaved ? <><FaBookmark /> Saved</> : <><FaRegBookmark /> Save for Later</>}</span>
                     </button>
                     </div>
 
@@ -169,7 +171,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
                                     fontSize: '1rem'
                                 }}
                             >
-                                ✕
+                                <FaTimes />
                             </button>
                             <strong>Save for Later:</strong> Collecting plants here allows you to easily access them when you open the garden planner in Unreal Engine. Build your dream palette!
                         </div>

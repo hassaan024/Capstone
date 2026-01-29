@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import { BACKEND_BASE_URL, GOOGLE_OAUTH_CLIENT_ID} from "../utils/constants";
+import { FaEye, FaEyeSlash, FaSeedling, FaCloudSun, FaCoins } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ const LoginPage: React.FC = () => {
         });
         const data = await res.json();
         
-         if (res.ok) {
+        if (res.ok) {
             setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
             // Store user data and redirect
             login(data.user);
@@ -158,15 +159,15 @@ const LoginPage: React.FC = () => {
 
             <div className="leafy-login-icon-row">
               <div className="leafy-login-icon-pill">
-                <span>🌱</span>
+                <span><FaSeedling /></span>
                 <span>Plant lifetimes</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span>🌦</span>
+                <span><FaCloudSun /></span>
                 <span>Climate tolerance</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span>💰</span>
+                <span><FaCoins /></span>
                 <span>Yearly profit view</span>
               </div>
             </div>

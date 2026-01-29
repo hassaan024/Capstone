@@ -2,6 +2,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch } from 'react-icons/fa';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -34,14 +35,16 @@ const Dashboard: React.FC = () => {
             <button 
               onClick={() => navigate("/settings")} 
               className="ll-btn ll-btn-ghost dashboard-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              ⚙️ Settings
+              <FaCog /> Settings
             </button>
             <button 
               onClick={handleLogout} 
               className="ll-btn ll-btn-ghost dashboard-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              Logout
+              <FaSignOutAlt /> Logout
             </button>
           </div>
         </header>
@@ -49,7 +52,7 @@ const Dashboard: React.FC = () => {
         <main className="dashboard-main">
           <div className="dashboard-welcome">
             <h1 className="dashboard-welcome-title">
-              Welcome back, <span>{user.displayName}</span>! 🌱
+              Welcome back, <span>{user.displayName}</span>! <FaSeedling style={{ display: 'inline', verticalAlign: 'middle' }} />
             </h1>
             <p className="dashboard-welcome-subtitle">
               Manage your gardens and track your plants
@@ -58,7 +61,7 @@ const Dashboard: React.FC = () => {
 
           <div className="dashboard-grid">
             <div className="dashboard-stat-card">
-              <div className="dashboard-stat-icon">🌿</div>
+              <div className="dashboard-stat-icon"><FaLeaf /></div>
               <div className="dashboard-stat-content">
                 <div className="dashboard-stat-value">0</div>
                 <div className="dashboard-stat-label">Gardens</div>
@@ -66,7 +69,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="dashboard-stat-card">
-              <div className="dashboard-stat-icon">🌺</div>
+              <div className="dashboard-stat-icon"><FaSpa /></div>
               <div className="dashboard-stat-content">
                 <div className="dashboard-stat-value">0</div>
                 <div className="dashboard-stat-label">Plants</div>
@@ -74,7 +77,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="dashboard-stat-card">
-              <div className="dashboard-stat-icon">📊</div>
+              <div className="dashboard-stat-icon"><FaChartBar /></div>
               <div className="dashboard-stat-content">
                 <div className="dashboard-stat-value">0</div>
                 <div className="dashboard-stat-label">Species</div>
@@ -86,18 +89,18 @@ const Dashboard: React.FC = () => {
             <h2 className="dashboard-card-title">Quick Actions</h2>
             <div className="dashboard-actions">
               <button className="ll-btn ll-btn-primary dashboard-action-btn">
-                <span className="dashboard-action-icon">🌿</span>
+                <span className="dashboard-action-icon"><FaPlus /></span>
                 Create New Garden
               </button>
               <button className="ll-btn ll-btn-ghost dashboard-action-btn">
-                <span className="dashboard-action-icon">📊</span>
+                <span className="dashboard-action-icon"><FaChartBar /></span>
                 View Analytics
               </button>
               <button 
                 className="ll-btn ll-btn-ghost dashboard-action-btn"
                 onClick={() => navigate('/browse')}
               >
-                <span className="dashboard-action-icon">🌱</span>
+                <span className="dashboard-action-icon"><FaSearch /></span>
                 Browse Species
               </button>
             </div>

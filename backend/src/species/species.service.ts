@@ -32,21 +32,36 @@ export class SpeciesService {
 
       // Map Trefle data to our schema
       // Note: We are using safe defaults or nulls for missing data
-      species = await this.db.species.create({
-        data: {
-          commonName: plant.common_name || plant.scientific_name,
-          scientificName: plant.scientific_name,
-          trefleId: plant.id,
-          imgSrcUrl: plant.image_url,
-          growthRate: 0.0, // Default placeholders as Trefle might not have these specific numeric rates
-          bloomRate: 0.0,
-          witherRate: 0.0,
-          wateringFreq: 'Average',
-        },
-      });
+      // Use try-catch to handle race conditions where species might be created by another request
+      try {
+        species = await this.db.species.create({
+          data: {
+            commonName: plant.common_name || plant.scientific_name,
+            scientificName: plant.scientific_name,
+            trefleId: trefleId,
+            imgSrcUrl: plant.image_url,
+            growthRate: 0.0, // Default placeholders as Trefle might not have these specific numeric rates
+            bloomRate: 0.0,
+            witherRate: 0.0,
+            wateringFreq: 'Average',
+          },
+        });
+      } catch (err) {
+        // If species was created by another request, fetch it
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          species = await this.db.species.findUnique({
+            where: { trefleId },
+          });
+          if (!species) {
+            throw new BadRequestException('Failed to create or find species');
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
-    // 3. Connect to user
+    // 3. Connect to user (use connect in a safe way that won't fail if already connected)
     await this.db.user.update({
       where: { id: userId },
       data: {

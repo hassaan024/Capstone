@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "googleId" TEXT,
+ADD COLUMN IF NOT EXISTS "verifiedEmail" BOOLEAN,
+ADD COLUMN IF NOT EXISTS "googleDisplayName" TEXT,
+ADD COLUMN IF NOT EXISTS "givenName" TEXT,
+ADD COLUMN IF NOT EXISTS "familyName" TEXT,
+ADD COLUMN IF NOT EXISTS "picture" TEXT;
+
+-- CreateIndex
+CREATE UNIQUE INDEX IF NOT EXISTS "User_googleId_key" ON "User"("googleId");

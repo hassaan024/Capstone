@@ -6,6 +6,8 @@ import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
 import { useAuth } from '../context/AuthContext';
 
+import { FaLeaf, FaSearch } from 'react-icons/fa';
+
 const BrowseSpecies: React.FC = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -95,7 +97,7 @@ const BrowseSpecies: React.FC = () => {
         {/* Header */}
         <header className="browse-header">
           <div className="browse-title">
-            <span style={{ fontSize: '1.2rem' }}>🌿</span>
+            <span style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', marginRight: '0.5rem' }}><FaLeaf /></span>
             Browse Plants
           </div>
           <button className="browse-back-btn" onClick={() => navigate('/dashboard')}>
@@ -108,7 +110,7 @@ const BrowseSpecies: React.FC = () => {
         {/* Search & Filter */}
         <section className="browse-search-section">
           <form className="browse-search-bar" onSubmit={handleSearch}>
-            <span className="browse-search-icon">🔍</span>
+            <span className="browse-search-icon"><FaSearch /></span>
             <input 
               type="text" 
               className="browse-search-input" 
