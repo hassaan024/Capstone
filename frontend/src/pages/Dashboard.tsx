@@ -2,7 +2,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch } from 'react-icons/fa';
+import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark } from 'react-icons/fa';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -92,9 +92,12 @@ const Dashboard: React.FC = () => {
                 <span className="dashboard-action-icon"><FaPlus /></span>
                 Create New Garden
               </button>
-              <button className="ll-btn ll-btn-ghost dashboard-action-btn">
-                <span className="dashboard-action-icon"><FaChartBar /></span>
-                View Analytics
+              <button 
+                className="ll-btn ll-btn-ghost dashboard-action-btn"
+                onClick={() => navigate('/saved-species')}
+              >
+                <span className="dashboard-action-icon"><FaBookmark /></span>
+                View Saved Plants
               </button>
               <button 
                 className="ll-btn ll-btn-ghost dashboard-action-btn"
