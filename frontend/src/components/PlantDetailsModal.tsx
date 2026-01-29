@@ -173,7 +173,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
                             >
                                 <FaTimes />
                             </button>
-                            <strong>Save for Later:</strong> Collecting plants here allows you to easily access them when you open the garden planner in Unreal Engine. Build your dream palette!
+                            Save plants for later to easily access and add them when you open the garden planner in Unreal Engine.
                         </div>
                     )}
                 </div>

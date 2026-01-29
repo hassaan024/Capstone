@@ -82,8 +82,6 @@ const LoginPage: React.FC = () => {
             setMessage({ type: 'success', text: 'Account created! Please log in.' });
             setIsRegistering(false);
             // Clear form fields
-            setEmail("");
-            setPassword("");
             setConfirmPassword("");
             setFirstName("");
             setLastName("");
@@ -232,6 +230,8 @@ const LoginPage: React.FC = () => {
               <input
                 className="leafy-login-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -316,6 +316,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type="text"
+                  name="firstName"
+                  autoComplete="given-name"
                   placeholder="First Name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -324,6 +326,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type="text"
+                  name="lastName"
+                  autoComplete="family-name"
                   placeholder="Last Name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -334,6 +338,8 @@ const LoginPage: React.FC = () => {
               <input
                 className="leafy-login-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -344,6 +350,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="new-password"
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -362,6 +370,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  autoComplete="new-password"
                   placeholder="Confirm Password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -387,7 +397,11 @@ const LoginPage: React.FC = () => {
                 <button 
                   type="submit" 
                   className="ll-btn ll-btn-primary"
-                  disabled={isLoading}
+                  disabled={isLoading || !password || !confirmPassword || password !== confirmPassword}
+                  style={{ 
+                    opacity: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 0.7 : 1, 
+                    cursor: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 'not-allowed' : 'pointer' 
+                  }}
                 >
                   {isLoading ? 'Creating...' : 'Create Account'}
                 </button>
