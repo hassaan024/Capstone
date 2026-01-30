@@ -260,15 +260,16 @@ export class AuthService {
 
     // Map to DTO
     const userDto: UpdateUserDto = {
+      id: user.id,
       email: user.email,
       displayName: user.displayName,
       passwordHash: user.passwordHash ?? undefined,
-      googleId: user.googleId as string | undefined,
-      verifiedEmail: user.verifiedEmail as boolean | undefined,
-      googleDisplayName: user.googleDisplayName as string | undefined,
-      givenName: user.givenName as string | undefined,
-      familyName: user.familyName as string | undefined,
-      picture: user.picture as string | undefined,
+      googleId: user.googleId,
+      verifiedEmail: user.verifiedEmail,
+      googleDisplayName: user.googleDisplayName,
+      givenName: user.givenName,
+      familyName: user.familyName,
+      picture: user.picture,
     };
 
     return userDto;

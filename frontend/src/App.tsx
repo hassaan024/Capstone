@@ -4,7 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
+import { Dashboard } from "./pages/Dashboard";
 import BrowseSpecies from "./pages/BrowseSpecies";
 import SavedSpecies from "./pages/SavedSpecies";
 import Settings from "./pages/Settings";

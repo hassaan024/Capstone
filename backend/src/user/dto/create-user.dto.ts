@@ -3,7 +3,7 @@ import {
   IsOptional,
   IsString,
   IsBoolean,
-  IsInt,
+  IsNumber,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -16,6 +16,19 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   passwordHash?: string;
+
+  // stuff for the web users
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 8 })
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 8 })
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
 
   // Google OAuth fields
   @IsOptional()

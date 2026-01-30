@@ -1,12 +1,20 @@
 // src/pages/Dashboard.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark } from 'react-icons/fa';
+import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark, FaMapMarkerAlt, FaCompass } from 'react-icons/fa';
+import { BACKEND_BASE_URL, countries } from "../utils/constants";
+import { validatePostalCode } from "../utils/helper_functions";
+import { fetchLongLatFromZipAndCountry } from "../utils/api";
+import { sendLocationToBackend } from "../utils/backend_api";
 
-const Dashboard: React.FC = () => {
+export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [zip, setZip] = useState("");
+  const [country, setCountry] = useState("US");
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [error, setError] = useState("");
 
   // Redirect to login if user is not authenticated
   useEffect(() => {
@@ -19,6 +27,67 @@ const Dashboard: React.FC = () => {
     logout();
     navigate("/login");
   };
+
+  const handleSetLocation = async () => {
+    if (!user?.id) {
+      console.error("User ID is missing");
+      return;
+    }
+
+    if (!validatePostalCode(zip, country)) {
+      setError("Invalid postal code for selected country.");
+      return;
+    }
+    console.log({ zip, country });
+    setError("")
+
+    const { lat, lng } = await fetchLongLatFromZipAndCountry(zip, country);
+    console.log("Latitude:", lat, "Longitude:", lng)
+
+    // send to the backend and store info for later use
+    try {
+      const data = await sendLocationToBackend(
+        user.id,
+        Number(lat),
+        Number(lng),
+      );
+    } catch (err) {
+      console.error("Failed to save location in Dashboard:", err);
+    }
+    setLocationMenuOpen(false);
+  }
+
+  const handleGetLocation = () => {
+
+    if (!user?.id) {
+      console.error("User ID is missing");
+      return;
+    }
+
+    console.log(user)
+    console.log("GETTING THE LOCATION...")
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log("Latitude:", latitude, "Longitude:", longitude);
+        try {
+          const data = await sendLocationToBackend(
+            user.id,
+            latitude,
+            longitude
+          );
+
+          console.log("Data saved successfully:", data);
+        } catch (err) {
+          console.error("Failed to save location in Dashboard:", err);
+        }
+      },
+      (error) => {
+        console.error("Error getting location:", error.message)
+      }
+    )
+  }
 
   if (!user) {
     return null;
@@ -38,6 +107,51 @@ const Dashboard: React.FC = () => {
             <span className="dashboard-logo-text">LeafyLedger</span>
           </div>
           <div className="dashboard-header-actions">
+            <div className="relative inline-block">
+              <button
+                onClick={() => setLocationMenuOpen(!locationMenuOpen)}
+                className="ll-btn ll-btn-ghost dashboard-btn flex items-center gap-2"
+              >
+                <FaCompass /> Set Location
+              </button>
+              {/* OPEN THE MENU TO SELECT LOCATION */}
+              {locationMenuOpen && (
+                <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-48 bg-white shadow-md rounded p-2 flex flex-col gap-1 z-10">
+                  <input
+                    type="text"
+                    placeholder="ZIP / Postal code"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                    className="border p-1 rounded text-sm"
+                  />
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="border p-1 rounded text-sm"
+                  >
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleSetLocation}
+                    className="ll-btn ll-btn-primary mt-1 text-sm py-1"
+                  >
+                    Save
+                  </button>
+                </div>
+
+              )}
+            </div>
+            <button 
+              onClick={handleGetLocation} 
+              className="ll-btn ll-btn-ghost dashboard-btn"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <FaMapMarkerAlt /> Give Location
+            </button>
             <button 
               onClick={() => navigate("/settings")} 
               className="ll-btn ll-btn-ghost dashboard-btn"
@@ -120,4 +234,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard;
+
