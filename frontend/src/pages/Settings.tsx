@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { BACKEND_BASE_URL } from "../utils/constants";
+import { FaCog } from 'react-icons/fa';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -131,7 +132,7 @@ const Settings: React.FC = () => {
       <div className="settings-container">
         <header className="settings-header">
           <div className="settings-header-title">
-            <span style={{ fontSize: '1.2rem' }}>⚙️</span>
+            <span style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', marginRight: '0.5rem' }}><FaCog /></span>
             Account Settings
           </div>
           <button 

@@ -4,6 +4,9 @@ import '../styles/BrowseSpecies.css';
 import { api } from '../utils/api';
 import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
+import { useAuth } from '../context/AuthContext';
+
+import { FaLeaf, FaSearch } from 'react-icons/fa';
 
 const BrowseSpecies: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +14,56 @@ const BrowseSpecies: React.FC = () => {
   const [results, setResults] = useState<{ id: number; common_name: string; scientific_name: string; image_url?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
+  const [savedPlantIds, setSavedPlantIds] = useState<Set<number>>(new Set());
+  const { user } = useAuth();
+  
+  // Fetch saved species on mount
+  React.useEffect(() => {
+    if (user) {
+      api.get(`/species/saved?userId=${user.id}`)
+        .then((res: { data: { trefleId: number }[] }) => {
+           const ids = new Set(res.data.map(s => s.trefleId));
+           setSavedPlantIds(ids);
+        })
+        .catch(err => console.error("Failed to fetch saved species", err));
+    }
+  }, [user]);
+
+  const handleToggleSave = async (plantId: number) => {
+    console.log("handleToggleSave called for:", plantId, "User:", user);
+    if (!user) {
+        console.warn("No user logged in, cannot save.");
+        // TODO: Show toast or login prompt
+        return; 
+    }
+    
+    const isSaved = savedPlantIds.has(plantId);
+    console.log("Current save state:", isSaved);
+
+    try {
+        if (isSaved) {
+            console.log("Unsaving...");
+            await api.del(`/species/save/${plantId}?userId=${user.id}`);
+            setSavedPlantIds(prev => {
+                const next = new Set(prev);
+                next.delete(plantId);
+                return next;
+            });
+             console.log("Unsaved!");
+        } else {
+            console.log("Saving...");
+            await api.post(`/species/save/${plantId}?userId=${user.id}`, {});
+            setSavedPlantIds(prev => {
+                const next = new Set(prev);
+                next.add(plantId);
+                return next;
+            });
+            console.log("Saved!");
+        }
+    } catch (err) {
+        console.error("Failed to toggle save", err);
+    }
+  };
 
   const categories = ['Vegetables', 'Fruits', 'Flowers', 'Herbs', 'Cacti'];
 
@@ -44,7 +97,7 @@ const BrowseSpecies: React.FC = () => {
         {/* Header */}
         <header className="browse-header">
           <div className="browse-title">
-            <span style={{ fontSize: '1.2rem' }}>🌿</span>
+            <span style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', marginRight: '0.5rem' }}><FaLeaf /></span>
             Browse Plants
           </div>
           <button className="browse-back-btn" onClick={() => navigate('/dashboard')}>
@@ -52,10 +105,12 @@ const BrowseSpecies: React.FC = () => {
           </button>
         </header>
 
+
+
         {/* Search & Filter */}
         <section className="browse-search-section">
           <form className="browse-search-bar" onSubmit={handleSearch}>
-            <span className="browse-search-icon">🔍</span>
+            <span className="browse-search-icon"><FaSearch /></span>
             <input 
               type="text" 
               className="browse-search-input" 
@@ -109,6 +164,8 @@ const BrowseSpecies: React.FC = () => {
         isOpen={!!selectedPlantId} 
         plantId={selectedPlantId!} 
         onClose={() => setSelectedPlantId(null)}
+        isSaved={selectedPlantId ? savedPlantIds.has(selectedPlantId) : false}
+        onToggleSave={() => selectedPlantId && handleToggleSave(selectedPlantId)}
       />
     </div>
   );

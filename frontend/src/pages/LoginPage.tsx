@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import { BACKEND_BASE_URL, GOOGLE_OAUTH_CLIENT_ID} from "../utils/constants";
+import { FaEye, FaEyeSlash, FaSeedling, FaCloudSun, FaCoins } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,18 +27,27 @@ const LoginPage: React.FC = () => {
   const handleGoogleLogin = useGoogleLogin({
     flow: 'auth-code', // tells it to return a authentication code for the backend to exchange with a token
     onSuccess: async ({ code }) => {
-        console.log("User granted permission throught google.");
-        console.log(code)
+        // console.log("User granted permission through google.");
+        // console.log(code)
         try {
           const res = await fetch(`${BACKEND_BASE_URL}/auth/google/react`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code }),
           });
-          const userData = await res.json();
-          console.log("Logged-in user through google:", userData);
+          const data = await res.json();
+          
+          if (res.ok) {
+            console.log("Logged-in user through google:", data);
+            login(data);
+            navigate("/dashboard");
+          } else {
+             console.error("Backend login failed:", data);
+             setMessage({ type: 'error', text: data.message || 'Google login failed' });
+          }
         } catch (err) {
             console.error("Error hitting backend oauth endpoint:", err);
+            setMessage({ type: 'error', text: 'Could not connect to server' });
         }
     },
     onError: (error) => console.log("Google Login Failed:", error),
@@ -72,8 +82,6 @@ const LoginPage: React.FC = () => {
             setMessage({ type: 'success', text: 'Account created! Please log in.' });
             setIsRegistering(false);
             // Clear form fields
-            setEmail("");
-            setPassword("");
             setConfirmPassword("");
             setFirstName("");
             setLastName("");
@@ -102,7 +110,7 @@ const LoginPage: React.FC = () => {
         });
         const data = await res.json();
         
-         if (res.ok) {
+        if (res.ok) {
             setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
             // Store user data and redirect
             login(data.user);
@@ -149,15 +157,15 @@ const LoginPage: React.FC = () => {
 
             <div className="leafy-login-icon-row">
               <div className="leafy-login-icon-pill">
-                <span>🌱</span>
+                <span><FaSeedling /></span>
                 <span>Plant lifetimes</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span>🌦</span>
+                <span><FaCloudSun /></span>
                 <span>Climate tolerance</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span>💰</span>
+                <span><FaCoins /></span>
                 <span>Yearly profit view</span>
               </div>
             </div>
@@ -222,6 +230,8 @@ const LoginPage: React.FC = () => {
               <input
                 className="leafy-login-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -306,6 +316,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type="text"
+                  name="firstName"
+                  autoComplete="given-name"
                   placeholder="First Name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -314,6 +326,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type="text"
+                  name="lastName"
+                  autoComplete="family-name"
                   placeholder="Last Name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -324,6 +338,8 @@ const LoginPage: React.FC = () => {
               <input
                 className="leafy-login-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -334,6 +350,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="new-password"
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -352,6 +370,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  autoComplete="new-password"
                   placeholder="Confirm Password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -377,7 +397,11 @@ const LoginPage: React.FC = () => {
                 <button 
                   type="submit" 
                   className="ll-btn ll-btn-primary"
-                  disabled={isLoading}
+                  disabled={isLoading || !password || !confirmPassword || password !== confirmPassword}
+                  style={{ 
+                    opacity: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 0.7 : 1, 
+                    cursor: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 'not-allowed' : 'pointer' 
+                  }}
                 >
                   {isLoading ? 'Creating...' : 'Create Account'}
                 </button>
