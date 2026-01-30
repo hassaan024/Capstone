@@ -27,8 +27,8 @@ const LoginPage: React.FC = () => {
   const handleGoogleLogin = useGoogleLogin({
     flow: 'auth-code', // tells it to return a authentication code for the backend to exchange with a token
     onSuccess: async ({ code }) => {
-        console.log("User granted permission throught google.");
-        console.log(code)
+        // console.log("User granted permission through google.");
+        // console.log(code)
         try {
           const res = await fetch(`${BACKEND_BASE_URL}/auth/google/react`, {
             method: 'POST',
@@ -39,7 +39,7 @@ const LoginPage: React.FC = () => {
           
           if (res.ok) {
             console.log("Logged-in user through google:", data);
-            login(data.user);
+            login(data);
             navigate("/dashboard");
           } else {
              console.error("Backend login failed:", data);

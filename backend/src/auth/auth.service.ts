@@ -176,7 +176,7 @@ export class AuthService {
   async handleGoogleOAuth(
     origin: Origin,
     auth_code: string,
-  ): Promise<{ message: string; user: any }> {
+  ): Promise<UpdateUserDto> {
     const client_info =
       origin === 'unreal' ? GOOGLE_CLIENTS.UNREAL : GOOGLE_CLIENTS.REACT;
 
@@ -258,12 +258,19 @@ export class AuthService {
       },
     });
 
-    // Return user without password hash
-    const { passwordHash: _, ...userWithoutPassword } = user;
-
-    return {
-      message: 'Login successful',
-      user: userWithoutPassword,
+    // Map to DTO
+    const userDto: UpdateUserDto = {
+      email: user.email,
+      displayName: user.displayName,
+      passwordHash: user.passwordHash ?? undefined,
+      googleId: user.googleId as string | undefined,
+      verifiedEmail: user.verifiedEmail as boolean | undefined,
+      googleDisplayName: user.googleDisplayName as string | undefined,
+      givenName: user.givenName as string | undefined,
+      familyName: user.familyName as string | undefined,
+      picture: user.picture as string | undefined,
     };
+
+    return userDto;
   }
 }

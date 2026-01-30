@@ -1,5 +1,5 @@
 // src/pages/Dashboard.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark } from 'react-icons/fa';
@@ -8,13 +8,19 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
   if (!user) {
-    navigate("/login");
     return null;
   }
 

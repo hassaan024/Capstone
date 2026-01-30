@@ -50,7 +50,7 @@ export class AuthController {
     @Param('origin', OriginValidationPipe) origin: Origin,
     @Body() googleOAuthDto: GoogleOAuthDto,
     @Query('code') codeQuery?: string, // optional query param used for unreal
-  ): Promise<any> {
+  ): Promise<UpdateUserDto> {
     // Use the query param if origin is unreal, otherwise use body
     const code = origin === 'unreal' ? codeQuery : googleOAuthDto.code;
 
