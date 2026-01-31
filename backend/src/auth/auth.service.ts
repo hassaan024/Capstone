@@ -186,6 +186,9 @@ export class AuthService {
       ORIGIN: ${origin}
     `);
 
+      this.logger.log(`
+        redirect_uri: ${client_info.REDIRECT_URI}`)
+
     // auth code for access token
     const token_response = await fetch(client_info.TOKEN_URI, {
       method: 'POST',

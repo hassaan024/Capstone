@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   HttpCode,
@@ -44,6 +45,19 @@ export class AuthController {
     );
   }
 
+  // @Get('google/:origin')
+  // async handleGoogleOAuthRedirect(
+  //   @Param('origin', OriginValidationPipe) origin: Origin,
+  //   @Query('code') code?: string,
+  // ): Promise<UpdateUserDto> {
+  //   console.log('GET HTITING BACKEND')
+  //   if (!code) {
+  //     throw new BadRequestException('Missing Google auth code');
+  //   }
+
+  //   return this.authService.handleGoogleOAuth(origin, code);
+  // }
+
   @Post('google/:origin')
   @HttpCode(HttpStatus.OK)
   async handleGoogleOAuth(
@@ -51,17 +65,13 @@ export class AuthController {
     @Body() googleOAuthDto: GoogleOAuthDto,
     @Query('code') codeQuery?: string, // optional query param used for unreal
   ): Promise<UpdateUserDto> {
+    console.log('HITTING BACKEND')
     // Use the query param if origin is unreal, otherwise use body
     const code = origin === 'unreal' ? codeQuery : googleOAuthDto.code;
 
     if (!code) {
       throw new BadRequestException('Missing Google auth code');
     }
-
-    // return await this.authService.handleGoogleOAuth(
-    //   origin,
-    //   googleOAuthDto.code,
-    // );
 
     return await this.authService.handleGoogleOAuth(
       origin, 

@@ -34,14 +34,28 @@ void UOAuthGISubsystem::BeginLoginViaBackendPush()
     // Backend start endpoint (local backend)
     // Backend should store {sid -> return_url} and begin OAuth.
     // It will later POST to http://127.0.0.1:<port>/oauth/complete
-    const FString BackendStartUrl = 
-        FString::Printf(TEXT("http://localhost:4000/backend/auth/google/unreal/start?sid=%s&return_port=%d"),
-            *UrlEncode(ExpectedSid), Port);
+    //const FString BackendStartUrl = FString::Printf(TEXT("http://localhost:4000/backend/auth/google/unreal"));
+//    const FString GoogleAuthURL = FString::Printf(TEXT(R"(https://accounts.google.com/o/oauth2/v2/auth?client_id=1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com
+//&response_type=code&
+//redirect_uri=http://localhost:4000/backend/auth/google/unreal&scope=openid%20email%20profile)"));
 
+    const FString BaseGoogleAuthURL = TEXT("https://accounts.google.com/o/oauth2/v2/auth");
+    UE_LOG(LogTemp, Warning, TEXT("BaseGoogleAuthURL: %s"), *BaseGoogleAuthURL);
+
+    const FString GoogleAuthURL = 
+        TEXT("https://accounts.google.com/o/oauth2/v2/auth")
+        TEXT("?client_id=1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com")
+        TEXT("&response_type=code")
+        TEXT("&redirect_uri=http://localhost:4000/backend/auth/google/unreal")
+        TEXT("&scope=openid%20email%20profile");
+
+    UE_LOG(LogTemp, Warning, TEXT("GoogleAuthURL: %s"), *GoogleAuthURL);
+
+    ///start?sid=%s&return_port=%d"), *UrlEncode(ExpectedSid), Port
     //UE_LOG(LogTemp, Warning, TEXT("OAuth UE Listener bound: %s"), *BoundEndpoint.ToString());
     //UE_LOG(LogTemp, Warning, TEXT("Opening browser to backend start URL:\n%s"), *BackendStartUrl);
 
-    FPlatformProcess::LaunchURL(*BackendStartUrl, nullptr, nullptr);
+    FPlatformProcess::LaunchURL(*GoogleAuthURL, nullptr, nullptr);
 }
 
 void UOAuthGISubsystem::CancelLoginListener()

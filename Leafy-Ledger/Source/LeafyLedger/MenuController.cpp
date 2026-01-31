@@ -64,6 +64,12 @@ void AMenuController::ShowLogin()
 
 void AMenuController::ShowMainMenu()
 {
+    FPlatformProcess::LaunchURL(
+        TEXT("http://localhost:5173/login"),
+        nullptr,
+        nullptr
+    );
+
     //UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu"));
     SetRootWidget(MainMenuWidgetClass);
 }
