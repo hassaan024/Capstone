@@ -13,9 +13,6 @@ export class CreateUserDto {
   @IsString()
   displayName: string;
 
-  // @IsBoolean()
-  // confirmedName: boolean;
-
   @IsOptional()
   @IsString()
   passwordHash?: string;

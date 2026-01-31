@@ -25,6 +25,8 @@ void UOAuthGISubsystem::BeginLoginViaBackendPush()
 
     if (!StartListener())
     {
+        UE_LOG(LogTemp, Warning, TEXT("Failed to start local listener"));
+
         OnOAuthLoginPushed.Broadcast(false, TEXT("Failed to start local listener"));
         return;
     }
@@ -34,6 +36,7 @@ void UOAuthGISubsystem::BeginLoginViaBackendPush()
     // Backend start endpoint (local backend)
     // Backend should store {sid -> return_url} and begin OAuth.
     // It will later POST to http://127.0.0.1:<port>/oauth/complete
+
     //const FString BackendStartUrl = FString::Printf(TEXT("http://localhost:4000/backend/auth/google/unreal"));
 //    const FString GoogleAuthURL = FString::Printf(TEXT(R"(https://accounts.google.com/o/oauth2/v2/auth?client_id=1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com
 //&response_type=code&
@@ -42,12 +45,20 @@ void UOAuthGISubsystem::BeginLoginViaBackendPush()
     const FString BaseGoogleAuthURL = TEXT("https://accounts.google.com/o/oauth2/v2/auth");
     UE_LOG(LogTemp, Warning, TEXT("BaseGoogleAuthURL: %s"), *BaseGoogleAuthURL);
 
-    const FString GoogleAuthURL = 
+    const FString ClientID = TEXT("1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com");
+    const FString RedirectURI = TEXT("http://localhost:4000/backend/auth/google/unreal");
+
+    const FString GoogleAuthURL = FString::Printf(
         TEXT("https://accounts.google.com/o/oauth2/v2/auth")
-        TEXT("?client_id=1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com")
+        TEXT("?client_id=%s")
         TEXT("&response_type=code")
-        TEXT("&redirect_uri=http://localhost:4000/backend/auth/google/unreal")
-        TEXT("&scope=openid%20email%20profile");
+        TEXT("&redirect_uri=%s")
+        TEXT("&scope=openid%%20email%%20profile")
+        TEXT("&state=%s"),
+        *ClientID,
+        *RedirectURI,       // must match registered URI exactly
+        *ExpectedSid        // your sid
+    );
 
     UE_LOG(LogTemp, Warning, TEXT("GoogleAuthURL: %s"), *GoogleAuthURL);
 
@@ -64,40 +75,124 @@ void UOAuthGISubsystem::CancelLoginListener()
     ExpectedSid.Empty();
 }
 
+//bool UOAuthGISubsystem::StartListener()
+//{
+//    if (bListening.Load()) {}
+//        return true;
+//
+//    ISocketSubsystem* Sockets = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+//    if (!Sockets) {
+//        UE_LOG(LogTemp, Warning, TEXT("No sockets"));
+//
+//        return false;
+//    }
+//
+//    // use port = 0 to let the OS choose an open port
+//    TSharedRef<FInternetAddr> Addr = Sockets->CreateInternetAddr();
+//    //bool bIpValid = false;
+//    constexpr int32 Port = 50000;
+//    //Addr->SetIp(TEXT("127.0.0.1"), bIpValid);
+//    Addr->SetAnyAddress();
+//    Addr->SetPort(Port);
+//    //if (!bIpValid) {
+//    //    UE_LOG(LogTemp, Warning, TEXT("Invalid IP"));
+//
+//    //    return false;
+//    //}
+//
+//    ListenSocket = Sockets->CreateSocket(NAME_Stream, TEXT("UE_OAuth_Push_Listener"), false);
+//    if (!ListenSocket) {
+//        UE_LOG(LogTemp, Warning, TEXT("No listening socket"));
+//
+//        return false;
+//    }
+//
+//    ListenSocket->SetReuseAddr(true);
+//
+//    if (!ListenSocket->Bind(*Addr))
+//    {
+//        StopListener();
+//        UE_LOG(LogTemp, Warning, TEXT("Listener stopped 1"));
+//
+//        return false;
+//    }
+//
+//    if (!ListenSocket->Listen(8))
+//    {
+//        UE_LOG(LogTemp, Warning, TEXT("Listener stopped 2"));
+//
+//        StopListener();
+//        return false;
+//    }
+//
+//    // Read back bound endpoint (port chosen by OS)
+//    TSharedRef<FInternetAddr> BoundAddr = Sockets->CreateInternetAddr();
+//    ListenSocket->GetAddress(*BoundAddr);
+//    BoundEndpoint = FIPv4Endpoint(BoundAddr);
+//
+//    bListening.Store(true);
+//
+//    UE_LOG(LogTemp, Log, TEXT("TCP Listener started on port 50000"));
+//
+//    //UE_LOG(LogTemp, Warning, TEXT("ExpectedSid: %s"), *ExpectedSid);
+//    //UE_LOG(LogTemp, Warning, TEXT("OAuth UE Listener bound: %s"), *BoundEndpoint.ToString());
+//    //UE_LOG(LogTemp, Warning, TEXT("Return URL should be: http://127.0.0.1:%d/oauth/complete"), BoundEndpoint.Port);
+//
+//    // Background accept loop
+//    Async(EAsyncExecution::Thread, [this]()
+//        {
+//            AcceptLoop();
+//        });
+//
+//    return true;
+//}
+
 bool UOAuthGISubsystem::StartListener()
 {
+    UE_LOG(LogTemp, Log, TEXT("Starting TCP listener..."));
+
     if (bListening.Load())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Listener already running"));
         return true;
+    }
 
     ISocketSubsystem* Sockets = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
     if (!Sockets)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to get socket subsystem"));
         return false;
+    }
 
-    // Bind 127.0.0.1:0 => OS chooses an open port
     TSharedRef<FInternetAddr> Addr = Sockets->CreateInternetAddr();
-    bool bIpValid = false;
-    Addr->SetIp(TEXT("127.0.0.1"), bIpValid);
-    Addr->SetPort(0);
-    if (!bIpValid)
-        return false;
+    constexpr int32 Port = 50000;
+    Addr->SetAnyAddress();
+    Addr->SetPort(Port);
 
     ListenSocket = Sockets->CreateSocket(NAME_Stream, TEXT("UE_OAuth_Push_Listener"), false);
     if (!ListenSocket)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to create listen socket"));
         return false;
+    }
 
     ListenSocket->SetReuseAddr(true);
 
     if (!ListenSocket->Bind(*Addr))
     {
+        UE_LOG(LogTemp, Error, TEXT("Failed to bind listen socket on port %d"), Port);
         StopListener();
         return false;
     }
+    UE_LOG(LogTemp, Log, TEXT("Successfully bound to port %d"), Port);
 
     if (!ListenSocket->Listen(8))
     {
+        UE_LOG(LogTemp, Error, TEXT("Failed to start listening on port %d"), Port);
         StopListener();
         return false;
     }
+    UE_LOG(LogTemp, Log, TEXT("Socket is now listening..."));
 
     // Read back bound endpoint (port chosen by OS)
     TSharedRef<FInternetAddr> BoundAddr = Sockets->CreateInternetAddr();
@@ -105,14 +200,12 @@ bool UOAuthGISubsystem::StartListener()
     BoundEndpoint = FIPv4Endpoint(BoundAddr);
 
     bListening.Store(true);
+    UE_LOG(LogTemp, Log, TEXT("TCP Listener fully started. Bound endpoint: %s"), *BoundEndpoint.ToString());
 
-    //UE_LOG(LogTemp, Warning, TEXT("ExpectedSid: %s"), *ExpectedSid);
-    //UE_LOG(LogTemp, Warning, TEXT("OAuth UE Listener bound: %s"), *BoundEndpoint.ToString());
-    //UE_LOG(LogTemp, Warning, TEXT("Return URL should be: http://127.0.0.1:%d/oauth/complete"), BoundEndpoint.Port);
-
-    // Background accept loop
+    // Start background accept loop
     Async(EAsyncExecution::Thread, [this]()
         {
+            UE_LOG(LogTemp, Log, TEXT("Accept loop thread started"));
             AcceptLoop();
         });
 
@@ -286,7 +379,16 @@ void UOAuthGISubsystem::AcceptLoop()
         //UE_LOG(LogTemp, Warning, TEXT("JSON parsed successfully"));
 
         const FString Sid = Json->GetStringField(TEXT("sid"));
-        const FString SessionTokenLocal = Json->GetStringField(TEXT("session_token"));
+        FString SessionTokenLocal;
+        if (Json->HasField(TEXT("session_token")))
+        {
+            SessionTokenLocal = Json->GetStringField(TEXT("session_token"));
+        }
+        else
+        {
+            SessionTokenLocal = TEXT(""); // fallback or log warning
+            UE_LOG(LogTemp, Warning, TEXT("No session_token in JSON"));
+        }
 
         //UE_LOG(LogTemp, Warning, TEXT("Received sid=%s tokenLen=%d"), *Sid, SessionTokenLocal.Len());
 
@@ -352,7 +454,6 @@ void UOAuthGISubsystem::AcceptLoop()
     //UE_LOG(LogTemp, Warning, TEXT("AcceptLoop exited"));
 }
 
-
 bool UOAuthGISubsystem::ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutBytes, double MaxSeconds)
 {
     const double Start = FPlatformTime::Seconds();
@@ -382,20 +483,20 @@ bool UOAuthGISubsystem::ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutByte
             OutBytes.Append(Buffer.GetData(), Read);
             TotalRead += Read;
 
-            // Try to detect if complete
             FString Chunk = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData()))).Left(Read);
             Accum += Chunk;
+
+            // Log everything received
+            UE_LOG(LogTemp, Warning, TEXT("Read %d bytes from socket: %s"), Read, *Chunk);
 
             FString Headers, Body;
             if (SplitHeadersBody(Accum, Headers, Body))
             {
                 const int32 CL = FindContentLength(Headers);
-                if (CL >= 0)
+                if (CL >= 0 && Body.Len() >= CL)
                 {
-                    // Body length in TCHAR count is not bytes; but our JSON is ASCII/UTF8 typically.
-                    // We use Accum string body length as a practical dev simplification.
-                    if (Body.Len() >= CL)
-                        return true;
+                    UE_LOG(LogTemp, Warning, TEXT("Complete request received: Headers:\n%s\nBody:\n%s"), *Headers, *Body);
+                    return true;
                 }
             }
         }

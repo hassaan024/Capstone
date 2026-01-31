@@ -45,18 +45,20 @@ export class AuthController {
     );
   }
 
-  // @Get('google/:origin')
-  // async handleGoogleOAuthRedirect(
-  //   @Param('origin', OriginValidationPipe) origin: Origin,
-  //   @Query('code') code?: string,
-  // ): Promise<UpdateUserDto> {
-  //   console.log('GET HTITING BACKEND')
-  //   if (!code) {
-  //     throw new BadRequestException('Missing Google auth code');
-  //   }
+  @Get('google/:origin')
+  async handleGoogleOAuthRedirect(
+    @Param('origin', OriginValidationPipe) origin: Origin,
+    @Query('code') code?: string,
+    @Query('state') sid?: string,
+  ): Promise<UpdateUserDto> {
+    console.log('GET HTITING BACKEND');
+    console.log(`SID: ${sid}`);
+    if (!code) {
+      throw new BadRequestException('Missing Google auth code');
+    }
 
-  //   return this.authService.handleGoogleOAuth(origin, code);
-  // }
+    return this.authService.handleGoogleOAuth(origin, code, sid);
+  }
 
   @Post('google/:origin')
   @HttpCode(HttpStatus.OK)

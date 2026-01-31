@@ -13,6 +13,7 @@ import { UpdateUserDto } from '../user/dto/update-user.dto.js';
 import { Origin } from './pipes/origin-validation.pipe.js';
 import { GOOGLE_CLIENTS } from '../utils/constants.js';
 import { DatabaseService } from '../database/database.service.js';
+import { sendGoogleAuthInfoToUnrealTCP } from '../utils/fetches.js';
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -59,7 +60,6 @@ export class AuthService {
       const user = await this.userService.create({
         email,
         displayName,
-        // confirmedName,
         passwordHash,
       });
 
@@ -174,9 +174,10 @@ export class AuthService {
     };
   }
 
-  async handleGoogleOAuth(
+async handleGoogleOAuth(
     origin: Origin,
     auth_code: string,
+    sid: string | undefined = undefined,
   ): Promise<UpdateUserDto> {
     const client_info =
       origin === 'unreal' ? GOOGLE_CLIENTS.UNREAL : GOOGLE_CLIENTS.REACT;
@@ -238,47 +239,7 @@ export class AuthService {
 
     this.logger.log('Google user info:', userInfo);
 
-    // const existing = await this.db.user.findUnique({
-    //   where: { googleId: userInfo.id },
-    // });
-
-    // let user;
-    // if (!existing) {
-    //   user = await this.db.user.create({
-    //     data: {
-    //       email: userInfo.email,
-    //       displayName: userInfo.name,
-    //       // confirmedName: false,
-    //       googleId: userInfo.id,
-    //       verifiedEmail: userInfo.verified_email,
-    //       googleDisplayName: userInfo.name,
-    //       givenName: userInfo.given_name,
-    //       familyName: userInfo.family_name,
-    //       picture: userInfo.picture,
-    //       lastUpdated: new Date(),
-    //     },
-    //   });
-    // } else {
-    //   user = await this.db.user.update({
-    //     where: { id: existing.id },
-    //     data: {
-    //       email: userInfo.email,
-    //       verifiedEmail: userInfo.verified_email,
-    //       googleDisplayName: userInfo.name,
-    //       givenName: userInfo.given_name,
-    //       familyName: userInfo.family_name,
-    //       picture: userInfo.picture,
-    //       lastUpdated: new Date(),
-
-    //       // Only modify displayName while unconfirmed
-    //       ...(existing.confirmedName
-    //         ? {}
-    //         : { displayName: userInfo.name }),
-    //     },
-    //   });
-    // }
-
-    //  insert into database or update
+    // insert into database or update
     const user = await this.db.user.upsert({
       where: { googleId: userInfo.id },
       update: {
@@ -307,13 +268,21 @@ export class AuthService {
       email: user.email,
       displayName: user.displayName,
       passwordHash: user.passwordHash ?? undefined,
-      googleId: user.googleId as string | undefined,
-      verifiedEmail: user.verifiedEmail as boolean | undefined,
-      googleDisplayName: user.googleDisplayName as string | undefined,
-      givenName: user.givenName as string | undefined,
-      familyName: user.familyName as string | undefined,
-      picture: user.picture as string | undefined,
+      googleId: user.googleId,
+      verifiedEmail: user.verifiedEmail,
+      googleDisplayName: user.googleDisplayName,
+      givenName: user.givenName,
+      familyName: user.familyName,
+      picture: user.picture,
+      sid: sid,
     };
+
+    if (origin === 'unreal') {
+      this.logger.log('trying to send info to unreal');
+      await sendGoogleAuthInfoToUnrealTCP(userDto);
+    }
+
+    this.logger.log(`userDto: ${userDto}`)
 
     return userDto;
   }
