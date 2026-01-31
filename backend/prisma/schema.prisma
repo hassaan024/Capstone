@@ -11,6 +11,7 @@ model User {
   id                Int      @id @default(autoincrement())
   email             String   @unique
   displayName       String
+  // confirmedName     Boolean  @default(false)
   passwordHash      String?
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt

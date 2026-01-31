@@ -15,17 +15,13 @@ void AMenuController::BeginPlay()
         return;
     }
 
-    // Bind once
-    Auth->OnLoginSucceeded.AddUObject(this, &AMenuController::ShowMainMenu);
-    Auth->OnLoginFailed.AddUObject(this, &AMenuController::HandleLoginFailed);
+    Auth->OnLoginSucceeded.AddDynamic(this, &AMenuController::ShowMainMenu);
+    Auth->OnLoginFailed.AddDynamic(this, &AMenuController::HandleLoginFailed);
 
-    // Initial screen
-    if (Auth->IsLoggedIn())
-    {
+    if (Auth->IsLoggedIn()) {
         ShowMainMenu();
     }
-    else
-    {
+    else {
         ShowLogin();
     }
 }
@@ -34,7 +30,7 @@ void AMenuController::SetRootWidget(TSubclassOf<UUserWidget> WidgetClass)
 {
     if (!WidgetClass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SetRootWidget called with null WidgetClass"));
+        //UE_LOG(LogTemp, Warning, TEXT("SetRootWidget called with null WidgetClass"));
         return;
     }
 
@@ -47,7 +43,7 @@ void AMenuController::SetRootWidget(TSubclassOf<UUserWidget> WidgetClass)
     CurrentWidget = CreateWidget<UUserWidget>(this, WidgetClass);
     if (!CurrentWidget)
     {
-        UE_LOG(LogTemp, Error, TEXT("CreateWidget failed for %s"), *WidgetClass->GetName());
+        //UE_LOG(LogTemp, Error, TEXT("CreateWidget failed for %s"), *WidgetClass->GetName());
         return;
     }
 
@@ -61,7 +57,6 @@ void AMenuController::SetRootWidget(TSubclassOf<UUserWidget> WidgetClass)
     SetInputMode(InputMode);
 }
 
-
 void AMenuController::ShowLogin()
 {
     SetRootWidget(LoginWidgetClass);
@@ -69,10 +64,9 @@ void AMenuController::ShowLogin()
 
 void AMenuController::ShowMainMenu()
 {
-    UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu"));
+    //UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu"));
     SetRootWidget(MainMenuWidgetClass);
 }
-
 
 void AMenuController::HandleLoginFailed(const FString& Error)
 {

@@ -58,9 +58,14 @@ export class AuthController {
       throw new BadRequestException('Missing Google auth code');
     }
 
+    // return await this.authService.handleGoogleOAuth(
+    //   origin,
+    //   googleOAuthDto.code,
+    // );
+
     return await this.authService.handleGoogleOAuth(
-      origin,
-      googleOAuthDto.code,
-    );
+      origin, 
+      code);
+
   }
 }

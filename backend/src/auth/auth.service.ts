@@ -59,6 +59,7 @@ export class AuthService {
       const user = await this.userService.create({
         email,
         displayName,
+        // confirmedName,
         passwordHash,
       });
 
@@ -233,6 +234,46 @@ export class AuthService {
       (await userInfoResponse.json()) as GoogleProfileInfo;
 
     this.logger.log('Google user info:', userInfo);
+
+    // const existing = await this.db.user.findUnique({
+    //   where: { googleId: userInfo.id },
+    // });
+
+    // let user;
+    // if (!existing) {
+    //   user = await this.db.user.create({
+    //     data: {
+    //       email: userInfo.email,
+    //       displayName: userInfo.name,
+    //       // confirmedName: false,
+    //       googleId: userInfo.id,
+    //       verifiedEmail: userInfo.verified_email,
+    //       googleDisplayName: userInfo.name,
+    //       givenName: userInfo.given_name,
+    //       familyName: userInfo.family_name,
+    //       picture: userInfo.picture,
+    //       lastUpdated: new Date(),
+    //     },
+    //   });
+    // } else {
+    //   user = await this.db.user.update({
+    //     where: { id: existing.id },
+    //     data: {
+    //       email: userInfo.email,
+    //       verifiedEmail: userInfo.verified_email,
+    //       googleDisplayName: userInfo.name,
+    //       givenName: userInfo.given_name,
+    //       familyName: userInfo.family_name,
+    //       picture: userInfo.picture,
+    //       lastUpdated: new Date(),
+
+    //       // Only modify displayName while unconfirmed
+    //       ...(existing.confirmedName
+    //         ? {}
+    //         : { displayName: userInfo.name }),
+    //     },
+    //   });
+    // }
 
     //  insert into database or update
     const user = await this.db.user.upsert({

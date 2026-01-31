@@ -22,7 +22,7 @@ void ULoginWidget::OnPress()
     {
         if (UOAuthGISubsystem* Auth = GI->GetSubsystem<UOAuthGISubsystem>())
         {
-            Auth->BeginGoogleLogin();
+            GetGameInstance()->GetSubsystem<UOAuthGISubsystem>()->BeginLoginViaBackendPush();
         }
     }
 }

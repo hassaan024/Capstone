@@ -7,18 +7,21 @@
 #include "Blueprint/UserWidget.h"
 #include "MenuController.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class LEAFYLEDGER_API AMenuController : public APlayerController
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 protected:
     virtual void BeginPlay() override;
+
+    UFUNCTION()
     void ShowLogin();
+
+    UFUNCTION()
     void ShowMainMenu();
+
+    UFUNCTION()
     void HandleLoginFailed(const FString& Error);
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")

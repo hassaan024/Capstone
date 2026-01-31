@@ -1,293 +1,454 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "OAuthGISubsystem.h"
+#include "Async/Async.h"
+#include "SocketSubsystem.h"
+#include "Networking.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "HAL/PlatformProcess.h"
+#include "Misc/Guid.h"
+#include "Misc/DateTime.h"
 
-namespace
+static FString UrlEncode(const FString& In)
 {
-    FString MakeRandomState()
-    {
-        return FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
-    }
-
-    FString UrlEncode(const FString& In)
-    {
-        return FGenericPlatformHttp::UrlEncode(In);
-    }
+    return FGenericPlatformHttp::UrlEncode(In);
 }
 
-void UOAuthGISubsystem::BeginGoogleLogin()
+void UOAuthGISubsystem::BeginLoginViaBackendPush()
 {
-    if (!StartLoopbackListener())
+    // Generate sid
+    ExpectedSid = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
+    StartTimeSeconds = FPlatformTime::Seconds();
+
+    if (!StartListener())
     {
-        OnGoogleLoginResult.Broadcast(false, TEXT("Failed to start loopback listener"));
+        OnOAuthLoginPushed.Broadcast(false, TEXT("Failed to start local listener"));
         return;
     }
 
-    const FString State = MakeRandomState();
+    const int32 Port = BoundEndpoint.Port;
 
-    const int32 Port = LocalEndpoint.Port;
-    const FString RedirectUri = FString::Printf(TEXT("http://127.0.0.1:%d/callback"), Port);
+    // Backend start endpoint (local backend)
+    // Backend should store {sid -> return_url} and begin OAuth.
+    // It will later POST to http://127.0.0.1:<port>/oauth/complete
+    const FString BackendStartUrl = 
+        FString::Printf(TEXT("http://localhost:4000/backend/auth/google/unreal/start?sid=%s&return_port=%d"),
+            *UrlEncode(ExpectedSid), Port);
 
-    const FString AuthUrl =
-        TEXT("https://accounts.google.com/o/oauth2/v2/auth")
-        TEXT("?client_id=") + UrlEncode(ClientId) +
-        TEXT("&redirect_uri=") + UrlEncode(RedirectUri) +
-        TEXT("&response_type=code") +
-        TEXT("&scope=") + UrlEncode(Scope) +
-        TEXT("&access_type=offline") +
-        TEXT("&prompt=select_account") +
-        TEXT("&state=") + UrlEncode(State);
+    //UE_LOG(LogTemp, Warning, TEXT("OAuth UE Listener bound: %s"), *BoundEndpoint.ToString());
+    //UE_LOG(LogTemp, Warning, TEXT("Opening browser to backend start URL:\n%s"), *BackendStartUrl);
 
-    OpenSystemBrowser(AuthUrl);
-
-    // Accept loop runs in background; it will call ExchangeCodeForTokens when it receives a code.
+    FPlatformProcess::LaunchURL(*BackendStartUrl, nullptr, nullptr);
 }
 
-bool UOAuthGISubsystem::StartLoopbackListener()
+void UOAuthGISubsystem::CancelLoginListener()
 {
-    if (bListening.Load()) return true;
+    StopListener();
+    ExpectedSid.Empty();
+}
 
-    ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-    if (!SocketSubsystem) return false;
+bool UOAuthGISubsystem::StartListener()
+{
+    if (bListening.Load())
+        return true;
 
-    // Bind to 127.0.0.1:0 (port 0 = choose a free port)
-    TSharedRef<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
-    bool bIsValid = false;
-    Addr->SetIp(TEXT("127.0.0.1"), bIsValid);
+    ISocketSubsystem* Sockets = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+    if (!Sockets)
+        return false;
+
+    // Bind 127.0.0.1:0 => OS chooses an open port
+    TSharedRef<FInternetAddr> Addr = Sockets->CreateInternetAddr();
+    bool bIpValid = false;
+    Addr->SetIp(TEXT("127.0.0.1"), bIpValid);
     Addr->SetPort(0);
-    if (!bIsValid) return false;
+    if (!bIpValid)
+        return false;
 
-    ListenSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("GoogleOAuthLoopback"), false);
-    if (!ListenSocket) return false;
+    ListenSocket = Sockets->CreateSocket(NAME_Stream, TEXT("UE_OAuth_Push_Listener"), false);
+    if (!ListenSocket)
+        return false;
 
     ListenSocket->SetReuseAddr(true);
 
     if (!ListenSocket->Bind(*Addr))
     {
-        StopLoopbackListener();
+        StopListener();
         return false;
     }
 
-    if (!ListenSocket->Listen(1))
+    if (!ListenSocket->Listen(8))
     {
-        StopLoopbackListener();
+        StopListener();
         return false;
     }
 
-    // Read back the chosen port
-    TSharedRef<FInternetAddr> BoundAddr = SocketSubsystem->CreateInternetAddr();
+    // Read back bound endpoint (port chosen by OS)
+    TSharedRef<FInternetAddr> BoundAddr = Sockets->CreateInternetAddr();
     ListenSocket->GetAddress(*BoundAddr);
-
-    LocalEndpoint = FIPv4Endpoint(BoundAddr);
+    BoundEndpoint = FIPv4Endpoint(BoundAddr);
 
     bListening.Store(true);
 
-    // Background accept thread (simple)
+    //UE_LOG(LogTemp, Warning, TEXT("ExpectedSid: %s"), *ExpectedSid);
+    //UE_LOG(LogTemp, Warning, TEXT("OAuth UE Listener bound: %s"), *BoundEndpoint.ToString());
+    //UE_LOG(LogTemp, Warning, TEXT("Return URL should be: http://127.0.0.1:%d/oauth/complete"), BoundEndpoint.Port);
+
+    // Background accept loop
     Async(EAsyncExecution::Thread, [this]()
         {
-            RunAcceptLoop();
+            AcceptLoop();
         });
 
     return true;
 }
 
-void UOAuthGISubsystem::StopLoopbackListener()
+void UOAuthGISubsystem::StopListener()
 {
+    //UE_LOG(LogTemp, Warning, TEXT("StopListener() called"));
+
     bListening.Store(false);
 
     if (ListenSocket)
     {
+        //UE_LOG(LogTemp, Warning, TEXT("Closing listener socket"));
         ListenSocket->Close();
         ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ListenSocket);
         ListenSocket = nullptr;
     }
+    else
+    {
+        //UE_LOG(LogTemp, Warning, TEXT("StopListener(): ListenSocket was already null"));
+    }
 }
 
-void UOAuthGISubsystem::OpenSystemBrowser(const FString& AuthUrl)
+void UOAuthGISubsystem::AcceptLoop()
 {
-    UE_LOG(LogTemp, Warning, TEXT("Google Auth Url:\n%s"), *AuthUrl);
+    //UE_LOG(LogTemp, Warning, TEXT("AcceptLoop started"));
 
-    // Opens user’s default browser (Windows)
-    FPlatformProcess::LaunchURL(*AuthUrl, nullptr, nullptr);
-}
+    ISocketSubsystem* Sockets = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 
-void UOAuthGISubsystem::RunAcceptLoop()
-{
-    // Accept a single callback then stop.
     while (bListening.Load())
     {
-        bool bHasPending = false;
-        if (!ListenSocket || !ListenSocket->HasPendingConnection(bHasPending))
+        // Timeout check
+        const double Now = FPlatformTime::Seconds();
+        if (TimeoutSeconds > 0 && (Now - StartTimeSeconds) > TimeoutSeconds)
         {
-            FPlatformProcess::Sleep(0.01f);
-            continue;
-        }
+            //UE_LOG(LogTemp, Warning, TEXT("AcceptLoop timeout reached"));
+            StopListener();
 
-        if (!bHasPending)
-        {
-            FPlatformProcess::Sleep(0.01f);
-            continue;
-        }
-
-        TSharedRef<FInternetAddr> ClientAddr =
-            ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-
-        FSocket* ClientSocket = ListenSocket->Accept(*ClientAddr, TEXT("GoogleOAuthClient"));
-        if (!ClientSocket)
-        {
-            FPlatformProcess::Sleep(0.01f);
-            continue;
-        }
-
-        // Read HTTP request (very small)
-        TArray<uint8> Buffer;
-        Buffer.SetNumUninitialized(8192);
-
-        int32 BytesRead = 0;
-        ClientSocket->Recv(Buffer.GetData(), Buffer.Num(), BytesRead);
-
-        FString Request = BytesRead > 0
-            ? FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData()))).Left(BytesRead)
-            : FString();
-
-        FString Code;
-        const bool bGotCode = ParseRequestForCode(Request, Code);
-
-        // Respond to browser
-        const FString Html =
-            TEXT("<html><body><h3>Login complete.</h3>You may close this tab.</body></html>");
-
-        const FString Response =
-            TEXT("HTTP/1.1 200 OK\r\n")
-            TEXT("Content-Type: text/html\r\n")
-            TEXT("Connection: close\r\n")
-            TEXT("Content-Length: ") + FString::FromInt(Html.Len()) + TEXT("\r\n\r\n") +
-            Html;
-
-        FTCHARToUTF8 Utf8(*Response);
-        int32 BytesSent = 0;
-        ClientSocket->Send((uint8*)Utf8.Get(), Utf8.Length(), BytesSent);
-
-        ClientSocket->Close();
-        ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ClientSocket);
-
-        // Stop listening now
-        StopLoopbackListener();
-
-        if (bGotCode)
-        {
-            const FString RedirectUri =
-                FString::Printf(TEXT("http://127.0.0.1:%d/callback"), LocalEndpoint.Port);
-
-            // Back to game thread for HTTP calls + delegates
-            AsyncTask(ENamedThreads::GameThread, [this, Code, RedirectUri]()
-                {
-                    ExchangeCodeForTokens(Code, RedirectUri);
-                });
-        }
-        else
-        {
             AsyncTask(ENamedThreads::GameThread, [this]()
                 {
-                    OnGoogleLoginResult.Broadcast(false, TEXT("OAuth callback did not contain a code"));
+                    OnOAuthLoginPushed.Broadcast(false, TEXT("Login timed out"));
                 });
+            return;
         }
+
+        bool bPending = false;
+
+        if (!ListenSocket)
+        {
+            //UE_LOG(LogTemp, Error, TEXT("AcceptLoop: ListenSocket is null"));
+            return;
+        }
+
+        if (!ListenSocket->HasPendingConnection(bPending))
+        {
+            //UE_LOG(LogTemp, Error, TEXT("HasPendingConnection failed"));
+            FPlatformProcess::Sleep(0.05f);
+            continue;
+        }
+
+        if (!bPending)
+        {
+            // No incoming connection yet
+            FPlatformProcess::Sleep(0.05f);
+            continue;
+        }
+
+        //UE_LOG(LogTemp, Warning, TEXT("Pending connection detected"));
+
+        TSharedRef<FInternetAddr> ClientAddr = Sockets->CreateInternetAddr();
+        FSocket* Client = ListenSocket->Accept(*ClientAddr, TEXT("UE_OAuth_Push_Client"));
+
+        if (!Client)
+        {
+            //UE_LOG(LogTemp, Error, TEXT("Accept() returned null socket"));
+            FPlatformProcess::Sleep(0.05f);
+            continue;
+        }
+
+        //UE_LOG(LogTemp, Warning, TEXT("Accepted connection from backend"));
+
+        // ---- READ REQUEST ----
+        TArray<uint8> Bytes;
+        if (!ReadAllAvailable(Client, Bytes, 2.0))
+        {
+            //UE_LOG(LogTemp, Error, TEXT("Failed to read request bytes"));
+
+            const FString Resp = MakeHttpResponse(400, TEXT("Bad Request"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+
+            Client->Close();
+            Sockets->DestroySocket(Client);
+            continue;
+        }
+
+        //UE_LOG(LogTemp, Warning, TEXT("Received %d bytes from backend"), Bytes.Num());
+
+        FString ReqStr = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Bytes.GetData())));
+        ReqStr.ReplaceInline(TEXT("\0"), TEXT(""));
+
+        FString Headers, Body;
+        if (!SplitHeadersBody(ReqStr, Headers, Body))
+        {
+            //UE_LOG(LogTemp, Error, TEXT("Failed to split headers/body"));
+
+            const FString Resp = MakeHttpResponse(400, TEXT("Bad Request"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+
+            Client->Close();
+            Sockets->DestroySocket(Client);
+            continue;
+        }
+
+        FString Method, Path;
+        if (!ParseRequestLine(Headers, Method, Path))
+        {
+            //UE_LOG(LogTemp, Error, TEXT("Failed to parse request line"));
+
+            const FString Resp = MakeHttpResponse(400, TEXT("Bad Request"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+
+            Client->Close();
+            Sockets->DestroySocket(Client);
+            continue;
+        }
+
+        //UE_LOG(LogTemp, Warning, TEXT("OAuth push request: method=%s path=%s bodyLen=%d"), *Method, *Path, Body.Len());
+
+        // Only accept POST /oauth/complete
+        if (!Method.Equals(TEXT("POST"), ESearchCase::IgnoreCase) ||
+            !Path.Equals(TEXT("/oauth/complete"), ESearchCase::IgnoreCase))
+        {
+            //UE_LOG(LogTemp, Error, TEXT("Unexpected path or method"));
+
+            const FString Resp = MakeHttpResponse(404, TEXT("Not Found"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+
+            Client->Close();
+            Sockets->DestroySocket(Client);
+            continue;
+        }
+
+        // ---- JSON PARSE ----
+        TSharedPtr<FJsonObject> Json;
+        const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
+
+        if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
+        {
+            //UE_LOG(LogTemp, Error, TEXT("Invalid JSON body"));
+
+            const FString Resp = MakeHttpResponse(400, TEXT("Invalid JSON"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+
+            Client->Close();
+            Sockets->DestroySocket(Client);
+            continue;
+        }
+
+        //UE_LOG(LogTemp, Warning, TEXT("JSON parsed successfully"));
+
+        const FString Sid = Json->GetStringField(TEXT("sid"));
+        const FString SessionTokenLocal = Json->GetStringField(TEXT("session_token"));
+
+        //UE_LOG(LogTemp, Warning, TEXT("Received sid=%s tokenLen=%d"), *Sid, SessionTokenLocal.Len());
+
+        if (!Sid.Equals(ExpectedSid, ESearchCase::CaseSensitive))
+        {
+            //UE_LOG(LogTemp, Error, TEXT("SID mismatch: expected=%s got=%s"), *ExpectedSid, *Sid);
+
+            const FString Resp = MakeHttpResponse(403, TEXT("sid mismatch"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+
+            Client->Close();
+            Sockets->DestroySocket(Client);
+
+            // Fail this login attempt (recommended)
+            StopListener();
+            AsyncTask(ENamedThreads::GameThread, [this]()
+                {
+                    bLoggedIn = false;
+                    SessionToken.Empty();
+
+                    const FString Err = TEXT("SID mismatch");
+                    OnLoginFailed.Broadcast(Err);
+                    OnOAuthLoginPushed.Broadcast(false, Err);
+                });
+
+            return;
+        }
+
+        // Success response
+        {
+            const FString Resp = MakeHttpResponse(200, TEXT("OK"));
+            FTCHARToUTF8 Utf8(*Resp);
+            int32 Sent = 0;
+            Client->Send((uint8*)Utf8.Get(), Utf8.Length(), Sent);
+        }
+
+        Client->Close();
+        Sockets->DestroySocket(Client);
+
+        //UE_LOG(LogTemp, Warning, TEXT("OAuth push accepted successfully"));
+
+        StopListener();
+
+        // Update state + broadcast on GAME THREAD.
+        // Capture SessionTokenLocal by value (safe).
+        AsyncTask(ENamedThreads::GameThread, [this, SessionTokenLocal]()
+            {
+                bLoggedIn = true;
+                SessionToken = SessionTokenLocal;
+
+                //UE_LOG(LogTemp, Warning, TEXT("Auth: broadcasting OnLoginSucceeded"));
+                OnLoginSucceeded.Broadcast();
+
+                // Optional debug event
+                OnOAuthLoginPushed.Broadcast(true, SessionTokenLocal);
+            });
 
         return;
     }
+
+    //UE_LOG(LogTemp, Warning, TEXT("AcceptLoop exited"));
 }
 
-bool UOAuthGISubsystem::ParseRequestForCode(const FString& HttpRequest, FString& OutCode)
+
+bool UOAuthGISubsystem::ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutBytes, double MaxSeconds)
 {
-    // Expect: GET /callback?code=...&scope=... HTTP/1.1
-    int32 GetPos = HttpRequest.Find(TEXT("GET "));
-    if (GetPos == INDEX_NONE) return false;
+    const double Start = FPlatformTime::Seconds();
+    TArray<uint8> Buffer;
+    Buffer.SetNumUninitialized(4096);
 
-    int32 PathStart = GetPos + 4;
-    int32 PathEnd = HttpRequest.Find(TEXT(" HTTP/"), ESearchCase::IgnoreCase, ESearchDir::FromStart, PathStart);
-    if (PathEnd == INDEX_NONE) return false;
+    // Read until we have headers and the full Content-Length body (or time out)
+    int32 TotalRead = 0;
+    FString Accum;
 
-    const FString Path = HttpRequest.Mid(PathStart, PathEnd - PathStart);
-
-    FString Query;
-    FString Route;
-    if (!Path.Split(TEXT("?"), &Route, &Query)) return false;
-
-    // Parse query params
-    TArray<FString> Parts;
-    Query.ParseIntoArray(Parts, TEXT("&"), true);
-
-    for (const FString& P : Parts)
+    while ((FPlatformTime::Seconds() - Start) < MaxSeconds)
     {
-        FString K, V;
-        if (P.Split(TEXT("="), &K, &V))
+        uint32 Pending = 0;
+        if (!Socket->HasPendingData(Pending))
         {
-            if (K == TEXT("code"))
+            FPlatformProcess::Sleep(0.01f);
+            continue;
+        }
+
+        int32 Read = 0;
+        const int32 ToRead = FMath::Min<int32>((int32)Pending, Buffer.Num());
+        if (!Socket->Recv(Buffer.GetData(), ToRead, Read))
+            break;
+
+        if (Read > 0)
+        {
+            OutBytes.Append(Buffer.GetData(), Read);
+            TotalRead += Read;
+
+            // Try to detect if complete
+            FString Chunk = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData()))).Left(Read);
+            Accum += Chunk;
+
+            FString Headers, Body;
+            if (SplitHeadersBody(Accum, Headers, Body))
             {
-                OutCode = FGenericPlatformHttp::UrlDecode(V);
-                return !OutCode.IsEmpty();
+                const int32 CL = FindContentLength(Headers);
+                if (CL >= 0)
+                {
+                    // Body length in TCHAR count is not bytes; but our JSON is ASCII/UTF8 typically.
+                    // We use Accum string body length as a practical dev simplification.
+                    if (Body.Len() >= CL)
+                        return true;
+                }
             }
         }
     }
-    return false;
+
+    // Best effort: if we got anything, return true and let the parser handle it
+    return OutBytes.Num() > 0;
 }
 
-void UOAuthGISubsystem::ExchangeCodeForTokens(const FString& Code, const FString& RedirectUri)
+bool UOAuthGISubsystem::SplitHeadersBody(const FString& Request, FString& OutHeaders, FString& OutBody)
 {
-    // POST https://oauth2.googleapis.com/token (x-www-form-urlencoded)
-    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-    Req->SetURL(TEXT("https://oauth2.googleapis.com/token"));
-    Req->SetVerb(TEXT("POST"));
-    Req->SetHeader(TEXT("Content-Type"), TEXT("application/x-www-form-urlencoded"));
+    int32 Sep = Request.Find(TEXT("\r\n\r\n"));
+    if (Sep == INDEX_NONE)
+        Sep = Request.Find(TEXT("\n\n"));
+    if (Sep == INDEX_NONE)
+        return false;
 
-    const FString Body =
-        TEXT("code=") + UrlEncode(Code) +
-        TEXT("&client_id=") + UrlEncode(ClientId) +
-        TEXT("&client_secret=") + UrlEncode(ClientSecret) +
-        TEXT("&redirect_uri=") + UrlEncode(RedirectUri) +
-        TEXT("&grant_type=authorization_code");
+    OutHeaders = Request.Left(Sep);
+    OutBody = Request.Mid(Sep + 4); // assumes \r\n\r\n; okay for our backend
+    return true;
+}
 
-    Req->SetContentAsString(Body);
+bool UOAuthGISubsystem::ParseRequestLine(const FString& Headers, FString& OutMethod, FString& OutPath)
+{
+    // First line: METHOD PATH HTTP/1.1
+    TArray<FString> Lines;
+    Headers.ParseIntoArrayLines(Lines, true);
+    if (Lines.Num() == 0)
+        return false;
 
-    Req->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSucceeded)
-        {
-            if (!bSucceeded || !Response.IsValid())
-            {
-                OnGoogleLoginResult.Broadcast(false, TEXT("Token request failed (no response)"));
-                return;
-            }
+    TArray<FString> Parts;
+    Lines[0].ParseIntoArray(Parts, TEXT(" "), true);
+    if (Parts.Num() < 2)
+        return false;
 
-            if (Response->GetResponseCode() != 200)
-            {
-                OnGoogleLoginResult.Broadcast(false,
-                    FString::Printf(TEXT("Token request failed HTTP %d: %s"),
-                        Response->GetResponseCode(), *Response->GetContentAsString()));
-                return;
-            }
+    OutMethod = Parts[0];
+    OutPath = Parts[1];
+    return true;
+}
 
-            // Parse JSON
-            TSharedPtr<FJsonObject> JsonObj;
-            const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
-            if (!FJsonSerializer::Deserialize(Reader, JsonObj) || !JsonObj.IsValid())
-            {
-                OnGoogleLoginResult.Broadcast(false, TEXT("Failed to parse token JSON"));
-                return;
-            }
+int32 UOAuthGISubsystem::FindContentLength(const FString& Headers)
+{
+    // Very simple parse
+    int32 Pos = Headers.Find(TEXT("Content-Length:"), ESearchCase::IgnoreCase);
+    if (Pos == INDEX_NONE)
+        return -1;
 
-            const FString IdToken = JsonObj->GetStringField(TEXT("id_token"));
-            if (IdToken.IsEmpty())
-            {
-                OnGoogleLoginResult.Broadcast(false, TEXT("No id_token returned"));
-                return;
-            }
+    int32 LineEnd = Headers.Find(TEXT("\n"), ESearchCase::IgnoreCase, ESearchDir::FromStart, Pos);
+    FString Line = (LineEnd == INDEX_NONE) ? Headers.Mid(Pos) : Headers.Mid(Pos, LineEnd - Pos);
 
-            // Success: return id_token (JWT). You can decode/verify, or send to your backend for verification.
-            OnGoogleLoginResult.Broadcast(true, IdToken);
+    Line = Line.Replace(TEXT("\r"), TEXT(""));
+    Line = Line.Replace(TEXT("Content-Length:"), TEXT(""), ESearchCase::IgnoreCase).TrimStartAndEnd();
 
-            GetGameInstance()->GetSubsystem<UOAuthGISubsystem>()->MarkLoginSucceeded();
+    return FCString::Atoi(*Line);
+}
 
-        });
+FString UOAuthGISubsystem::MakeHttpResponse(int32 Code, const FString& Body)
+{
+    FString Status = TEXT("OK");
+    if (Code == 400) Status = TEXT("Bad Request");
+    if (Code == 403) Status = TEXT("Forbidden");
+    if (Code == 404) Status = TEXT("Not Found");
+    if (Code == 500) Status = TEXT("Internal Server Error");
 
-    Req->ProcessRequest();
+    const FString Payload = Body;
+    return FString::Printf(
+        TEXT("HTTP/1.1 %d %s\r\nContent-Type: text/plain\r\nConnection: close\r\nContent-Length: %d\r\n\r\n%s"),
+        Code, *Status, Payload.Len(), *Payload
+    );
 }
