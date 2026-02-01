@@ -25,30 +25,39 @@ void AUserDrone::BeginPlay()
 void AUserDrone::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (bRightClickHeld) {
+		UpdatePan();
+	}
+}
 
+void AUserDrone::UpdatePan() {
+	if (!PC) return;
+
+	FVector CurrentHit;
+	if (!GetMouseGroundHit(CurrentHit))
+	{
+		// If we lose the surface for a frame, do nothing.
+		return;
+	}
+
+	const FVector Delta = MouseDragStart - CurrentHit;
+
+	AddActorWorldOffset(Delta, true); // sweep=true is optional; can help prevent clipping
+	// IMPORTANT: do NOT refresh MouseDragStart here
 }
 
 // Called to bind functionality to input
 void AUserDrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	// Horizontal Movement bindings
-	PlayerInputComponent->BindAxis("MoveForward", this, &AUserDrone::MoveForward);
-	PlayerInputComponent->BindAxis("MoveRight", this, &AUserDrone::MoveRight);
 
-	PlayerInputComponent->BindAction("Click", IE_Pressed, this, &AUserDrone::LeftMouse);
-}
+	PlayerInputComponent->BindAxis("PanUp", this, &AUserDrone::PanUp);
+	PlayerInputComponent->BindAxis("PanRight", this, &AUserDrone::PanRight);
+	PlayerInputComponent->BindAxis("MouseWheel", this, &AUserDrone::MouseScroll);
 
-void AUserDrone::MoveForward(float Value) {
-	if (Value != 0.f) {
-		AddMovementInput(FVector(1,0,0), Value);
-	}
-}
-
-void AUserDrone::MoveRight(float Value) {
-	if (Value != 0.f) {
-		AddMovementInput(FVector(0, 1, 0), Value);
-	}
+	PlayerInputComponent->BindAction("LeftClick", IE_Pressed, this, &AUserDrone::LeftMouse);
+	PlayerInputComponent->BindAction("RightClick", IE_Pressed, this, &AUserDrone::RightMousePressed);
+	PlayerInputComponent->BindAction("RightClick", IE_Released, this, &AUserDrone::RightMouseReleased);
 }
 
 void AUserDrone::LeftMouse() {
@@ -76,27 +85,63 @@ void AUserDrone::LeftMouse() {
 	}
 }
 
-// This function treats -99999, -9999, -999 as a miss
-FVector AUserDrone::GetMouseRaycast() {
-	/*FVector MouseWorldLocation;
-	FVector MouseWorldDirection;
+void AUserDrone::RightMousePressed() {
+	// Mark our rmb flag
+	bRightClickHeld = true;
 
-	if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return FVector(-99999, -9999, -999);
-	
-	FVector StartLoc = MouseWorldLocation;
-	FVector EndLoc = StartLoc + MouseWorldDirection * 10000;
+	// And grab our start loc
+	FVector Temp = FVector(0, 0, 0);
+	if (GetMouseGroundHit(Temp)) MouseDragStart = Temp;
+}
 
-	FHitResult HitResult;
-	FCollisionQueryParams CollisionParams;
-	CollisionParams.AddIgnoredActor(this);
+void AUserDrone::RightMouseReleased() {
+	bRightClickHeld = false;
+}
 
-	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
+void AUserDrone::PanUp(float Value) {
+	//if (bRightClickHeld) {
+	//	SetActorLocation(GetActorLocation() + GetActorForwardVector() * Value * 10);
+	//}
+}
 
-	if (bHit) {
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Instigator = this;
-		GetWorld()->SpawnActor<APlant>(SelectedPlant, HitResult.Location, FRotator(0,0,0), SpawnParams);
-	}*/
-	return FVector(0, 0, 0);
+void AUserDrone::PanRight(float Value) {
+	//if (bRightClickHeld) {
+	//	SetActorLocation(GetActorLocation() + GetActorRightVector() * Value * 10);
+	//}
+}
+
+bool AUserDrone::GetMouseGroundHit(FVector& OutVector) {
+	float MouseX, MouseY;
+	PC->GetMousePosition(MouseX, MouseY);
+
+	FVector WorldLocation, WorldDirection;
+	PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
+
+	// trace down to ground plane (or terrain)
+	FVector End = WorldLocation + WorldDirection * 100000.f;
+
+	FHitResult Hit;
+	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic);
+
+	if (!bHit) {
+		OutVector = FVector(0, 0, 0);
+		return false;
+	}
+
+	OutVector = Hit.Location;
+	return bHit;
+
+	// Fallback: intersect with a plane (e.g., Z=0)
+	const float GroundZ = 0.f;
+	const FPlane GroundPlane(FVector::UpVector, GroundZ);
+
+	const FVector PlanePoint = FMath::LinePlaneIntersection(WorldLocation, End, GroundPlane);
+
+	// Optional: reject if the ray is almost parallel to the plane
+	if (FMath::Abs(WorldDirection.Z) < KINDA_SMALL_NUMBER)
+		return false;
+
+	OutVector = PlanePoint;
+	return true;
 }
 
