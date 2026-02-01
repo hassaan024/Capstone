@@ -7,10 +7,11 @@ import { BACKEND_BASE_URL, countries } from "../utils/constants";
 import { validatePostalCode } from "../utils/helper_functions";
 import { fetchLongLatFromZipAndCountry } from "../utils/api";
 import { sendLocationToBackend } from "../utils/backend_api";
+import { WeatherInfo } from "../components/WeatherInfoCard";
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [zip, setZip] = useState("");
   const [country, setCountry] = useState("US");
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
@@ -22,6 +23,31 @@ export const Dashboard: React.FC = () => {
       navigate("/login");
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchUserLocation = async () => {
+      try {
+        const res = await fetch(`${BACKEND_BASE_URL}/user/location/${user.id}`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch user location");
+        }
+        const data = await res.json();
+
+        const lat = data.latitude ? Number(data.latitude) : undefined;
+        const lng = data.longitude ? Number(data.longitude) : undefined;
+
+        // Optional: update the user in context
+        updateUser({ ...user, latitude: lat, longitude: lng });
+
+      } catch (err) {
+        console.error("Error fetching user location:", err);
+      }
+    };
+
+    fetchUserLocation();
+  }, [user?.id]);
 
   const handleLogout = () => {
     logout();
@@ -178,6 +204,11 @@ export const Dashboard: React.FC = () => {
               Manage your gardens and track your plants
             </p>
           </div>
+          
+          {user.latitude && user.longitude && (
+            <WeatherInfo latitude={user.latitude} longitude={user.longitude} />
+          )}
+
 
           <div className="dashboard-grid">
             <div className="dashboard-stat-card">
@@ -233,5 +264,7 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+
 
 

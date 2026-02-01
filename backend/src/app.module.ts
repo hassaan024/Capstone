@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { TrefleModule } from './trefle/trefle.module.js';
 import { SpeciesModule } from './species/species.module.js';
 import { ConfigModule } from '@nestjs/config';
+import { WeatherModule } from './weather/weather.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     TrefleModule,
     SpeciesModule,
+    WeatherModule,
   ],
   controllers: [AppController],
   providers: [AppService],

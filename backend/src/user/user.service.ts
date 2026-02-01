@@ -7,13 +7,46 @@ import {
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { DatabaseService } from 'database/database.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
+import { UserLocationDto } from './dto/user-location.dto.js';
 
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
   constructor(private db: DatabaseService) {}
+
+  async getUserLocation(id: number): Promise<UserLocationDto> {
+    try {
+      const user = await this.findOne(id);
+
+      if (!user) {
+        throw new NotFoundException(`User with id ${id} not found`);
+      }
+
+      if (
+        user.latitude === null ||
+        user.latitude === undefined ||
+        user.longitude === null ||
+        user.longitude === undefined
+      ) {
+        throw new NotFoundException(
+          `Latitude or Longitude is undefined. | lat: ${user.latitude} | long: ${user.longitude}`,
+        );
+      }
+
+      const user_location: UserLocationDto = {
+        longitude: Number(user.longitude),
+        latitude: Number(user.latitude),
+        updatedAt: user.lastUpdated,
+      };
+
+      return user_location;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      throw new BadRequestException(message);
+    }
+  }
 
   async create(createUserDto: CreateUserDto) {
     try {
@@ -24,7 +57,7 @@ export class UserService {
         },
       });
       
-      this.logger.log(`✅ User created - ID: ${user.id}, Email: ${user.email}, Name: ${user.displayName}`);
+      this.logger.log(`User created - ID: ${user.id}, Email: ${user.email}, Name: ${user.displayName}`);
       
       return user;
     } catch (err: unknown) {
@@ -32,10 +65,10 @@ export class UserService {
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
       ) {
-        this.logger.warn(`❌ User creation failed - Duplicate email: ${createUserDto.email}`);
+        this.logger.warn(`User creation failed - Duplicate email: ${createUserDto.email}`);
         throw new BadRequestException('A user with this email already exists.');
       }
-      this.logger.error(`❌ User creation failed: ${(err as Error).message}`);
+      this.logger.error(`User creation failed: ${(err as Error).message}`);
       throw new BadRequestException((err as Error).message ?? 'Unknown error');
     }
   }
@@ -44,7 +77,7 @@ export class UserService {
     return this.db.user.findMany();
   }
 
-  findOne(id: number) {
+  findOne(id: number): Promise<User | null> {
     return this.db.user.findUnique({
       where: {
         id: id,
@@ -59,7 +92,7 @@ export class UserService {
         data: updateUserDto,
       });
       
-      this.logger.log(`✅ User updated - ID: ${id}, Email: ${user.email}, Updated fields: ${Object.keys(updateUserDto).join(', ')}`);
+      this.logger.log(`User updated - ID: ${id}, Email: ${user.email}, Updated fields: ${Object.keys(updateUserDto).join(', ')}`);
       
       return user;
     } catch (err) {
@@ -67,10 +100,10 @@ export class UserService {
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2025'
       ) {
-        this.logger.warn(`❌ User update failed - User not found: ${id}`);
+        this.logger.warn(`User update failed - User not found: ${id}`);
         throw new NotFoundException(`User with id ${id} not found`);
       }
-      this.logger.error(`❌ User update failed for ID ${id}: ${(err as Error).message}`);
+      this.logger.error(`User update failed for ID ${id}: ${(err as Error).message}`);
       throw new BadRequestException((err as Error).message ?? 'Unknown error');
     }
   }
@@ -83,7 +116,7 @@ export class UserService {
         },
       });
       
-      this.logger.warn(`🗑️  User deleted - ID: ${id}, Email: ${user.email}, Name: ${user.displayName}`);
+      this.logger.warn(`User deleted - ID: ${id}, Email: ${user.email}, Name: ${user.displayName}`);
       
       return user;
     } catch (err) {
@@ -94,7 +127,7 @@ export class UserService {
         this.logger.warn(`❌ User deletion failed - User not found: ${id}`);
         throw new NotFoundException(`User with id ${id} not found`);
       }
-      this.logger.error(`❌ User deletion failed for ID ${id}: ${(err as Error).message}`);
+      this.logger.error(`User deletion failed for ID ${id}: ${(err as Error).message}`);
       throw new BadRequestException((err as Error).message ?? 'Unknown error');
     }
   }

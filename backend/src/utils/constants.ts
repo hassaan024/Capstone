@@ -1,3 +1,8 @@
+// weather api base url
+export const OPEN_METEO_CURRENT_FORCAST_URL =
+  'https://api.open-meteo.com/v1/forecast';
+export const OPEN_METEO_ARCHIVE_FORCAST_URL =
+  'https://archive-api.open-meteo.com/v1/era5';
 // React client info
 export const REACT_GOOGLE_AUTH_URI = process.env.REACT_GOOGLE_AUTH_URI;
 export const REACT_GOOGLE_TOKEN_URI = process.env.REACT_GOOGLE_TOKEN_URI;

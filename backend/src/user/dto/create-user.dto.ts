@@ -54,4 +54,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   picture?: string;
+
+  @IsOptional()
+  @IsString()
+  updatedAt?: Date;
 }
