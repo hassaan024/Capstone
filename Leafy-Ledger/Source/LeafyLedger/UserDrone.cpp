@@ -53,7 +53,7 @@ void AUserDrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 
 	PlayerInputComponent->BindAxis("PanUp", this, &AUserDrone::PanUp);
 	PlayerInputComponent->BindAxis("PanRight", this, &AUserDrone::PanRight);
-	PlayerInputComponent->BindAxis("MouseWheel", this, &AUserDrone::MouseScroll);
+	//PlayerInputComponent->BindAxis("MouseWheel", this, &AUserDrone::MouseScroll);
 
 	PlayerInputComponent->BindAction("LeftClick", IE_Pressed, this, &AUserDrone::LeftMouse);
 	PlayerInputComponent->BindAction("RightClick", IE_Pressed, this, &AUserDrone::RightMousePressed);

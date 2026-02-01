@@ -27,7 +27,7 @@ protected:
 	void LeftMouse();
 	void RightMousePressed();
 	void RightMouseReleased();
-	void MouseScroll(float Axis);
+	//void MouseScroll(float Axis);
 
 	UPROPERTY(BlueprintReadWrite)
 	TSubclassOf<APlant> SelectedPlant;
