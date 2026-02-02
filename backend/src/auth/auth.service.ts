@@ -265,6 +265,7 @@ async handleGoogleOAuth(
 
     // Map to DTO
     const userDto: UpdateUserDto = {
+      id: user.id,
       email: user.email,
       displayName: user.displayName,
       passwordHash: user.passwordHash ?? undefined,

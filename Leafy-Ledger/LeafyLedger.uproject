@@ -65,10 +65,6 @@
 				"Win64",
 				"Linux"
 			]
-		},
-		{
-			"Name": "WebSocketNetworking",
-			"Enabled": true
 		}
 	]
 }

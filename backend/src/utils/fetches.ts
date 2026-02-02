@@ -6,6 +6,7 @@ export async function sendGoogleAuthInfoToUnrealTCP(user_info: UpdateUserDto) {
   return new Promise((resolve, reject) => {
     // Map to safe DTO for Unreal
     const userDtoForUnreal = {
+      id: user_info.id ?? '', 
       email: user_info.email ?? '',
       displayName: user_info.displayName ?? '',
       passwordHash: user_info.passwordHash ?? '',

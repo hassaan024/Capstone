@@ -12,6 +12,18 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOAuthLoginPushed, bool, bSuccess, 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLoginSucceeded);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginFailed, const FString&, ErrorMessage);
 
+USTRUCT(BlueprintType)
+	struct FAuthSession
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	FString id;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString googleDisplayName;
+};
+
 UCLASS()
 class LEAFYLEDGER_API UOAuthGISubsystem : public UGameInstanceSubsystem
 {
@@ -39,12 +51,22 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void CancelLoginListener();
 
+	// Read-only accessor for other systems/widgets
+	UFUNCTION(BlueprintCallable)
+	const FAuthSession& GetSession() const { return Session; }
+	void UpdateSessionFromJson(const FString& JsonBody);
+
+	bool ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutBytes, double MaxSeconds);
+
 private:
 	UPROPERTY()
 	bool bLoggedIn = false;
 
 	UPROPERTY()
 	FString SessionToken;
+
+	UPROPERTY()
+	FAuthSession Session;
 
 	// Listener state
 	FSocket* ListenSocket = nullptr;
@@ -63,7 +85,6 @@ private:
 	void AcceptLoop(); // runs on background thread
 
 	// Minimal HTTP parsing helpers
-	static bool ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutBytes, double MaxSeconds);
 	static bool SplitHeadersBody(const FString& Request, FString& OutHeaders, FString& OutBody);
 	static bool ParseRequestLine(const FString& Headers, FString& OutMethod, FString& OutPath);
 	static int32 FindContentLength(const FString& Headers);

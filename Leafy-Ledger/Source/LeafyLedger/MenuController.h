@@ -13,7 +13,7 @@ class LEAFYLEDGER_API AMenuController : public APlayerController
 {
     GENERATED_BODY()
 
-protected:
+public:
     virtual void BeginPlay() override;
 
     UFUNCTION()
@@ -21,6 +21,9 @@ protected:
 
     UFUNCTION()
     void ShowMainMenu();
+
+    UFUNCTION()
+    void ShowDisplayName();
 
     UFUNCTION()
     void HandleLoginFailed(const FString& Error);
@@ -31,9 +34,15 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
     TSubclassOf<UUserWidget> MainMenuWidgetClass;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+    TSubclassOf<UUserWidget> DisplayNameWidgetClass;
+
     UPROPERTY(Transient)
     UUserWidget* CurrentWidget = nullptr;
 
+
 private:
     void SetRootWidget(TSubclassOf<UUserWidget> WidgetClass);
+
+    bool DisplayNameWidgetShown = false;
 };

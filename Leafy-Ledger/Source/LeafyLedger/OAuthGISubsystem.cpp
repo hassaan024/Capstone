@@ -49,8 +49,6 @@ void UOAuthGISubsystem::BeginLoginViaBackendPush()
         *ExpectedSid
     );
 
-    //UE_LOG(LogTemp, Warning, TEXT("GoogleAuthURL: %s"), *GoogleAuthURL);
-
     ///start?sid=%s&return_port=%d"), *UrlEncode(ExpectedSid), Port
     //UE_LOG(LogTemp, Warning, TEXT("OAuth UE Listener bound: %s"), *BoundEndpoint.ToString());
     //UE_LOG(LogTemp, Warning, TEXT("Opening browser to backend start URL:\n%s"), *BackendStartUrl);
@@ -303,8 +301,8 @@ void UOAuthGISubsystem::AcceptLoop()
         }
         else
         {
-            SessionTokenLocal = TEXT(""); // fallback or log warning
-            UE_LOG(LogTemp, Warning, TEXT("No session_token in JSON"));
+            SessionTokenLocal = TEXT(""); // fallback and log warning
+            //UE_LOG(LogTemp, Warning, TEXT("No session_token in JSON"));
         }
 
         //UE_LOG(LogTemp, Warning, TEXT("Received sid=%s tokenLen=%d"), *Sid, SessionTokenLocal.Len());
@@ -412,7 +410,8 @@ bool UOAuthGISubsystem::ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutByte
                 const int32 CL = FindContentLength(Headers);
                 if (CL >= 0 && Body.Len() >= CL)
                 {
-                    //UE_LOG(LogTemp, Warning, TEXT("Complete request received: Headers:\n%s\nBody:\n%s"), *Headers, *Body);
+                    // We have the complete JSON body
+                    UpdateSessionFromJson(Body);
                     return true;
                 }
             }
@@ -483,4 +482,28 @@ FString UOAuthGISubsystem::MakeHttpResponse(int32 Code, const FString& Body)
         TEXT("HTTP/1.1 %d %s\r\nContent-Type: text/plain\r\nConnection: close\r\nContent-Length: %d\r\n\r\n%s"),
         Code, *Status, Payload.Len(), *Payload
     );
+}
+
+void UOAuthGISubsystem::UpdateSessionFromJson(const FString& JsonBody)
+{
+    TSharedPtr<FJsonObject> Obj;
+    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonBody);
+
+    if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("UpdateSessionFromJson: invalid JSON: %s"), *JsonBody);
+        return;
+    }
+
+    FString id, googleDisplayName;
+    if (Obj->TryGetStringField(TEXT("id"), id))
+    {
+        Session.id = id;
+        //UE_LOG(LogTemp, Log, TEXT("Session.id set to: %s"), *Session.id);
+    }
+    if (Obj->TryGetStringField(TEXT("googleDisplayName"), googleDisplayName)) 
+    {
+        Session.googleDisplayName = googleDisplayName;
+        //UE_LOG(LogTemp, Log, TEXT("Session.googleDisplayName set to: %s"), *Session.googleDisplayName);
+    }
 }

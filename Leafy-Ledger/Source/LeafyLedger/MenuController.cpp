@@ -19,7 +19,9 @@ void AMenuController::BeginPlay()
     Auth->OnLoginFailed.AddDynamic(this, &AMenuController::HandleLoginFailed);
 
     if (Auth->IsLoggedIn()) {
+        UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu Auth Logged In"));
         ShowMainMenu();
+        //ShowDisplayName();
     }
     else {
         ShowLogin();
@@ -43,7 +45,7 @@ void AMenuController::SetRootWidget(TSubclassOf<UUserWidget> WidgetClass)
     CurrentWidget = CreateWidget<UUserWidget>(this, WidgetClass);
     if (!CurrentWidget)
     {
-        //UE_LOG(LogTemp, Error, TEXT("CreateWidget failed for %s"), *WidgetClass->GetName());
+        UE_LOG(LogTemp, Error, TEXT("CreateWidget failed for %s"), *WidgetClass->GetName());
         return;
     }
 
@@ -64,14 +66,22 @@ void AMenuController::ShowLogin()
 
 void AMenuController::ShowMainMenu()
 {
-    FPlatformProcess::LaunchURL(
-        TEXT("http://localhost:5173/login"),
-        nullptr,
-        nullptr
-    );
+    if (!DisplayNameWidgetShown) {
+        FPlatformProcess::LaunchURL(
+            TEXT("http://localhost:5173/login"),
+            nullptr,
+            nullptr
+        );
+    }
 
-    //UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu"));
     SetRootWidget(MainMenuWidgetClass);
+}
+
+void AMenuController::ShowDisplayName() 
+{
+    DisplayNameWidgetShown = true;
+
+    SetRootWidget(DisplayNameWidgetClass);
 }
 
 void AMenuController::HandleLoginFailed(const FString& Error)
