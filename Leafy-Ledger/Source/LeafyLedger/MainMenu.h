@@ -23,5 +23,5 @@ protected:
 	UButton* BTN_UpdateDisplayName;
 
 	UFUNCTION()
-	void OnPress();
+	void OnPressUpdateDisplayName();
 };

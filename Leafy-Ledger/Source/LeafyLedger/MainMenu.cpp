@@ -9,15 +9,15 @@ bool UMainMenu::Initialize()
 
     if (BTN_UpdateDisplayName)
     {
-        BTN_UpdateDisplayName->OnClicked.AddDynamic(this, &UMainMenu::OnPress);
+        BTN_UpdateDisplayName->OnClicked.AddDynamic(this, &UMainMenu::OnPressUpdateDisplayName);
     }
     return true;
 }
 
-void UMainMenu::OnPress()
+void UMainMenu::OnPressUpdateDisplayName()
 {
     if (AMenuController* MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0))) 
     {
-        MenuController->ShowMainMenu();
+        MenuController->ShowDisplayName();
     }
 }
