@@ -13,6 +13,7 @@ import { UpdateUserDto } from '../user/dto/update-user.dto.js';
 import { Origin } from './pipes/origin-validation.pipe.js';
 import { GOOGLE_CLIENTS } from '../utils/constants.js';
 import { DatabaseService } from '../database/database.service.js';
+import { sendGoogleAuthInfoToUnrealTCP } from '../utils/fetches.js';
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -173,9 +174,10 @@ export class AuthService {
     };
   }
 
-  async handleGoogleOAuth(
+async handleGoogleOAuth(
     origin: Origin,
     auth_code: string,
+    sid: string | undefined = undefined,
   ): Promise<UpdateUserDto> {
     const client_info =
       origin === 'unreal' ? GOOGLE_CLIENTS.UNREAL : GOOGLE_CLIENTS.REACT;
@@ -184,6 +186,9 @@ export class AuthService {
       AUTH CODE: ${auth_code}
       ORIGIN: ${origin}
     `);
+
+      this.logger.log(`
+        redirect_uri: ${client_info.REDIRECT_URI}`)
 
     // auth code for access token
     const token_response = await fetch(client_info.TOKEN_URI, {
@@ -234,7 +239,7 @@ export class AuthService {
 
     this.logger.log('Google user info:', userInfo);
 
-    //  insert into database or update
+    // insert into database or update
     const user = await this.db.user.upsert({
       where: { googleId: userInfo.id },
       update: {
@@ -260,16 +265,25 @@ export class AuthService {
 
     // Map to DTO
     const userDto: UpdateUserDto = {
+      id: user.id,
       email: user.email,
       displayName: user.displayName,
       passwordHash: user.passwordHash ?? undefined,
-      googleId: user.googleId as string | undefined,
-      verifiedEmail: user.verifiedEmail as boolean | undefined,
-      googleDisplayName: user.googleDisplayName as string | undefined,
-      givenName: user.givenName as string | undefined,
-      familyName: user.familyName as string | undefined,
-      picture: user.picture as string | undefined,
+      googleId: user.googleId,
+      verifiedEmail: user.verifiedEmail,
+      googleDisplayName: user.googleDisplayName,
+      givenName: user.givenName,
+      familyName: user.familyName,
+      picture: user.picture,
+      sid: sid,
     };
+
+    if (origin === 'unreal') {
+      this.logger.log('trying to send info to unreal');
+      await sendGoogleAuthInfoToUnrealTCP(userDto);
+    }
+
+    this.logger.log(`userDto: ${userDto}`)
 
     return userDto;
   }

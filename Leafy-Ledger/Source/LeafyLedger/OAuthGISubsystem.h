@@ -6,28 +6,23 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Sockets.h"
-#include "HAL/RunnableThread.h"
-#include "HAL/ThreadSafeBool.h"
-#include "SocketSubsystem.h"
-#include "Networking.h"
-#include "HttpModule.h"
-#include "Interfaces/IHttpResponse.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonReader.h"
-#include "Misc/Base64.h"
-#include "Misc/Guid.h"
-#include "GenericPlatform/GenericPlatformHttp.h"
-#include "Misc/ScopedSlowTask.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "OAuthGISubsystem.generated.h"
 
-/**
- * 
- */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGoogleLoginResult, bool, bSuccess, const FString&, ErrorOrIdToken);
-DECLARE_MULTICAST_DELEGATE(FOnLoginSucceeded);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnLoginFailed, const FString& /*Error*/);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOAuthLoginPushed, bool, bSuccess, const FString&, ErrorOrSessionToken);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLoginSucceeded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginFailed, const FString&, ErrorMessage);
+
+USTRUCT(BlueprintType)
+	struct FAuthSession
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	FString id;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString googleDisplayName;
+};
 
 UCLASS()
 class LEAFYLEDGER_API UOAuthGISubsystem : public UGameInstanceSubsystem
@@ -35,52 +30,63 @@ class LEAFYLEDGER_API UOAuthGISubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-    UPROPERTY(BlueprintAssignable)
-    FGoogleLoginResult OnGoogleLoginResult;
+	UPROPERTY(BlueprintAssignable)
+	FOnLoginSucceeded OnLoginSucceeded;
 
-    UFUNCTION(BlueprintCallable)
-    void BeginGoogleLogin();
+	UPROPERTY(BlueprintAssignable)
+	FOnLoginFailed OnLoginFailed;
 
-    FOnLoginSucceeded OnLoginSucceeded;
-    FOnLoginFailed OnLoginFailed;
+	UFUNCTION(BlueprintCallable)
+	bool IsLoggedIn() const { return bLoggedIn; }
 
-    bool IsLoggedIn() const { return bLoggedIn; }
+	UFUNCTION(BlueprintCallable)
+	const FString& GetSessionToken() const { return SessionToken; }
 
-    // Called once OAuth callback exchange finishes successfully
-    void MarkLoginSucceeded()
-    {
-        bLoggedIn = true;
-        OnLoginSucceeded.Broadcast();
-    }
+	UPROPERTY(BlueprintAssignable)
+	FOAuthLoginPushed OnOAuthLoginPushed;
 
-    void MarkLoginFailed(const FString& Error)
-    {
-        bLoggedIn = false;
-        OnLoginFailed.Broadcast(Error);
-    }
+	UFUNCTION(BlueprintCallable)
+	void BeginLoginViaBackendPush();
+
+	UFUNCTION(BlueprintCallable)
+	void CancelLoginListener();
+
+	// Read-only accessor for other systems/widgets
+	UFUNCTION(BlueprintCallable)
+	const FAuthSession& GetSession() const { return Session; }
+	void UpdateSessionFromJson(const FString& JsonBody);
+
+	bool ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutBytes, double MaxSeconds);
 
 private:
-    // Config
-    // These should be obfuscated later
-    FString ClientId = TEXT("1083171967667-uepovjdmlhq1ah0dvjdkhefrteh4ujhj.apps.googleusercontent.com");
-    FString ClientSecret = TEXT("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");
-    FString Scope = TEXT("openid email profile");
+	UPROPERTY()
+	bool bLoggedIn = false;
 
-    // Loopback listener state
-    FSocket* ListenSocket = nullptr;
-    FIPv4Endpoint LocalEndpoint;
-    TAtomic<bool> bListening{ false };
+	UPROPERTY()
+	FString SessionToken;
 
-    // Helpers
-    bool StartLoopbackListener();
-    void StopLoopbackListener();
+	UPROPERTY()
+	FAuthSession Session;
 
-    void OpenSystemBrowser(const FString& AuthUrl);
+	// Listener state
+	FSocket* ListenSocket = nullptr;
+	TAtomic<bool> bListening{ false };
+	FIPv4Endpoint BoundEndpoint;
 
-    void RunAcceptLoop(); // runs on background thread
-    bool ParseRequestForCode(const FString& HttpRequest, FString& OutCode);
+	// Login state
+	FString ExpectedSid;
+	double StartTimeSeconds = 0.0;
+	double TimeoutSeconds = 90.0;
 
-    void ExchangeCodeForTokens(const FString& Code, const FString& RedirectUri);
+	// Helpers
+	bool StartListener();
+	void StopListener();
 
-    bool bLoggedIn = false;
+	void AcceptLoop(); // runs on background thread
+
+	// Minimal HTTP parsing helpers
+	static bool SplitHeadersBody(const FString& Request, FString& OutHeaders, FString& OutBody);
+	static bool ParseRequestLine(const FString& Headers, FString& OutMethod, FString& OutPath);
+	static int32 FindContentLength(const FString& Headers);
+	static FString MakeHttpResponse(int32 Code, const FString& Body);
 };
