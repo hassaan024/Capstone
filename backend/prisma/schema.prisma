@@ -1,0 +1,105 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  displayName       String
+  passwordHash      String?
+  creationTimestamp DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+  gardens           Garden[]
+  // stuff from google
+  googleId          String? @unique
+  verifiedEmail     Boolean?
+  googleDisplayName String? 
+  givenName         String?
+  familyName        String?
+  picture           String?
+  savedSpecies      Species[] @relation("UserSavedSpecies")
+}
+
+model Garden {
+  id                Int             @id @default(autoincrement())
+  ownerId           Int
+  name              String
+  description       String?
+  latitude          Float
+  longitude         Float
+  timezone          String?
+  creationTimestamp DateTime        @default(now())
+  lastUpdated       DateTime        @updatedAt
+  owner             User            @relation(fields: [ownerId], references: [id])
+  plants            PlantInstance[]
+}
+
+model PlantInstance {
+  id                Int      @id @default(autoincrement())
+  gardenId          Int
+  speciesId         Int
+  soilId            Int
+  heightCm          Float?   // height in cm, optional
+  ageDays           Int?     // age of plant in days, optional
+  healthStatus      HealthStatus?  
+  lastWatered       DateTime? 
+  notes             String?  // any notes
+  creationTimestamp DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+  garden            Garden   @relation(fields: [gardenId], references: [id])
+  soil              Soil     @relation(fields: [soilId], references: [id])
+  species           Species  @relation(fields: [speciesId], references: [id])
+}
+
+model Species {
+  id             Int             @id @default(autoincrement())
+  commonName     String
+  scientificName String
+  growthRate     Float
+  bloomRate      Float?
+  witherRate     Float?
+  minTemp        Float?
+  maxTemp        Float?
+  minHumidity    Float?
+  maxHumidity    Float?
+  avgHoursSun    Float?
+  imgSrcUrl      String?
+  notes          String?
+  trefleId       Int?            @unique // ID from Trefle API
+  wateringFreq   String?         // e.g., "Frequent", "Average", "Minimum"
+  plantInstances PlantInstance[]
+  savedBy        User[]          @relation("UserSavedSpecies")
+}
+
+model Soil {
+  id                Int             @id @default(autoincrement())
+  nitrogen          Float
+  phosphorus        Float
+  potassium         Float
+  pH                Float
+  organicPercentage Float?
+  type              SoilType
+  plantInstances    PlantInstance[]
+}
+
+enum HealthStatus {
+  Healthy
+  Wilting
+  Sick
+  Dead
+  NeedsWater
+}
+
+enum SoilType {
+  LOAM
+  SANDY
+  CLAY
+  SILT
+  PEAT
+  CHALK
+}

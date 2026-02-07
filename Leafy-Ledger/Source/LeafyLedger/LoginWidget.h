@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
-#include "Kismet/GameplayStatics.h"
-#include "OAuthGISubsystem.h" 
 #include "LoginWidget.generated.h"
 
 /**
@@ -21,7 +19,7 @@ public:
     virtual bool Initialize() override;
 
 protected:
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_Login;
 
     UFUNCTION()

@@ -2,28 +2,52 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
+import { useAuth } from "../context/AuthContext";
+import { BACKEND_BASE_URL, GOOGLE_OAUTH_CLIENT_ID} from "../utils/constants";
+import { FaEye, FaEyeSlash, FaSeedling, FaCloudSun, FaCoins } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [isRegistering, setIsRegistering] = React.useState(false);
+  
+  // Form fields
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
+  
+  // UI state
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  const [message, setMessage] = React.useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (codeResponse) => {
-        console.log("Google Login Success:", codeResponse);
+    flow: 'auth-code', // tells it to return a authentication code for the backend to exchange with a token
+    onSuccess: async ({ code }) => {
+        // console.log("User granted permission through google.");
+        // console.log(code)
         try {
-            const res = await fetch("http://localhost:3000/auth/google", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: codeResponse.access_token }), // Adjust depending on flow (id_token vs access_token)
-            });
-            const data = await res.json();
-            console.log("Backend response:", data);
+          const res = await fetch(`${BACKEND_BASE_URL}/auth/google/react`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+          });
+          const data = await res.json();
+          
+          if (res.ok) {
+            console.log("Logged-in user through google:", data);
+            login(data);
+            navigate("/dashboard");
+          } else {
+             console.error("Backend login failed:", data);
+             setMessage({ type: 'error', text: data.message || 'Google login failed' });
+          }
         } catch (err) {
-            console.error("Backend error:", err);
+            console.error("Error hitting backend oauth endpoint:", err);
+            setMessage({ type: 'error', text: 'Could not connect to server' });
         }
     },
     onError: (error) => console.log("Google Login Failed:", error),
@@ -31,50 +55,79 @@ const LoginPage: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Registering:", { email, firstName, lastName });
+    setMessage(null);
+    
+    // Validation
+    if (password !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match' });
+      return;
+    }
+    
+    if (password.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      return;
+    }
+    
+    setIsLoading(true);
+    
     try {
-        const res = await fetch("http://localhost:3000/auth/register", {
+        const res = await fetch(`${BACKEND_BASE_URL}/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password, firstName, lastName }),
         });
         const data = await res.json();
-        console.log("Registration response:", data);
+        
         if (res.ok) {
-            alert("Account created! Please log in.");
+            setMessage({ type: 'success', text: 'Account created! Please log in.' });
             setIsRegistering(false);
+            // Clear form fields
+            setConfirmPassword("");
+            setFirstName("");
+            setLastName("");
         } else {
-            alert("Registration failed: " + data.message);
+            const errorMsg = data.message || (Array.isArray(data.message) ? data.message.join(', ') : 'Unknown error');
+            setMessage({ type: 'error', text: errorMsg });
         }
     } catch (err) {
         console.error("Registration error:", err);
+        setMessage({ type: 'error', text: 'Could not connect to server' });
+    } finally {
+        setIsLoading(false);
     }
   };
 
   const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Logging in:", email);
+    setMessage(null);
+    setIsLoading(true);
+    
     try {
-        const res = await fetch("http://localhost:3000/auth/login", {
+        const res = await fetch(`${BACKEND_BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
         });
         const data = await res.json();
-        console.log("Login response:", data);
-         if (res.ok) {
-            alert("Login successful!");
-            // set user context, redirect...
+        
+        if (res.ok) {
+            setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
+            // Store user data and redirect
+            login(data.user);
+            setTimeout(() => navigate("/dashboard"), 500);
         } else {
-            alert("Login failed: " + (data.message || "Unknown error"));
+            setMessage({ type: 'error', text: data.message || 'Login failed' });
         }
     } catch (err) {
         console.error("Login error:", err);
+        setMessage({ type: 'error', text: 'Could not connect to server' });
+    } finally {
+        setIsLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
-    console.log("Forgot password clicked (UI only for now)");
+    setMessage({ type: 'error', text: 'Password reset coming soon!' });
   };
 
   return (
@@ -104,15 +157,15 @@ const LoginPage: React.FC = () => {
 
             <div className="leafy-login-icon-row">
               <div className="leafy-login-icon-pill">
-                <span>🌱</span>
+                <span><FaSeedling /></span>
                 <span>Plant lifetimes</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span>🌦</span>
+                <span><FaCloudSun /></span>
                 <span>Climate tolerance</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span>💰</span>
+                <span><FaCoins /></span>
                 <span>Yearly profit view</span>
               </div>
             </div>
@@ -148,11 +201,6 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* <div className="leafy-login-bottom-hint">
-              Visual simulation runs in Unreal Engine. LeafyLedger keeps the
-              numbers behind it honest.
-            </div> */}
           </div>
         </div>
 
@@ -182,17 +230,31 @@ const LoginPage: React.FC = () => {
               <input
                 className="leafy-login-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
               />
-              <input
-                className="leafy-login-input"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              
+              <div className="leafy-login-password-wrapper">
+                <input
+                  className="leafy-login-input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="leafy-login-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
 
               <div className="leafy-login-forgot-row">
                 <button
@@ -204,9 +266,20 @@ const LoginPage: React.FC = () => {
                 </button>
               </div>
 
+              {/* Inline message */}
+              {message && (
+                <div className={`leafy-login-message leafy-login-message--${message.type}`}>
+                  {message.text}
+                </div>
+              )}
+
               <div className="leafy-login-buttons">
-                <button type="submit" className="ll-btn ll-btn-primary">
-                  Log In
+                <button 
+                  type="submit" 
+                  className="ll-btn ll-btn-primary"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Logging in...' : 'Log In'}
                 </button>
 
                 <div className="leafy-login-divider">Or continue with</div>
@@ -227,7 +300,10 @@ const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   className="ll-btn ll-btn-ghost leafy-login-create-btn"
-                  onClick={() => setIsRegistering(true)}
+                  onClick={() => {
+                    setIsRegistering(true);
+                    setMessage(null);
+                  }}
                 >
                   Create account
                 </button>
@@ -240,6 +316,8 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type="text"
+                  name="firstName"
+                  autoComplete="given-name"
                   placeholder="First Name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -248,38 +326,93 @@ const LoginPage: React.FC = () => {
                 <input
                   className="leafy-login-input"
                   type="text"
+                  name="lastName"
+                  autoComplete="family-name"
                   placeholder="Last Name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
                 />
               </div>
+              
               <input
                 className="leafy-login-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <input
-                className="leafy-login-input"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              
+              <div className="leafy-login-password-wrapper">
+                <input
+                  className="leafy-login-input"
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="new-password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="leafy-login-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+              
+              <div className="leafy-login-password-wrapper">
+                <input
+                  className="leafy-login-input"
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  autoComplete="new-password"
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="leafy-login-password-toggle"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+
+              {/* Inline message */}
+              {message && (
+                <div className={`leafy-login-message leafy-login-message--${message.type}`}>
+                  {message.text}
+                </div>
+              )}
 
               <div className="leafy-login-buttons">
-                <button type="submit" className="ll-btn ll-btn-primary">
-                  Create Account
+                <button 
+                  type="submit" 
+                  className="ll-btn ll-btn-primary"
+                  disabled={isLoading || !password || !confirmPassword || password !== confirmPassword}
+                  style={{ 
+                    opacity: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 0.7 : 1, 
+                    cursor: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 'not-allowed' : 'pointer' 
+                  }}
+                >
+                  {isLoading ? 'Creating...' : 'Create Account'}
                 </button>
 
                 <button
                   type="button"
                   className="ll-btn ll-btn-ghost"
-                  onClick={() => setIsRegistering(false)}
+                  onClick={() => {
+                    setIsRegistering(false);
+                    setMessage(null);
+                  }}
                 >
                   Back to Login
                 </button>
