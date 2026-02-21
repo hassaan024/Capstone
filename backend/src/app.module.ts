@@ -8,6 +8,8 @@ import { SoilModule } from './soil/soil.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TrefleModule } from './trefle/trefle.module.js';
 import { SpeciesModule } from './species/species.module.js';
+import { PlantShoppingModule } from './plant-shopping/plant-shopping.module.js';
+import { ChatModule } from './chat/chat.module.js';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -20,6 +22,8 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     TrefleModule,
     SpeciesModule,
+    PlantShoppingModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
