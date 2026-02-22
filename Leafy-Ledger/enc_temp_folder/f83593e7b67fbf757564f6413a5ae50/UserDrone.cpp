@@ -72,34 +72,35 @@ void AUserDrone::UpdatePan() {
 
 #pragma region Base Input
 void AUserDrone::LeftMousePressed() {
+	if (SelectedPlant) {
+		UE_LOG(LogTemp, Warning, TEXT("valid plant"));
+		FVector MouseWorldLocation;
+		FVector MouseWorldDirection;
+
+		if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return;
+
+		FVector StartLoc = MouseWorldLocation;
+		FVector EndLoc = StartLoc + MouseWorldDirection * 10000;
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.AddIgnoredActor(this);
+
+		bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
+
+		if (bHit) {
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Instigator = this;
+			GetWorld()->SpawnActor<APlant>(SelectedPlant, HitResult.Location, FRotator(0, 0, 0), SpawnParams);
+		}
+	}
 }
 
 void AUserDrone::LeftMouseReleased() {
 	if (SelectedPlant) {
-		if (ValidPlantPlacement()) {
-			UE_LOG(LogTemp, Warning, TEXT("valid plant"));
-			FVector MouseWorldLocation;
-			FVector MouseWorldDirection;
-
-			if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return;
-
-			FVector StartLoc = MouseWorldLocation;
-			FVector EndLoc = StartLoc + MouseWorldDirection * 10000;
-
-			FHitResult HitResult;
-			FCollisionQueryParams CollisionParams;
-			CollisionParams.AddIgnoredActor(this);
-
-			bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
-
-			if (bHit) {
-				FActorSpawnParameters SpawnParams;
-				SpawnParams.Instigator = this;
-				GetWorld()->SpawnActor<APlant>(SelectedPlant, HitResult.Location, FRotator(0, 0, 0), SpawnParams);
-			}
-		}
+		UE_LOG(LogTemp, Warning, TEXT("blah blah"));
+		SelectedPlant = NULL;
 	}
-	SelectedPlant = NULL;
 }
 
 void AUserDrone::RightMousePressed() {
@@ -162,10 +163,9 @@ bool AUserDrone::ValidPlantPlacement() {
 		if (GroundHit.PhysMaterial.IsValid()) {
 			UPhysicalMaterial* PhysMat = GroundHit.PhysMaterial.Get();
 			UE_LOG(LogTemp, Warning, TEXT("Phys material name is: %s"), *PhysMat->GetName());
-			if (*PhysMat->GetName() == FName("DirtPhysMat")) return true;
 		}
 	}
-	return false;
+	return true;
 }
 #pragma endregion
 
