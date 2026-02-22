@@ -22,15 +22,22 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	void MoveForward(float Value);
-	void MoveRight(float Value);
+	void PanUp(float Value);
+	void PanRight(float Value);
 	void LeftMouse();
+	void RightMousePressed();
+	void RightMouseReleased();
+	//void MouseScroll(float Axis);
 
 	UPROPERTY(BlueprintReadWrite)
 	TSubclassOf<APlant> SelectedPlant;
 	AUserDroneController* PC;
+	bool bRightClickHeld = false;
+	FVector MouseDragStart;
 
-	FVector GetMouseRaycast();
+	bool GetMouseGroundHit(FVector& OutVector);
+
+	void UpdatePan();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
