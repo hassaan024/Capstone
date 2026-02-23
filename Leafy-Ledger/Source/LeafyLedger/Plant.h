@@ -42,4 +42,15 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 		void SetPlacedMaterial();
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+		int32 PlantedDayIndex;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+		int32 DaysToBloom;
+
+	UFUNCTION()
+		void HandleDayChanged(int32 NewDayIndex);
+
+	void UpdateForDay(int32 DayIndex);
 };
