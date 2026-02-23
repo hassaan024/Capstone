@@ -49,8 +49,7 @@ void AUserDrone::Tick(float DeltaTime)
 	if (bRightClickHeld) {
 		UpdatePan();
 	}
-	if (SelectedPlant) UE_LOG(LogTemp, Warning, TEXT("Plant is selected"));
-	ValidPlantPlacement();
+	UpdatePreviewPlant();
 }
 
 void AUserDrone::UpdatePan() {
@@ -68,38 +67,73 @@ void AUserDrone::UpdatePan() {
 	AddActorWorldOffset(Delta, true); // sweep=true is optional; can help prevent clipping
 	// IMPORTANT: do NOT refresh MouseDragStart here
 }
+
+void AUserDrone::UpdatePreviewPlant() {		
+	FHitResult Hit;
+	if (bDraggingRealPlant) {
+		if (GetMouseGroundHit(Hit)) {
+			PreviewPlant->SetActorLocation(Hit.Location);
+			if (ValidPlantPlacement()) PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.288197, 0.765625, 0.251979));
+			else PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.765625, 0.063621, 0.078853));
+		}
+	}
+	if (!SelectedPlant) return;
+
+	if (bSelectedPlantSpawned && PreviewPlant) {
+		if (GetMouseGroundHit(Hit)) {
+			PreviewPlant->SetActorLocation(Hit.Location);
+			if (ValidPlantPlacement()) PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.288197, 0.765625, 0.251979));
+			else PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.765625, 0.063621, 0.078853));
+			
+		}
+	}
+	else {
+		if (GetMouseGroundHit(Hit)) {
+			PreviewPlant = nullptr;
+			if (SpawnPlant(PreviewPlant)) {
+				bSelectedPlantSpawned = true;
+			}
+		}
+	}
+}
 #pragma endregion
 
 #pragma region Base Input
 void AUserDrone::LeftMousePressed() {
+	float MouseX, MouseY;
+	PC->GetMousePosition(MouseX, MouseY);
+
+	FVector WorldLocation, WorldDirection;
+	PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
+
+	// trace down to ground plane (or terrain)
+	FVector End = WorldLocation + WorldDirection * 100000.f;
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.bReturnPhysicalMaterial = true;
+	Params.AddIgnoredActor(this);
+	GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_Pawn, Params);
+	if (APlant* Temp = Cast<APlant>(Hit.Actor)) {
+		PreviewPlant = Temp;
+		bDraggingRealPlant = true;
+		UE_LOG(LogTemp, Warning, TEXT("plant found"));
+	}
+	UE_LOG(LogTemp, Warning, TEXT("lmb pressed"));
 }
 
 void AUserDrone::LeftMouseReleased() {
-	if (SelectedPlant) {
-		if (ValidPlantPlacement()) {
-			UE_LOG(LogTemp, Warning, TEXT("valid plant"));
-			FVector MouseWorldLocation;
-			FVector MouseWorldDirection;
-
-			if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return;
-
-			FVector StartLoc = MouseWorldLocation;
-			FVector EndLoc = StartLoc + MouseWorldDirection * 10000;
-
-			FHitResult HitResult;
-			FCollisionQueryParams CollisionParams;
-			CollisionParams.AddIgnoredActor(this);
-
-			bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
-
-			if (bHit) {
-				FActorSpawnParameters SpawnParams;
-				SpawnParams.Instigator = this;
-				GetWorld()->SpawnActor<APlant>(SelectedPlant, HitResult.Location, FRotator(0, 0, 0), SpawnParams);
-			}
-		}
+	if (ValidPlantPlacement() && PreviewPlant) {
+		PreviewPlant->SetPlacedMaterial();
+		PreviewPlant = nullptr;
+		SelectedPlant = nullptr;
 	}
-	SelectedPlant = NULL;
+	else {
+		if(PreviewPlant) PreviewPlant->Destroy();
+		PreviewPlant = nullptr;
+		SelectedPlant = nullptr;
+	}
+	bDraggingRealPlant = false;
 }
 
 void AUserDrone::RightMousePressed() {
@@ -146,8 +180,8 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit) {
 	FCollisionQueryParams Params;
 	Params.bReturnPhysicalMaterial = true;
 	Params.AddIgnoredActor(this);
+	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
-
 	if (!bHit) {
 		return false;
 	}
@@ -161,8 +195,33 @@ bool AUserDrone::ValidPlantPlacement() {
 	if (GetMouseGroundHit(GroundHit)) {
 		if (GroundHit.PhysMaterial.IsValid()) {
 			UPhysicalMaterial* PhysMat = GroundHit.PhysMaterial.Get();
-			UE_LOG(LogTemp, Warning, TEXT("Phys material name is: %s"), *PhysMat->GetName());
 			if (*PhysMat->GetName() == FName("DirtPhysMat")) return true;
+		}
+	}
+	return false;
+}
+
+bool AUserDrone::SpawnPlant(APlant*& Plant) {
+	if (ValidPlantPlacement()) {
+		FVector MouseWorldLocation;
+		FVector MouseWorldDirection;
+
+		if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return false;
+
+		FVector StartLoc = MouseWorldLocation;
+		FVector EndLoc = StartLoc + MouseWorldDirection * 10000;
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.AddIgnoredActor(this);
+
+		bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
+
+		if (bHit) {
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Instigator = this;
+			Plant = GetWorld()->SpawnActor<APlant>(SelectedPlant, HitResult.Location, FRotator(0, 0, 0), SpawnParams);
+			if (Plant) return true;
 		}
 	}
 	return false;

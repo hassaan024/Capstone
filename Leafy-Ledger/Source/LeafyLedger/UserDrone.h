@@ -39,21 +39,26 @@ private:
 protected:
 	UPROPERTY(BlueprintReadWrite)
 	TSubclassOf<APlant> SelectedPlant;
+	bool bSelectedPlantSpawned = false;
 private:
 	AUserDroneController* PC;
 	bool bRightClickHeld = false;
+	bool bDraggingRealPlant = false;
 	FVector MouseDragStart;
+	APlant* PreviewPlant = nullptr;
 #pragma endregion
 
 #pragma region Tick Functions
 private:
 	void UpdatePan();
+	void UpdatePreviewPlant();
 #pragma endregion
 
 #pragma region Helper Functions
 private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
+	bool SpawnPlant(APlant*& Plant);
 #pragma endregion
 
 

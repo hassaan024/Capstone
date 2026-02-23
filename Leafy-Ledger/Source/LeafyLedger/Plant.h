@@ -6,10 +6,19 @@
 #include "GameFramework/Actor.h"
 #include "Plant.generated.h"
 
+
+class UStaticMeshComponent;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
+
+
 UCLASS()
 class LEAFYLEDGER_API APlant : public AActor
 {
 	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* PreviewMesh;
 	
 public:	
 	// Sets default values for this actor's properties
@@ -23,4 +32,14 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UMaterialInterface* PreviewMaterial;
+	UMaterialInstanceDynamic* DynamicPreviewMaterial;
+
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
+		FVector InvalidPlacementColor;
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
+		FVector ValidPlacementColor;
+
+	UFUNCTION(BlueprintImplementableEvent)
+		void SetPlacedMaterial();
 };
