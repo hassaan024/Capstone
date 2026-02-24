@@ -1,6 +1,6 @@
 // weather api base url
 export const OPEN_METEO_CURRENT_FORCAST_URL =
-  'https://api.open-meteo.com/v1/forecast';
+  'https://historical-forecast-api.open-meteo.com/v1/forecast';
 export const OPEN_METEO_ARCHIVE_FORCAST_URL =
   'https://archive-api.open-meteo.com/v1/era5';
 // React client info

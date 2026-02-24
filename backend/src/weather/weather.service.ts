@@ -1,9 +1,15 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { OPEN_METEO_CURRENT_FORCAST_URL } from 'utils/constants';
+import { OPEN_METEO_ARCHIVE_FORCAST_URL, OPEN_METEO_CURRENT_FORCAST_URL } from 'utils/constants';
 import { WeatherInfoDto } from './dto/weather-info.dto';
 import { celsiusToFahrenheit, metersPerSecondToMph } from 'utils/util-functions';
-import { ServerDescription } from 'typeorm';
 import { hourlyToDaily } from 'utils/array';
+import { 
+  getTodaysDateAsString, 
+  calculatePastDate,
+  goForwardDays,
+  goBackDays,
+} from 'utils/time';
+import { PAGE_SIZE } from './weather_api_constants';
 
 interface OpenMeteoCurrent {
   temperature_2m: number;
@@ -52,9 +58,6 @@ const current_args: string[] = [
 const hourly_args: string[] = [
   'vapour_pressure_deficit', // How strongly the air is pulling water out of the plant right now (varies hourly)
 ];
-
-// FIXME: 'soil_temperature_6cm', // temp of soil 6cm under ground
-// FIXME: 'soil_moisture_0_to_3cm', // moisture between 0-3 cm (volumetric water content)
 
 const daily_args: string[] = [
   // If your plants were well-watered, this is how much water the weather 
@@ -177,9 +180,13 @@ export class WeatherService {
 
     const hourlyArgs = ['vapour_pressure_deficit', 'wind_speed_10m', 'soil_temperature_6cm', 'relative_humidity_2m'];
 
+    const start_date = getTodaysDateAsString();
+    const end_date = goForwardDays(start_date, 6);
+
     const url = `${OPEN_METEO_CURRENT_FORCAST_URL}?latitude=${latitude}&longitude=${longitude}` +
       `&daily=${dailyArgs.join(',')}` +
       `&hourly=${hourlyArgs.join(',')}` +
+      `&start_date=${start_date}&end_date=${end_date}` +
       `&timezone=auto`;
 
     const res = await fetch(url);
@@ -201,80 +208,116 @@ export class WeatherService {
         `Weather API error (${res.status}): ${errorText}`
       );
     }
-
     const data = await res.json();
-    
-    // Direclty on data
-    const utc_offset_seconds: number = data.utc_offset_seconds ?? 0;
-    const timezone: string = data.timezone ?? "Unknown";
-    const elevation: number = data.elevation ?? 0;
-    
-    // Hourly
-    const hourly = data.hourly;
-
-    // Note: I convert each to a weekly array
-    const hourly_info: OpenMeteoHourly = {
-      vapour_pressure_deficit: (
-        hourlyToDaily(hourly.vapour_pressure_deficit ?? [])
-      ),
-      wind_speeds_10m: (
-        hourlyToDaily(hourly.wind_speed_10m ?? [])
-      ),
-      soil_temperature_6cm: (
-        hourlyToDaily(hourly.soil_temperature_6cm ?? [])
-      ),
-      relative_humidity_2m: (
-        hourlyToDaily(hourly.relative_humidity_2m ?? [])
-      )
-    }
-
-    // Daily
-    const daily = data.daily;
-    // Safely get daily arrays or empty arrays
-    const daily_info: OpenMeteoDaily = {
-      temperature_2m_max: daily?.temperature_2m_max ?? [],
-      temperature_2m_min: daily?.temperature_2m_min ?? [],
-      precipitation_sum: daily?.precipitation_sum ?? [],
-      et0_fao_evapotranspiration: daily?.et0_fao_evapotranspiration ?? [],
-      shortwave_radiation_sum: daily?.shortwave_radiation_sum ?? []
-    }
-
-    const forecast: WeatherInfoDto[] = [];
-    const n: number = data.daily.time.length;
-    
-    for (let i = 0; i < n; i += 1) {
-      const avg_temp: number = ((daily_info.temperature_2m_max[i] ?? 0) + (daily_info.temperature_2m_min[i] ?? 0)) / 2;
-      const weather: WeatherInfoDto = {
-        elevation: elevation,
-        temperature_2m: celsiusToFahrenheit(avg_temp),
-        relative_humidity_2m: hourly_info.relative_humidity_2m[i] ?? 0,
-        wind_speed_10m: hourly_info.wind_speeds_10m[i] ?? 0,
-        sunlight_intensity: daily_info.shortwave_radiation_sum[i] ?? 0,
-        precipitation: daily_info.precipitation_sum[i] ?? 0,
-        daily_evaporation: daily_info.et0_fao_evapotranspiration[i] ?? 0,
-        vapour_pressure_deficit: hourly_info.vapour_pressure_deficit[i] ?? 0,
-        soil_temperature_6cm: celsiusToFahrenheit(hourly_info.soil_temperature_6cm[i] ?? 0),
-        soil_moisture_0_to_3cm: 0,
-        timezone: timezone,
-        utc_offset_seconds: utc_offset_seconds,
-      }
-      forecast.push(weather);
-    }
-    return forecast;
+    return this.mapWeatherApiDataToDto(data, false);
   }
 
   // GET (current historical weather)
   // FIXME: Just implement this
   async getPastForecast(
     latitude: number, longitude: number, days: number, offset: number
-  ): Promise<WeatherInfoDto[]> {
+  ): Promise<any> {
+
     this.logger.log(`
       Getting the forcast from the past ${days} days on page ${offset}.
       At Long ${latitude}, Lat ${longitude}.
     `)
-    return [];
+    
+    // cacluate the range of days we are fetching
+    let start_date: string;
+    let end_date: string;
+
+    if (offset === 0){
+      start_date = goBackDays(getTodaysDateAsString(), days);
+      end_date = getTodaysDateAsString();
+    } 
+    else {
+      start_date = calculatePastDate(offset, PAGE_SIZE); // page start
+      end_date = goForwardDays(start_date, days); // page end
+    }
+
+    this.logger.log(`
+      Start: ${start_date}
+      End: ${end_date}
+    `)
+
+    const daily_args = [
+      'temperature_2m_max', 
+      'temperature_2m_min',
+      'precipitation_sum',
+      'et0_fao_evapotranspiration',
+      'shortwave_radiation_sum',
+    ];
+
+    const hourly_args = [
+      'vapour_pressure_deficit', 
+      'wind_speed_10m',                   
+      'relative_humidity_2m'
+    ];
+    
+    const url = `${OPEN_METEO_ARCHIVE_FORCAST_URL}?latitude=${latitude}&longitude=${longitude}` +
+      `&start_date=${start_date}&end_date=${end_date}` +
+      `&daily=${daily_args.join(',')}` +
+      `&hourly=${hourly_args.join(',')}` +
+      `&timezone=auto`;
+
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+
+      this.logger.error(`
+        ===============================================
+        Open-Meteo API Error
+        Status: ${res.status}
+        StatusText: ${res.statusText}
+        Body: ${errorText}
+        URL: ${url}
+        ===============================================
+      `);
+      const data = await res.json();
+      throw new BadRequestException(
+        `Weather API error (${res.status}): ${errorText}`
+      );
+    }
+    const data = await res.json();
+    return this.mapWeatherApiDataToDto(data, true);
   }
 
-}
+  private mapWeatherApiDataToDto(data: any, past: boolean): WeatherInfoDto[] {
+    const timezone = data.timezone ?? 'Unknown';
+    const utc_offset_seconds = data.utc_offset_seconds ?? 0;
+    const elevation = data.elevation ?? 0;
 
+    const n = data.daily.time.length;
+    const forecast: WeatherInfoDto[] = [];
+
+    for (let i = 0; i < n; i++) {
+      const max = data.daily.temperature_2m_max?.[i] ?? 0;
+      const min = data.daily.temperature_2m_min?.[i] ?? 0;
+      const avgTemp = (max + min) / 2;
+      
+      const weather: WeatherInfoDto = {
+        elevation,
+        temperature_2m: Math.round(celsiusToFahrenheit(avgTemp) * 100) / 100,
+        relative_humidity_2m: hourlyToDaily(data.hourly.relative_humidity_2m ?? [])[i] ?? 0,
+        wind_speed_10m: metersPerSecondToMph(hourlyToDaily(data.hourly.wind_speed_10m ?? [])[i] ?? 0),
+        sunlight_intensity: data.daily.shortwave_radiation_sum?.[i] ?? 0,
+        precipitation: data.daily.precipitation_sum?.[i] ?? 0,
+        daily_evaporation: data.daily.et0_fao_evapotranspiration?.[i] ?? 0,
+        vapour_pressure_deficit: hourlyToDaily(data.hourly.vapour_pressure_deficit ?? [])[i] ?? 0,
+        soil_moisture_0_to_3cm: hourlyToDaily(data.hourly.soil_moisture_0_to_3cm ?? [])[i] ?? 0,
+        timezone,
+        utc_offset_seconds,
+      }
+      
+      if (!past) {
+        weather.soil_temperature_6cm =  Math.round(celsiusToFahrenheit(hourlyToDaily(data.hourly.soil_temperature_6cm ?? [])[i] ?? 0) * 100) / 100
+      }
+      forecast.push(weather);
+    }
+
+    return forecast;
+  }
+}
 

@@ -2,8 +2,7 @@ import { Controller, Get, ParseIntPipe, Query } from '@nestjs/common';
 import { WeatherService } from './weather.service';
 import { WeatherInfoDto } from './dto/weather-info.dto';
 import { ValidateLocationPipe } from './pipes/location-validation-pipe';
-
-const PAGE_SIZE = 100;
+import { PAGE_SIZE } from './weather_api_constants';
 
 @Controller('weather')
 export class WeatherController {
@@ -36,13 +35,17 @@ export class WeatherController {
     @Query('latitude', ValidateLocationPipe) latitude: number,
     @Query('longitude', ValidateLocationPipe) longitude: number,
     @Query('days') days?: string,  // optional
-    @Query('page') page?: string,  // optional
-  ): Promise<WeatherInfoDto[]> {
-    const days_num = (days !== undefined) ? parseInt(days, 10) : 7;
-    const page_num = (page !== undefined) ? parseInt(page, 10) : 1;
-    const days_capped = Math.min(days_num, PAGE_SIZE);
+    @Query('offset') offset?: string,  // optional
+  ): Promise<any> {
+    let days_num = (days !== undefined) ? parseInt(days, 10) : 7;
+    let offset_num: number = (offset !== undefined) ? parseInt(offset, 10) : 0;
+    days_num = Math.min(days_num, PAGE_SIZE);
     // // calculate offset for paging
-    const offset = (page_num - 1) * PAGE_SIZE;
-    return await this.weatherService.getPastForecast(latitude, longitude, days_capped, offset);
+    offset_num = (offset_num < 0)? 0 : offset_num;
+    days_num = (days_num < 0)? 0 : days_num;
+    if (days_num == 0) {
+      return []
+    }
+    return await this.weatherService.getPastForecast(latitude, longitude, days_num - 1, offset_num);
   }
 }
