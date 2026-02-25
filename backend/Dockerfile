@@ -22,11 +22,11 @@ COPY . .
 RUN npm run generate
 
 # Copy entrypoint script
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+# RUN chmod +x /app/docker-entrypoint.sh
 
 # run on port 4000
 EXPOSE 4000
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "start:dev"]
