@@ -1,3 +1,6 @@
+// model api 
+export const PLANT_MODEL_PORT = 8000;
+
 // weather api base url
 export const OPEN_METEO_CURRENT_FORCAST_URL =
   'https://historical-forecast-api.open-meteo.com/v1/forecast';
