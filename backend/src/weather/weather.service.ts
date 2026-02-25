@@ -309,6 +309,7 @@ export class WeatherService {
         soil_moisture_0_to_3cm: hourlyToDaily(data.hourly.soil_moisture_0_to_3cm ?? [])[i] ?? 0,
         timezone,
         utc_offset_seconds,
+        date: data.daily.time?.[i] ?? undefined, 
       }
       
       if (!past) {

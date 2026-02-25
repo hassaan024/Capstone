@@ -67,4 +67,6 @@ export interface WeatherInfoDto{
   //    elevation           |     elevation
   //    m                   |          m
   elevation?: number; // meters above/below sea level
+
+  date?: string;
 }
