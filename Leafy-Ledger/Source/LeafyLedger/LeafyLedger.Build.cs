@@ -10,7 +10,8 @@ public class LeafyLedger : ModuleRules
 	
         PublicDependencyModuleNames.AddRange(new string[] {
 			"Core", "CoreUObject", "Engine", "InputCore", "UMG",
-			"HTTP", "Json", "JsonUtilities", "Sockets", "Networking"
+			"HTTP", "Json", "JsonUtilities", "Sockets", "Networking",
+			"ImageWrapper"
 		});
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });

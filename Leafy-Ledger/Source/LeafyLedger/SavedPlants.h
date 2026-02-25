@@ -18,11 +18,21 @@ class LEAFYLEDGER_API USavedPlants : public UUserWidget
 	GENERATED_BODY()
 	
 public:
+	UFUNCTION(BlueprintCallable, Category = "Plants")
+	void DeleteSavedPlant(int32 TrefleId);
+
+	UFUNCTION(BlueprintCallable, Category = "Plants")
+	void RemoveSavedPlantFromList(int32 TrefleId);
+
+	UFUNCTION()
+	void HandleRemoveClicked(int32 TrefleId);
+
+	void HandleEntryGenerated(UUserWidget& EntryWidget);
+
 	// Bind this in the UMG designer by checking "Is Variable"
 	UPROPERTY(meta = (BindWidget))
 	UTileView* TV_PlantCards;
 
-	// Set these from BP defaults or editor
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backend")
 	FString BackendBaseUrl = TEXT("http://localhost:4000/backend");
 

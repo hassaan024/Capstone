@@ -17,4 +17,16 @@ class LEAFYLEDGER_API UPlantObject : public UObject
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "Plant")
 	FString CommonName;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Plant")
+	FString ScientificName;
+
+	//UPROPERTY(BlueprintReadOnly, Category = "Plant")
+	//FString Family;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Plant")
+	FString ImgSrcUrl;
+
+	UPROPERTY(BlueprintReadOnly)
+	int32 TrefleId;
 };
