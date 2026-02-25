@@ -40,8 +40,17 @@ void USavedPlants::HandleRemoveClicked(int32 TrefleId)
 
 void USavedPlants::FetchSavedSpecies()
 {
-    // Your guess endpoint; adjust if needed
-    UserId = 1;
+    UOAuthGISubsystem* OAuth = GetGameInstance()->GetSubsystem<UOAuthGISubsystem>();
+
+    if (!OAuth)
+    {
+        UE_LOG(LogTemp, Error, TEXT("OAuth subsystem not found"));
+        return;
+    }
+
+    UserId = FCString::Atoi(*OAuth->Session.id);
+
+    //UserId = 1;
     const FString Url = FString::Printf(TEXT("%s/species/saved?userId=%d"), *BackendBaseUrl, UserId);
 
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
@@ -150,7 +159,17 @@ void USavedPlants::OnFetchSavedSpeciesComplete(FHttpRequestPtr Request, FHttpRes
 
 void USavedPlants::DeleteSavedPlant(int32 TrefleId)
 {
-    UserId = 1;
+    UOAuthGISubsystem* OAuth = GetGameInstance()->GetSubsystem<UOAuthGISubsystem>();
+
+    if (!OAuth)
+    {
+        UE_LOG(LogTemp, Error, TEXT("OAuth subsystem not found"));
+        return;
+    }
+
+    UserId = FCString::Atoi(*OAuth->Session.id);
+
+    //UserId = 1;
     const FString Url = FString::Printf(
         TEXT("%s/species/save/%d?userId=%d"),
         *BackendBaseUrl,

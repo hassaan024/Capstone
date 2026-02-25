@@ -7,6 +7,7 @@
 #include "Components/ListView.h"
 #include "Components/TileView.h"
 #include "Http.h"
+#include "OAuthGISubsystem.h"
 #include "SavedPlants.generated.h"
 
 /**
