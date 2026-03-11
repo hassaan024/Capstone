@@ -21,6 +21,7 @@ export const UNREAL_GOOGLE_CLIENT_ID = process.env.UNREAL_GOOGLE_CLIENT_ID;
 export const UNREAL_GOOGLE_CLIENT_SECRET =
   process.env.UNREAL_GOOGLE_CLIENT_SECRET;
 export const UNREAL_REDIRECT_URI = process.env.UNREAL_REDIRECT_URI;
+export const UNREAL_LISTENING_PORT = 50000;
 
 // Grouped for convenience
 export const GOOGLE_CLIENTS = {

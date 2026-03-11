@@ -8,6 +8,7 @@ import { Dashboard } from "./pages/Dashboard";
 import BrowseSpecies from "./pages/BrowseSpecies";
 import SavedSpecies from "./pages/SavedSpecies";
 import Settings from "./pages/Settings";
+import ChatWidget from "./components/ChatWidget";
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,7 @@ const App: React.FC = () => {
         <Route path="/saved-species" element={<SavedSpecies />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
+      <ChatWidget />
     </AuthProvider>
   );
 };

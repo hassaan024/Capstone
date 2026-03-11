@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
+import PlantShoppingPanel from './PlantShoppingPanel';
 
 interface PlantDetailsModalProps {
   plantId: number;
@@ -177,6 +178,12 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
                         </div>
                     )}
                 </div>
+
+                {/* Plant Shopping / Where to Buy */}
+                <PlantShoppingPanel
+                  plantName={details.common_name || details.scientific_name}
+                  plantId={plantId}
+                />
               </div>
             </div>
           </>
