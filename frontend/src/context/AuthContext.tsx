@@ -6,6 +6,8 @@ interface User {
   email: string;
   displayName: string;
   creationTimestamp: string;
+  latitude?: number;
+  longitude?: number;
   lastUpdated: string;
 }
 

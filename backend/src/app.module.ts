@@ -11,6 +11,7 @@ import { SpeciesModule } from './species/species.module.js';
 import { PlantShoppingModule } from './plant-shopping/plant-shopping.module.js';
 import { ChatModule } from './chat/chat.module.js';
 import { ConfigModule } from '@nestjs/config';
+import { WeatherModule } from './weather/weather.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     TrefleModule,
     SpeciesModule,
+    WeatherModule,
     PlantShoppingModule,
     ChatModule,
   ],
