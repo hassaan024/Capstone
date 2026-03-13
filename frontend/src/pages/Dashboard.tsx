@@ -230,13 +230,6 @@ export const Dashboard: React.FC = () => {
             <span className="dashboard-logo-text">LeafyLedger</span>
           </div>
           <div className="dashboard-header-actions">
-            <button
-              onClick={() => { setLocationModalOpen(true); setError(""); setLocationSuccess(""); }}
-              className="ll-btn ll-btn-ghost dashboard-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <FaCompass /> Set Location
-            </button>
             <button 
               onClick={() => navigate("/settings")} 
               className="ll-btn ll-btn-ghost dashboard-btn"
@@ -264,10 +257,29 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           
-          {user.latitude && user.longitude && (
-            <WeatherInfo latitude={user.latitude} longitude={user.longitude} />
-          )}
-
+          <div className="dashboard-card">
+            <h2 className="dashboard-card-title">Quick Actions</h2>
+            <div className="dashboard-actions">
+              <button className="ll-btn ll-btn-primary dashboard-action-btn">
+                <span className="dashboard-action-icon"><FaPlus /></span>
+                Create New Garden
+              </button>
+              <button 
+                className="ll-btn ll-btn-ghost dashboard-action-btn"
+                onClick={() => navigate('/saved-species')}
+              >
+                <span className="dashboard-action-icon"><FaBookmark /></span>
+                View Saved Plants
+              </button>
+              <button 
+                className="ll-btn ll-btn-ghost dashboard-action-btn"
+                onClick={() => navigate('/browse')}
+              >
+                <span className="dashboard-action-icon"><FaSearch /></span>
+                Browse Species
+              </button>
+            </div>
+          </div>
 
           <div className="dashboard-grid">
             <div className="dashboard-stat-card">
@@ -295,29 +307,11 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="dashboard-card">
-            <h2 className="dashboard-card-title">Quick Actions</h2>
-            <div className="dashboard-actions">
-              <button className="ll-btn ll-btn-primary dashboard-action-btn">
-                <span className="dashboard-action-icon"><FaPlus /></span>
-                Create New Garden
-              </button>
-              <button 
-                className="ll-btn ll-btn-ghost dashboard-action-btn"
-                onClick={() => navigate('/saved-species')}
-              >
-                <span className="dashboard-action-icon"><FaBookmark /></span>
-                View Saved Plants
-              </button>
-              <button 
-                className="ll-btn ll-btn-ghost dashboard-action-btn"
-                onClick={() => navigate('/browse')}
-              >
-                <span className="dashboard-action-icon"><FaSearch /></span>
-                Browse Species
-              </button>
-            </div>
-          </div>
+          <WeatherInfo 
+            latitude={user.latitude} 
+            longitude={user.longitude} 
+            onSetLocationClick={() => { setLocationModalOpen(true); setError(""); setLocationSuccess(""); }}
+          />
         </main>
       </div>
     </div>
