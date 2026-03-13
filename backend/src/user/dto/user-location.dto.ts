@@ -3,11 +3,11 @@ import { IsNumber, IsOptional, IsString } from 'class-validator';
 export class UserLocationDto {
   // stuff for the web users
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 8 })
+  @IsNumber()
   latitude?: number;
 
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 8 })
+  @IsNumber()
   longitude?: number;
 
   @IsOptional()

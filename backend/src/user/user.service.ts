@@ -24,25 +24,31 @@ export class UserService {
         throw new NotFoundException(`User with id ${id} not found`);
       }
 
+      type UserWithLocation = User & { latitude?: number | null; longitude?: number | null };
+      const typedUser = user as UserWithLocation;
+
       if (
-        user.latitude === null ||
-        user.latitude === undefined ||
-        user.longitude === null ||
-        user.longitude === undefined
+        typedUser.latitude === null ||
+        typedUser.latitude === undefined ||
+        typedUser.longitude === null ||
+        typedUser.longitude === undefined
       ) {
         throw new NotFoundException(
-          `Latitude or Longitude is undefined. | lat: ${user.latitude} | long: ${user.longitude}`,
+          `Latitude or Longitude is undefined. | lat: ${typedUser.latitude} | long: ${typedUser.longitude}`,
         );
       }
 
       const user_location: UserLocationDto = {
-        longitude: Number(user.longitude),
-        latitude: Number(user.latitude),
-        updatedAt: user.lastUpdated,
+        longitude: Number(typedUser.longitude),
+        latitude: Number(typedUser.latitude),
+        updatedAt: typedUser.lastUpdated,
       };
 
       return user_location;
     } catch (err: unknown) {
+      if (err instanceof NotFoundException) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : 'Unknown error';
       throw new BadRequestException(message);
     }
