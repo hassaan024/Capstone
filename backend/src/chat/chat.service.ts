@@ -13,6 +13,12 @@ export class ChatService {
   private readonly logger = new Logger(ChatService.name);
   private genAI: GoogleGenerativeAI | null = null;
 
+  /** Models to try in order — if one hits quota, fall back to the next */
+  private readonly MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+  ];
+
   constructor(
     private readonly configService: ConfigService,
     private readonly db: DatabaseService,
@@ -77,7 +83,9 @@ export class ChatService {
           }
         }
       } catch (err) {
-        this.logger.warn(`Failed to fetch user context: ${(err as Error).message}`);
+        this.logger.warn(
+          `Failed to fetch user context: ${(err as Error).message}`,
+        );
       }
     }
 
@@ -99,6 +107,26 @@ Guidelines:
 ${userContext}`;
   }
 
+  /**
+   * Try to send a message using the given model name.
+   * Returns the reply text on success, or throws on failure.
+   */
+  private async tryModel(
+    modelName: string,
+    systemPrompt: string,
+    message: string,
+    chatHistory: ChatMessage[],
+  ): Promise<string> {
+    const model = this.genAI!.getGenerativeModel({
+      model: modelName,
+      systemInstruction: systemPrompt,
+    });
+
+    const chat = model.startChat({ history: chatHistory });
+    const result = await chat.sendMessage(message);
+    return result.response.text();
+  }
+
   async sendMessage(
     message: string,
     userId?: number,
@@ -114,40 +142,50 @@ ${userContext}`;
 
     try {
       const systemPrompt = await this.buildSystemPrompt(userId);
-
-      const model = this.genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        systemInstruction: systemPrompt,
-      });
-
-      // Build chat history
       const chatHistory: ChatMessage[] = history || [];
 
-      const chat = model.startChat({
-        history: chatHistory,
-      });
+      // Try each model in order; fall back on quota/rate-limit errors
+      let lastError: unknown = null;
+      for (const modelName of this.MODELS) {
+        try {
+          this.logger.log(`Trying model: ${modelName}`);
+          const text = await this.tryModel(
+            modelName,
+            systemPrompt,
+            message,
+            chatHistory,
+          );
+          return { reply: text };
+        } catch (err: unknown) {
+          const error = err as Error & { status?: number };
+          // Only fall back on 429 (rate limit / quota) errors
+          if (error.status === 429) {
+            this.logger.warn(
+              `Model ${modelName} quota exceeded, trying next fallback...`,
+            );
+            lastError = err;
+            continue;
+          }
+          // For any other error, don't retry — throw immediately
+          throw err;
+        }
+      }
 
-      const result = await chat.sendMessage(message);
-      const response = result.response;
-      const text = response.text();
-
-      return { reply: text };
+      // All models exhausted their quota — throw the last error
+      throw lastError;
     } catch (err: unknown) {
-      const error = err as Error & { status?: number; message?: string };
-      this.logger.error(`Gemini API error: ${error.message}`);
-
-      // Handle rate limit / quota errors
-      if (
-        error.status === 429 ||
-        error.message?.includes('quota') ||
-        error.message?.includes('RATE_LIMIT') ||
-        error.message?.includes('RESOURCE_EXHAUSTED')
-      ) {
-        return {
-          error: 'quota_exceeded',
-          message:
-            'Daily token limit has been reached. Please try again tomorrow — the free tier resets every 24 hours! 🌱',
-        };
+      const error = err as Error & {
+        status?: number;
+        message?: string;
+        errorDetails?: Array<{ reason?: string; domain?: string }>;
+      };
+      this.logger.error(
+        `Gemini API error: status=${error.status} message=${error.message}`,
+      );
+      if (error.errorDetails) {
+        this.logger.error(
+          `Gemini error details: ${JSON.stringify(error.errorDetails)}`,
+        );
       }
 
       // Handle safety filters
@@ -159,6 +197,41 @@ ${userContext}`;
           error: 'safety_blocked',
           message:
             "I can only help with plant-related questions. Let's talk about gardening! 🌿",
+        };
+      }
+
+      // Handle rate limit / quota errors — only match on HTTP 429
+      // OR explicit RESOURCE_EXHAUSTED status (not just substring matches)
+      if (error.status === 429) {
+        return {
+          error: 'quota_exceeded',
+          message:
+            'Daily token limit has been reached. Please try again tomorrow — the free tier resets every 24 hours! 🌱',
+        };
+      }
+
+      // Handle API key issues (403 typically means invalid/revoked key)
+      if (error.status === 403) {
+        this.logger.error(
+          'Gemini API returned 403 — the API key may be invalid or revoked. ' +
+            'Please verify GEMINI_API_KEY in your .env file.',
+        );
+        return {
+          error: 'api_key_invalid',
+          message:
+            'The chat service is temporarily unavailable. Please contact the administrator.',
+        };
+      }
+
+      // Handle 400 errors (bad request, possibly invalid model or key)
+      if (error.status === 400) {
+        this.logger.error(
+          'Gemini API returned 400 — check the model name and API key configuration.',
+        );
+        return {
+          error: 'bad_request',
+          message:
+            'Something went wrong with the AI configuration. Please contact the administrator.',
         };
       }
 
