@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark, FaMapMarkerAlt, FaCompass } from 'react-icons/fa';
+import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark, FaMapMarkerAlt, FaCompass, FaTimes } from 'react-icons/fa';
 import { BACKEND_BASE_URL, countries } from "../utils/constants";
 import { validatePostalCode } from "../utils/helper_functions";
 import { fetchLongLatFromZipAndCountry } from "../utils/api";
@@ -14,8 +14,10 @@ export const Dashboard: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
   const [zip, setZip] = useState("");
   const [country, setCountry] = useState("US");
-  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [error, setError] = useState("");
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [locationSaving, setLocationSaving] = useState(false);
+  const [locationSuccess, setLocationSuccess] = useState("");
 
   // Redirect to login if user is not authenticated
   useEffect(() => {
@@ -24,6 +26,7 @@ export const Dashboard: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Fetch user location on mount
   useEffect(() => {
     if (!user?.id) return;
 
@@ -38,9 +41,7 @@ export const Dashboard: React.FC = () => {
         const lat = data.latitude ? Number(data.latitude) : undefined;
         const lng = data.longitude ? Number(data.longitude) : undefined;
 
-        // Optional: update the user in context
         updateUser({ ...user, latitude: lat, longitude: lng });
-
       } catch (err) {
         console.error("Error fetching user location:", err);
       }
@@ -54,6 +55,17 @@ export const Dashboard: React.FC = () => {
     navigate("/login");
   };
 
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLocationModalOpen(false);
+    };
+    if (locationModalOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [locationModalOpen]);
+
   const handleSetLocation = async () => {
     if (!user?.id) {
       console.error("User ID is missing");
@@ -64,56 +76,66 @@ export const Dashboard: React.FC = () => {
       setError("Invalid postal code for selected country.");
       return;
     }
-    console.log({ zip, country });
-    setError("")
+    setError("");
+    setLocationSaving(true);
 
-    const { lat, lng } = await fetchLongLatFromZipAndCountry(zip, country);
-    console.log("Latitude:", lat, "Longitude:", lng)
-
-    // send to the backend and store info for later use
     try {
-      const data = await sendLocationToBackend(
+      const { lat, lng } = await fetchLongLatFromZipAndCountry(zip, country);
+
+      await sendLocationToBackend(
         user.id,
         Number(lat),
         Number(lng),
       );
+      updateUser({ ...user, latitude: Number(lat), longitude: Number(lng) });
+      setLocationSuccess("Location saved successfully!");
+      setTimeout(() => {
+        setLocationModalOpen(false);
+        setLocationSuccess("");
+        setZip("");
+      }, 1500);
     } catch (err) {
       console.error("Failed to save location in Dashboard:", err);
+      setError("Failed to save location. Please try again.");
+    } finally {
+      setLocationSaving(false);
     }
-    setLocationMenuOpen(false);
-  }
+  };
 
   const handleGetLocation = () => {
-
     if (!user?.id) {
       console.error("User ID is missing");
       return;
     }
 
-    console.log(user)
-    console.log("GETTING THE LOCATION...")
+    setLocationSaving(true);
+    setError("");
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        console.log("Latitude:", latitude, "Longitude:", longitude);
         try {
-          const data = await sendLocationToBackend(
-            user.id,
-            latitude,
-            longitude
-          );
-
-          console.log("Data saved successfully:", data);
+          await sendLocationToBackend(user.id, latitude, longitude);
+          updateUser({ ...user, latitude, longitude });
+          setLocationSuccess("Location saved successfully!");
+          setTimeout(() => {
+            setLocationModalOpen(false);
+            setLocationSuccess("");
+          }, 1500);
         } catch (err) {
           console.error("Failed to save location in Dashboard:", err);
+          setError("Failed to save location. Please try again.");
+        } finally {
+          setLocationSaving(false);
         }
       },
-      (error) => {
-        console.error("Error getting location:", error.message)
+      (geoError) => {
+        console.error("Error getting location:", geoError.message);
+        setError("Could not get your location. Please enter a zip code instead.");
+        setLocationSaving(false);
       }
-    )
-  }
+    );
+  };
 
   if (!user) {
     return null;
@@ -126,34 +148,45 @@ export const Dashboard: React.FC = () => {
       <div className="dashboard-blob dashboard-blob--blue" />
       <div className="dashboard-blob dashboard-blob--purple" />
 
-      <div className="dashboard-container">
-        <header className="dashboard-header">
-          <div className="dashboard-logo">
-            <div className="dashboard-logo-mark" />
-            <span className="dashboard-logo-text">LeafyLedger</span>
-          </div>
-          <div className="dashboard-header-actions">
-            <div className="relative inline-block">
-              <button
-                onClick={() => setLocationMenuOpen(!locationMenuOpen)}
-                className="ll-btn ll-btn-ghost dashboard-btn flex items-center gap-2"
-              >
-                <FaCompass /> Set Location
-              </button>
-              {/* OPEN THE MENU TO SELECT LOCATION */}
-              {locationMenuOpen && (
-                <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-48 bg-white shadow-md rounded p-2 flex flex-col gap-1 z-10">
+      {/* Location Modal */}
+      {locationModalOpen && (
+        <div className="location-modal-overlay" onClick={() => setLocationModalOpen(false)}>
+          <div className="location-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="location-modal-close" onClick={() => setLocationModalOpen(false)}>
+              <FaTimes />
+            </button>
+            <div className="location-modal-header">
+              <div className="location-modal-icon">📍</div>
+              <h3>Set Your Location</h3>
+              <p>Help us personalize your plant recommendations for your climate</p>
+            </div>
+
+            {locationSuccess ? (
+              <div className="location-modal-success">
+                <div className="location-success-icon">✅</div>
+                <p>{locationSuccess}</p>
+              </div>
+            ) : (
+              <div className="location-modal-body">
+                <div className="location-modal-section">
+                  <label className="location-modal-label">Zip / Postal Code</label>
                   <input
                     type="text"
-                    placeholder="ZIP / Postal code"
+                    placeholder="e.g. 90210"
                     value={zip}
-                    onChange={(e) => setZip(e.target.value)}
-                    className="border p-1 rounded text-sm"
+                    onChange={(e) => { setZip(e.target.value); setError(""); }}
+                    className="location-modal-input"
+                    disabled={locationSaving}
                   />
+                </div>
+
+                <div className="location-modal-section">
+                  <label className="location-modal-label">Country</label>
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    className="border p-1 rounded text-sm"
+                    className="location-modal-select"
+                    disabled={locationSaving}
                   >
                     {countries.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -161,23 +194,42 @@ export const Dashboard: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <button
-                    onClick={handleSetLocation}
-                    className="ll-btn ll-btn-primary mt-1 text-sm py-1"
-                  >
-                    Save
-                  </button>
                 </div>
 
-              )}
-            </div>
-            <button 
-              onClick={handleGetLocation} 
-              className="ll-btn ll-btn-ghost dashboard-btn"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <FaMapMarkerAlt /> Give Location
-            </button>
+                {error && <div className="location-modal-error">{error}</div>}
+
+                <button
+                  onClick={handleSetLocation}
+                  className="location-modal-save-btn"
+                  disabled={locationSaving || !zip.trim()}
+                >
+                  {locationSaving ? "Saving..." : "Save Location"}
+                </button>
+
+                <div className="location-modal-divider">
+                  <span>or</span>
+                </div>
+
+                <button
+                  onClick={handleGetLocation}
+                  className="location-modal-geo-btn"
+                  disabled={locationSaving}
+                >
+                  <FaMapMarkerAlt /> Use My Current Location
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="dashboard-container">
+        <header className="dashboard-header">
+          <div className="dashboard-logo">
+            <div className="dashboard-logo-mark" />
+            <span className="dashboard-logo-text">LeafyLedger</span>
+          </div>
+          <div className="dashboard-header-actions">
             <button 
               onClick={() => navigate("/settings")} 
               className="ll-btn ll-btn-ghost dashboard-btn"
@@ -205,10 +257,29 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           
-          {user.latitude && user.longitude && (
-            <WeatherInfo latitude={user.latitude} longitude={user.longitude} />
-          )}
-
+          <div className="dashboard-card">
+            <h2 className="dashboard-card-title">Quick Actions</h2>
+            <div className="dashboard-actions">
+              <button className="ll-btn ll-btn-primary dashboard-action-btn">
+                <span className="dashboard-action-icon"><FaPlus /></span>
+                Create New Garden
+              </button>
+              <button 
+                className="ll-btn ll-btn-ghost dashboard-action-btn"
+                onClick={() => navigate('/saved-species')}
+              >
+                <span className="dashboard-action-icon"><FaBookmark /></span>
+                View Saved Plants
+              </button>
+              <button 
+                className="ll-btn ll-btn-ghost dashboard-action-btn"
+                onClick={() => navigate('/browse')}
+              >
+                <span className="dashboard-action-icon"><FaSearch /></span>
+                Browse Species
+              </button>
+            </div>
+          </div>
 
           <div className="dashboard-grid">
             <div className="dashboard-stat-card">
@@ -236,29 +307,11 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="dashboard-card">
-            <h2 className="dashboard-card-title">Quick Actions</h2>
-            <div className="dashboard-actions">
-              <button className="ll-btn ll-btn-primary dashboard-action-btn">
-                <span className="dashboard-action-icon"><FaPlus /></span>
-                Create New Garden
-              </button>
-              <button 
-                className="ll-btn ll-btn-ghost dashboard-action-btn"
-                onClick={() => navigate('/saved-species')}
-              >
-                <span className="dashboard-action-icon"><FaBookmark /></span>
-                View Saved Plants
-              </button>
-              <button 
-                className="ll-btn ll-btn-ghost dashboard-action-btn"
-                onClick={() => navigate('/browse')}
-              >
-                <span className="dashboard-action-icon"><FaSearch /></span>
-                Browse Species
-              </button>
-            </div>
-          </div>
+          <WeatherInfo 
+            latitude={user.latitude} 
+            longitude={user.longitude} 
+            onSetLocationClick={() => { setLocationModalOpen(true); setError(""); setLocationSuccess(""); }}
+          />
         </main>
       </div>
     </div>

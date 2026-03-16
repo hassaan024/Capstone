@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { FaPaperPlane, FaTimes, FaSeedling } from 'react-icons/fa';
+import { FaPaperPlane, FaTimes, FaSeedling, FaExpand, FaCompress } from 'react-icons/fa';
 import '../styles/ChatWidget.css';
 
 interface ChatMessage {
@@ -79,6 +79,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
 const ChatWidget: React.FC = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -163,7 +164,7 @@ const ChatWidget: React.FC = () => {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="chat-panel">
+        <div className={`chat-panel ${isExpanded ? 'chat-panel--expanded' : ''}`}>
           {/* Header */}
           <div className="chat-header">
             <div className="chat-header-left">
@@ -176,8 +177,12 @@ const ChatWidget: React.FC = () => {
                 </span>
               </div>
             </div>
-            <button className="chat-close-btn" onClick={() => setIsOpen(false)}>
-              <FaTimes />
+            <button
+              className="chat-expand-btn"
+              onClick={() => setIsExpanded(prev => !prev)}
+              title={isExpanded ? 'Minimize chat' : 'Expand chat'}
+            >
+              {isExpanded ? <FaCompress /> : <FaExpand />}
             </button>
           </div>
 
