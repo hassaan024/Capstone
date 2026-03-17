@@ -58,6 +58,9 @@ public:
 
 	bool ReadAllAvailable(FSocket* Socket, TArray<uint8>& OutBytes, double MaxSeconds);
 
+	UPROPERTY()
+	FAuthSession Session;
+
 private:
 	UPROPERTY()
 	bool bLoggedIn = false;
@@ -65,8 +68,6 @@ private:
 	UPROPERTY()
 	FString SessionToken;
 
-	UPROPERTY()
-	FAuthSession Session;
 
 	// Listener state
 	FSocket* ListenSocket = nullptr;

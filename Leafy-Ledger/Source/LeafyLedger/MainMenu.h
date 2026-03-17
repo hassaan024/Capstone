@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
+#include "MenuController.h"
 #include "MainMenu.generated.h"
 
 /**
@@ -19,9 +20,17 @@ public:
 	virtual bool Initialize() override;
 
 protected:
+	UFUNCTION()
+	void OnPressUpdateDisplayName();
+
+	UFUNCTION()
+	void OnPressSavedPlants();
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_UpdateDisplayName;
 
-	UFUNCTION()
-	void OnPressUpdateDisplayName();
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_SavedPlants;
+
+	AMenuController* MenuController;
 };
