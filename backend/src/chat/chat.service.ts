@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from 'database/database.service';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { WeatherService } from '../weather/weather.service';
 
 interface ChatMessage {
   role: 'user' | 'model';
@@ -14,14 +15,12 @@ export class ChatService {
   private genAI: GoogleGenerativeAI | null = null;
 
   /** Models to try in order — if one hits quota, fall back to the next */
-  private readonly MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-  ];
+  private readonly MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
   constructor(
     private readonly configService: ConfigService,
     private readonly db: DatabaseService,
+    private readonly weatherService: WeatherService,
   ) {
     const apiKey =
       this.configService.get<string>('GEMINI_API_KEY') ||
@@ -38,7 +37,8 @@ export class ChatService {
   }
 
   /**
-   * Build a personalized system prompt that includes the user's saved plants.
+   * Build a personalized system prompt that includes the user's saved plants,
+   * live weather data, and species-vs-weather alerts.
    */
   private async buildSystemPrompt(userId?: number): Promise<string> {
     let userContext = '';
@@ -81,6 +81,114 @@ export class ChatService {
               .join('\n');
             userContext += `\n\nThe user's gardens:\n${gardenInfo}`;
           }
+
+          // --- Live weather context ---
+          const typedUser = user as typeof user & {
+            latitude?: number | null;
+            longitude?: number | null;
+          };
+          const lat = typedUser.latitude ?? user.gardens?.[0]?.latitude;
+          const lng = typedUser.longitude ?? user.gardens?.[0]?.longitude;
+
+          if (
+            lat !== undefined &&
+            lat !== null &&
+            lng !== undefined &&
+            lng !== null
+          ) {
+            try {
+              const weather = await this.weatherService.getCurrentDaysWeather(
+                lat,
+                lng,
+              );
+
+              userContext +=
+                `\n\nCurrent weather at the user's location:` +
+                `\n- Temperature: ${weather.temperature_2m}°F` +
+                `\n- Conditions: ${weather.description}` +
+                `\n- Humidity: ${weather.relative_humidity_2m}%` +
+                `\n- Wind: ${weather.wind_speed_10m} mph` +
+                `\n- VPD (vapor pressure deficit): ${weather.vapour_pressure_deficit} kPa` +
+                `\n- Daily evaporation (ET0): ${weather.daily_evaporation} mm` +
+                `\n- Sunlight intensity: ${weather.sunlight_intensity} MJ/m²`;
+
+              // --- Species-vs-weather alerts ---
+              // Collect all unique species from gardens and saved species
+              const speciesMap = new Map<
+                number,
+                {
+                  commonName: string;
+                  minTemp?: number | null;
+                  maxTemp?: number | null;
+                  minHumidity?: number | null;
+                  maxHumidity?: number | null;
+                }
+              >();
+
+              if (user.savedSpecies) {
+                for (const s of user.savedSpecies) {
+                  speciesMap.set(s.id, s);
+                }
+              }
+              if (user.gardens) {
+                for (const g of user.gardens) {
+                  if (g.plants) {
+                    for (const p of g.plants) {
+                      if (p.species) {
+                        speciesMap.set(p.species.id, p.species);
+                      }
+                    }
+                  }
+                }
+              }
+
+              const alerts: string[] = [];
+              const currentTemp = weather.temperature_2m ?? 0;
+              const currentHumidity = weather.relative_humidity_2m ?? 0;
+
+              for (const species of speciesMap.values()) {
+                // Temperature alerts (species thresholds are stored in °F based on the dto)
+                if (species.minTemp != null && currentTemp < species.minTemp) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current temp (${currentTemp}°F) is BELOW its minimum preferred temp (${species.minTemp}°F). Warn the user about cold stress.`,
+                  );
+                }
+                if (species.maxTemp != null && currentTemp > species.maxTemp) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current temp (${currentTemp}°F) is ABOVE its maximum preferred temp (${species.maxTemp}°F). Warn the user about heat stress.`,
+                  );
+                }
+
+                // Humidity alerts
+                if (
+                  species.minHumidity != null &&
+                  currentHumidity < species.minHumidity
+                ) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current humidity (${currentHumidity}%) is BELOW its minimum preferred humidity (${species.minHumidity}%). Suggest misting or a humidity tray.`,
+                  );
+                }
+                if (
+                  species.maxHumidity != null &&
+                  currentHumidity > species.maxHumidity
+                ) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current humidity (${currentHumidity}%) is ABOVE its maximum preferred humidity (${species.maxHumidity}%). Suggest improving airflow.`,
+                  );
+                }
+              }
+
+              if (alerts.length > 0) {
+                userContext += `\n\nIMPORTANT — Plant condition alerts based on current weather:\n${alerts.join('\n')}`;
+                userContext += `\nProactively mention these alerts when relevant. The user may not be aware of these conditions.`;
+              }
+            } catch (weatherErr) {
+              this.logger.warn(
+                `Failed to fetch weather for chat context: ${(weatherErr as Error).message}`,
+              );
+              // Weather fetch failed — continue without weather context
+            }
+          }
         }
       } catch (err) {
         this.logger.warn(
@@ -103,6 +211,8 @@ Guidelines:
 - Use emoji sparingly to keep it friendly
 - If you don't know something specific, say so honestly
 - When relevant, reference the user's saved plants or gardens to personalize your advice
+- If weather data is provided, use it to give climate-aware advice (e.g. watering needs, frost warnings, heat stress)
+- If plant condition alerts are provided, proactively mention them to the user
 - Format responses with markdown: use **bold** for plant names and important terms, bullet lists for tips
 ${userContext}`;
   }
