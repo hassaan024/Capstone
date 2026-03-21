@@ -1,26 +1,20 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePredictionDto } from './dto/create-prediction.dto';
-import { UpdatePredictionDto } from './dto/update-prediction.dto';
+import { Injectable, Logger } from '@nestjs/common';
+import { PredictionQueryDto } from './dto/prediction-query.dto';
+import { BatchPredictionDto } from './dto/batch-prediction.dto';
 
 @Injectable()
 export class PredictionService {
-  create(createPredictionDto: CreatePredictionDto) {
-    return 'This action adds a new prediction';
-  }
+  private readonly logger = new Logger(PredictionService.name);
 
-  findAll() {
-    return `This action returns all prediction`;
+  // PredictionQueryDto
+  getPrediction(query: any) {
+    this.logger.log("Making prediction for 1 query")
+    return "Making prediction for 1 query";
   }
-
-  findOne(id: number) {
-    return `This action returns a #${id} prediction`;
-  }
-
-  update(id: number, updatePredictionDto: UpdatePredictionDto) {
-    return `This action updates a #${id} prediction`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} prediction`;
+  
+  // BatchPredictionDto
+  getBatchPrediction(batchQuery: any) {
+    this.logger.log("Making prediction for batch query")
+    return "Making prediction for batch query";
   }
 }

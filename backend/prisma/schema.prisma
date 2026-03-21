@@ -60,6 +60,7 @@ model PlantInstance {
   garden            Garden   @relation(fields: [gardenId], references: [id])
   soil              Soil     @relation(fields: [soilId], references: [id])
   species           Species  @relation(fields: [speciesId], references: [id])
+  histories         PlantHistory[]
 }
 
 model Species {
@@ -91,6 +92,20 @@ model Soil {
   organicPercentage Float?
   type              SoilType
   plantInstances    PlantInstance[]
+}
+
+model PlantHistory {
+  id             Int       @id @default(autoincrement())
+  plantId        Int
+  date           DateTime  // timestamp for the measurement or prediction
+  heightCm       Float?
+  healthStatus   HealthStatus?
+  predictedValue Float?    // model prediction
+  notes          String?
+
+  plant          PlantInstance @relation(fields: [plantId], references: [id])
+
+  @@index([plantId, date]) // good for querying ranges
 }
 
 enum HealthStatus {

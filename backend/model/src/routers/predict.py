@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ..schema import AverageRequest, AverageResponse
+from ..schema import PredictionRequest, PredictionResponse
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -16,11 +16,14 @@ router = APIRouter(
 async def test():
     return {"status": "ok"}
 
-@router.post("/average", response_model=AverageResponse)
-async def predict_using_mean(request: AverageRequest) -> AverageResponse:
-    logger.info(f"HIITTTTING")
-    numbers: list[float] = request.numbers
-    n: int = len(numbers)
-    prediction = sum(numbers) / n
-    logger.info(f"Prediction: {prediction}")
-    return AverageResponse(average=prediction)
+
+# Main prediction endpoint
+@router.post("/", response_model=PredictionResponse)
+async def predict(request: PredictionRequest):
+    logger.info("Prediction request received")
+    
+    # Dummy logic for now
+    results = [{"date": date, "value": 0.85} for date in request.dates]
+    
+    logger.info(f"Returning predictions: {results}")
+    return {"predictions": results}

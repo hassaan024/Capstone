@@ -1,34 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { PredictionService } from './prediction.service';
-import { CreatePredictionDto } from './dto/create-prediction.dto';
-import { UpdatePredictionDto } from './dto/update-prediction.dto';
+import { PredictionQueryDto } from './dto/prediction-query.dto';
+import { BatchPredictionDto } from './dto/batch-prediction.dto';
 
 @Controller('prediction')
 export class PredictionController {
   constructor(private readonly predictionService: PredictionService) {}
 
-  @Post()
-  create(@Body() createPredictionDto: CreatePredictionDto) {
-    return this.predictionService.create(createPredictionDto);
-  }
-
+  // PredictionQueryDto
   @Get()
-  findAll() {
-    return this.predictionService.findAll();
+  getPrediction(@Query() query: any) {
+    return this.predictionService.getPrediction(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.predictionService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePredictionDto: UpdatePredictionDto) {
-    return this.predictionService.update(+id, updatePredictionDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.predictionService.remove(+id);
+  // BatchPredictionDto
+  @Post('batch')
+  getBatchPrediction(@Body() batchQuery: any) {
+    return this.predictionService.getBatchPrediction(batchQuery);
   }
 }

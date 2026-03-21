@@ -1,8 +1,8 @@
-import { IsDateString, IsInt, IsNumber } from "class-validator";
+import { IsArray, IsDateString, IsNumber } from 'class-validator';
 
-export class PredictionQueryDto {
-  @IsInt()
-  plantId: number;
+export class BatchPredictionDto {
+  @IsArray()
+  plantIds: number[];
 
   @IsDateString()
   start: string;

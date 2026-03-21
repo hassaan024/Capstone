@@ -13,6 +13,7 @@ import { ChatModule } from './chat/chat.module.js';
 import { ConfigModule } from '@nestjs/config';
 import { WeatherModule } from './weather/weather.module';
 import { PredictionModule } from './prediction/prediction.module';
+import { PlantHistoryModule } from './plant-history/plant-history.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PredictionModule } from './prediction/prediction.module';
     PlantShoppingModule,
     ChatModule,
     PredictionModule,
+    PlantHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
