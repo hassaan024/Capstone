@@ -4,48 +4,42 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Http.h"
 #include "Components/Button.h"
+#include "BackendApiTypes.h"
 #include "DisplayName.generated.h"
 
-/**
- * 
- */
+class UEditableTextBox;
+
 UCLASS()
 class LEAFYLEDGER_API UDisplayName : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
 public:
 	virtual bool Initialize() override;
+	virtual void NativeConstruct() override;
 
-    UFUNCTION()
-    void OnPressGoogleName();
+	UFUNCTION()
+	void OnPressGoogleName();
 
-    UFUNCTION()
-    void OnPressSubmit();
+	UFUNCTION()
+	void OnPressSubmit();
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_GoogleName;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_GoogleName;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_SubmitName;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_SubmitName;
 
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString BackendBaseUrl = TEXT("http://localhost:4000/backend/user");
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString id;
-
-    UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    FString googleDisplayName;
-
-    //UPROPERTY(BlueprintReadWrite, EditAnywhere)
-    //FString BearerToken;
-
-    UPROPERTY(meta = (BindWidgetOptional))
-    class UEditableTextBox* ET_DisplayName;
+	UPROPERTY(meta = (BindWidgetOptional))
+	UEditableTextBox* ET_DisplayName;
 
 private:
-    void OnPatchUserComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void SubmitDisplayName(const FString& NewName);
+	void HandleUpdateDisplayNameResponse(bool bSuccess, const FString& Message);
+	void HandleGetCurrentUserResponse(bool bSuccess, const FString& Message, const FBackendUserDto& User);
+
+private:
+	FBackendUserDto CurrentUser;
+	bool bHasCurrentUser = false;
 };

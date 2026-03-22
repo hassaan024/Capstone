@@ -47,28 +47,6 @@ static EImageFormat DetectImageFormat(const TArray<uint8>& Bytes)
     return EImageFormat::Invalid;
 }
 
-//void USavedPlantTile::NativeOnListItemObjectSet(UObject* ListItemObject)
-//{
-//    UPlantObject* PlantCard = Cast<UPlantObject>(ListItemObject);
-//    if (!PlantCard) return;
-//
-//    if (TXT_CommonName)
-//    {
-//        TXT_CommonName->SetText(FText::FromString(PlantCard->CommonName));
-//    }
-//
-//    if (TXT_ScientificName)
-//    {
-//        TXT_ScientificName->SetText(FText::FromString(PlantCard->ScientificName));
-//    }
-//
-//    if (!PlantCard->ImgSrcUrl.IsEmpty() && PlantCard->ImgSrcUrl != CurrentUrl)
-//    {
-//        CurrentUrl = PlantCard->ImgSrcUrl;
-//        DownloadImage(CurrentUrl);
-//    }
-//}
-
 void USavedPlantTile::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
     PlantCard = Cast<UPlantObject>(ListItemObject);
