@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Logger, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Param, Query, Logger, BadRequestException, Post } from '@nestjs/common';
 import { TrefleService } from './trefle.service.js';
 
 @Controller('trefle')
@@ -25,4 +25,5 @@ export class TrefleController {
     }
     return this.trefleService.getDetails(numericId);
   }
+  
 }
