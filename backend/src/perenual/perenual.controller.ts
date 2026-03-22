@@ -21,8 +21,8 @@ export class PerenualController {
   }
 
   // // import plant from perenual -> database
-  // @Post('import-to-db/:id')
-  // import(@Param() params: PlantIdParamDto) {
-  //   return this.service.importSpecies(Number(params.id));
-  // }
+  @Post('import-to-db/:id')
+  importSpecies(@Param() params: PlantIdParamDto) {
+    return this.service.importSpecies(Number(params.id));
+  }
 }
