@@ -14,6 +14,7 @@ import { ConfigModule } from '@nestjs/config';
 import { WeatherModule } from './weather/weather.module';
 import { PredictionModule } from './prediction/prediction.module';
 import { PlantHistoryModule } from './plant-history/plant-history.module';
+import { PerenualModule } from './perenual/perenual.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PlantHistoryModule } from './plant-history/plant-history.module';
     ChatModule,
     PredictionModule,
     PlantHistoryModule,
+    PerenualModule,
   ],
   controllers: [AppController],
   providers: [AppService],
