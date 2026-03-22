@@ -6,18 +6,17 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/ListView.h"
 #include "Components/TileView.h"
-#include "Http.h"
-#include "OAuthGISubsystem.h"
+#include "BackendApiTypes.h"
 #include "SavedPlants.generated.h"
 
-/**
- * 
- */
+class UPlantObject;
+class UUserWidget;
+
 UCLASS()
 class LEAFYLEDGER_API USavedPlants : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Plants")
 	void DeleteSavedPlant(int32 TrefleId);
@@ -30,20 +29,14 @@ public:
 
 	void HandleEntryGenerated(UUserWidget& EntryWidget);
 
-	// Bind this in the UMG designer by checking "Is Variable"
 	UPROPERTY(meta = (BindWidget))
 	UTileView* TV_PlantCards;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backend")
-	FString BackendBaseUrl = TEXT("http://localhost:4000/backend");
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backend")
-	int32 UserId = 0;
 
 protected:
 	virtual void NativeConstruct() override;
 
 private:
 	void FetchSavedSpecies();
-	void OnFetchSavedSpeciesComplete(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void HandleFetchSavedSpeciesResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants);
+	void PopulatePlants(const TArray<FBackendPlantDto>& Plants);
 };

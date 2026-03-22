@@ -6,7 +6,7 @@ bool UMainMenu::Initialize()
 {
     if (!Super::Initialize()) return false;
 
-    if (!(MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0))))
+    if (!(MenuController == Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0))))
     {
         return false;
     }
