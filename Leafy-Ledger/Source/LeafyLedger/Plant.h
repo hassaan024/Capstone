@@ -1,42 +1,40 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Plant.generated.h"
 
-
 class UStaticMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
-
+class UPlantObject;
 
 UCLASS()
 class LEAFYLEDGER_API APlant : public AActor
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* PreviewMesh;
-	
-public:	
-	// Sets default values for this actor's properties
+		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+		UStaticMeshComponent* PreviewMesh;
+
+public:
 	APlant();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
+public:
 	virtual void Tick(float DeltaTime) override;
 
-	UMaterialInterface* PreviewMaterial;
-	UMaterialInstanceDynamic* DynamicPreviewMaterial;
+	UPROPERTY(BlueprintReadOnly)
+		UMaterialInterface* PreviewMaterial;
+
+	UPROPERTY(BlueprintReadOnly)
+		UMaterialInstanceDynamic* DynamicPreviewMaterial;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 		FVector InvalidPlacementColor;
+
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 		FVector ValidPlacementColor;
 
@@ -44,13 +42,33 @@ public:
 		void SetPlacedMaterial();
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-		int32 PlantedDayIndex;
+		int32 BloomDayIndex = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-		int32 DaysToBloom;
+		int32 PlantingDayIndex = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+		int32 WitherDayIndex = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+		int32 DaysToBloom = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+		int32 DaysToWither = 0;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere)
+		FString PlantName;
 
 	UFUNCTION()
 		void HandleDayChanged(int32 NewDayIndex);
 
+	UFUNCTION(BlueprintCallable)
+		void InitializeFromPlantData(UPlantObject* PlantData);
+
 	void UpdateForDay(int32 DayIndex);
+	UFUNCTION(BlueprintImplementableEvent)
+		void BlueprintDayUpdate(int32 DayIndex);
+
+	UFUNCTION(BlueprintCallable)
+		UStaticMeshComponent* GetPreviewMesh() const { return PreviewMesh; }
 };

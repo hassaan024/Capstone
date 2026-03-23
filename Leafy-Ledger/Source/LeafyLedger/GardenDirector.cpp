@@ -15,7 +15,7 @@ AGardenDirector::AGardenDirector()
 void AGardenDirector::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	MakePlantList();
 }
 
 // Called every frame

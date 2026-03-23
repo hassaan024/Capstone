@@ -1,30 +1,33 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Plant.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
 #include "GardenTimeManager.h"
+#include "PlantObject.h"
 
-// Sets default values
 APlant::APlant()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	PreviewMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Preview Mesh"));
+	SetRootComponent(PreviewMesh);
 	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 
-// Called when the game starts or when spawned
 void APlant::BeginPlay()
 {
 	Super::BeginPlay();
+
 	PreviewMaterial = PreviewMesh->GetMaterial(0);
-	DynamicPreviewMaterial = UMaterialInstanceDynamic::Create(PreviewMaterial, this);
-	DynamicPreviewMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.3f);
-	PreviewMesh->SetMaterial(0, DynamicPreviewMaterial);
+	if (PreviewMaterial)
+	{
+		DynamicPreviewMaterial = UMaterialInstanceDynamic::Create(PreviewMaterial, this);
+		if (DynamicPreviewMaterial)
+		{
+			DynamicPreviewMaterial->SetScalarParameterValue(TEXT("Opacity"), 0.3f);
+			PreviewMesh->SetMaterial(0, DynamicPreviewMaterial);
+		}
+	}
 
 	TArray<AActor*> Found;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGardenTimeManager::StaticClass(), Found);
@@ -39,11 +42,9 @@ void APlant::BeginPlay()
 	}
 }
 
-// Called every frame
 void APlant::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void APlant::HandleDayChanged(int32 NewDayIndex)
@@ -51,18 +52,55 @@ void APlant::HandleDayChanged(int32 NewDayIndex)
 	UpdateForDay(NewDayIndex);
 }
 
-void APlant::UpdateForDay(int32 DayIndex)
+void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 {
-	const int32 Age = DayIndex - PlantedDayIndex;
-	UE_LOG(LogTemp, Warning, TEXT("UpdateForDay Called with index %d"), DayIndex);
+	if (!PlantData) return;
 
-	float Growth01 = 0.f;
-	if (DaysToBloom > 0)
+	PlantName = PlantData->CommonName;
+	DaysToBloom = PlantData->DaysToBloom;
+	DaysToWither = PlantData->DaysToWither;
+
+	if (PreviewMesh && PlantData->PlantMesh)
 	{
-		Growth01 = FMath::Clamp(static_cast<float>(Age) / static_cast<float>(DaysToBloom), 0.f, 1.f);
+		PreviewMesh->SetStaticMesh(PlantData->PlantMesh);
 	}
-
-	const float Scale = FMath::Lerp(0.2f, 1.0f, Growth01);
-	SetActorScale3D(FVector(Scale));
 }
 
+void APlant::UpdateForDay(int32 DayIndex)
+{
+	BlueprintDayUpdate(DayIndex);
+	float Scale01 = 0.f;
+
+	if (DayIndex < PlantingDayIndex)
+	{
+		Scale01 = 0.f;
+	}
+	else if (DayIndex <= BloomDayIndex)
+	{
+		if (DaysToBloom <= 0)
+		{
+			Scale01 = 1.f;
+		}
+		else
+		{
+			Scale01 = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(DaysToBloom), 0.f, 1.f);
+		}
+	}
+	else if (DayIndex <= WitherDayIndex)
+	{
+		if (DaysToWither <= 0)
+		{
+			Scale01 = 0.f;
+		}
+		else
+		{
+			Scale01 = 1.f - FMath::Clamp(static_cast<float>(DayIndex - BloomDayIndex) / static_cast<float>(DaysToWither), 0.f, 1.f);
+		}
+	}
+	else
+	{
+		Scale01 = 0.f;
+	}
+
+	SetActorScale3D(FVector(Scale01));
+}

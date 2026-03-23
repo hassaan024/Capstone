@@ -23,4 +23,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+public:
+	UFUNCTION(BlueprintImplementableEvent)
+	void MakePlantList();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void GrabPlants();
 };
