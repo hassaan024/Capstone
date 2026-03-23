@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,6 +7,7 @@
 
 class APlant;
 class AUserDroneController;
+class UPlantObject;
 
 UCLASS()
 class LEAFYLEDGER_API AUserDrone : public ACharacter
@@ -16,14 +15,12 @@ class LEAFYLEDGER_API AUserDrone : public ACharacter
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	AUserDrone();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 		UCameraComponent* CameraComp;
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 #pragma region Base Input
@@ -34,12 +31,17 @@ private:
 	void RightMouseReleased();
 	void MouseScroll(float Axis);
 #pragma endregion
-	
+
 #pragma region Real-Time Variables
 protected:
-	UPROPERTY(BlueprintReadWrite)
-	TSubclassOf<APlant> SelectedPlant;
+	UPROPERTY(BlueprintReadWrite, Category = "Plants")
+		UPlantObject* SelectedPlantData = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Plants")
+		TSubclassOf<APlant> DefaultPlantClass;
+
 	bool bSelectedPlantSpawned = false;
+
 private:
 	AUserDroneController* PC;
 	bool bRightClickHeld = false;
@@ -58,14 +60,15 @@ private:
 private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
+public:
+	UFUNCTION(BlueprintCallable)
 	bool SpawnPlant(APlant*& Plant);
 #pragma endregion
 
-
-public:	
-	// Called every frame
+public:
 	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UFUNCTION(BlueprintCallable)
+		void SetSelectedPlantData(UPlantObject* InPlantData);
 };

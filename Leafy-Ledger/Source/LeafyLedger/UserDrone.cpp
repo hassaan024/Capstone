@@ -1,16 +1,13 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "UserDrone.h"
 #include "Plant.h"
+#include "PlantObject.h"
 #include "UserDroneController.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Kismet/GameplayStatics.h"
+#include "GardenTimeManager.h"
 
-#pragma region Setup
-// Sets default values
 AUserDrone::AUserDrone()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
@@ -19,7 +16,6 @@ AUserDrone::AUserDrone()
 	CameraComp->SetRelativeRotation(FRotator(0, -40, 0));
 }
 
-// Called when the game starts or when spawned
 void AUserDrone::BeginPlay()
 {
 	Super::BeginPlay();
@@ -27,7 +23,6 @@ void AUserDrone::BeginPlay()
 	check(PC);
 }
 
-// Called to bind functionality to input
 void AUserDrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -39,74 +34,69 @@ void AUserDrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	PlayerInputComponent->BindAction("RightClick", IE_Pressed, this, &AUserDrone::RightMousePressed);
 	PlayerInputComponent->BindAction("RightClick", IE_Released, this, &AUserDrone::RightMouseReleased);
 }
-#pragma endregion
 
-#pragma region Tick Functions
-// Called every frame
 void AUserDrone::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (bRightClickHeld) {
+
+	if (bRightClickHeld)
+	{
 		UpdatePan();
 	}
+
 	UpdatePreviewPlant();
 }
 
-void AUserDrone::UpdatePan() {
+void AUserDrone::SetSelectedPlantData(UPlantObject* InPlantData)
+{
+	SelectedPlantData = InPlantData;
+}
+
+void AUserDrone::UpdatePan()
+{
 	if (!PC) return;
 
 	FHitResult CurrentHit;
 	if (!GetMouseGroundHit(CurrentHit))
 	{
-		// If we lose the surface for a frame, do nothing.
 		return;
 	}
+
 	FVector CurrentLoc = CurrentHit.Location;
 	const FVector Delta = MouseDragStart - CurrentLoc;
-
-	AddActorWorldOffset(Delta, true); // sweep=true is optional; can help prevent clipping
-	// IMPORTANT: do NOT refresh MouseDragStart here
+	AddActorWorldOffset(Delta, true);
 }
 
-void AUserDrone::UpdatePreviewPlant() {		
+void AUserDrone::UpdatePreviewPlant()
+{
+	if (!PreviewPlant) return;
+
 	FHitResult Hit;
-	if (bDraggingRealPlant) {
-		if (GetMouseGroundHit(Hit)) {
-			PreviewPlant->SetActorLocation(Hit.Location);
-			if (ValidPlantPlacement()) PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.288197, 0.765625, 0.251979));
-			else PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.765625, 0.063621, 0.078853));
-		}
-	}
-	if (!SelectedPlant) return;
+	if (!GetMouseGroundHit(Hit)) return;
 
-	if (bSelectedPlantSpawned && PreviewPlant) {
-		if (GetMouseGroundHit(Hit)) {
-			PreviewPlant->SetActorLocation(Hit.Location);
-			if (ValidPlantPlacement()) PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.288197, 0.765625, 0.251979));
-			else PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.765625, 0.063621, 0.078853));
-			
+	PreviewPlant->SetActorLocation(Hit.Location);
+
+	if (PreviewPlant->DynamicPreviewMaterial)
+	{
+		if (ValidPlantPlacement())
+		{
+			PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.288197f, 0.765625f, 0.251979f));
 		}
-	}
-	else {
-		if (GetMouseGroundHit(Hit)) {
-			PreviewPlant = nullptr;
-			if (SpawnPlant(PreviewPlant)) {
-				bSelectedPlantSpawned = true;
-			}
+		else
+		{
+			PreviewPlant->DynamicPreviewMaterial->SetVectorParameterValue(TEXT("Color"), FVector(0.765625f, 0.063621f, 0.078853f));
 		}
 	}
 }
-#pragma endregion
 
-#pragma region Base Input
-void AUserDrone::LeftMousePressed() {
+void AUserDrone::LeftMousePressed()
+{
 	float MouseX, MouseY;
 	PC->GetMousePosition(MouseX, MouseY);
 
 	FVector WorldLocation, WorldDirection;
 	PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
 
-	// trace down to ground plane (or terrain)
 	FVector End = WorldLocation + WorldDirection * 100000.f;
 
 	FHitResult Hit;
@@ -114,66 +104,87 @@ void AUserDrone::LeftMousePressed() {
 	Params.bReturnPhysicalMaterial = true;
 	Params.AddIgnoredActor(this);
 	GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_Pawn, Params);
-	if (APlant* Temp = Cast<APlant>(Hit.Actor)) {
+
+	if (APlant* Temp = Cast<APlant>(Hit.Actor))
+	{
 		PreviewPlant = Temp;
 		bDraggingRealPlant = true;
-		UE_LOG(LogTemp, Warning, TEXT("plant found"));
+		bSelectedPlantSpawned = false;
+		return;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("lmb pressed"));
+
+	if (PreviewPlant) return;
+	if (!SelectedPlantData) return;
+
+	if (SpawnPlant(PreviewPlant))
+	{
+		bSelectedPlantSpawned = true;
+	}
 }
 
-void AUserDrone::LeftMouseReleased() {
-	if (ValidPlantPlacement() && PreviewPlant) {
+void AUserDrone::LeftMouseReleased()
+{
+	if (!PreviewPlant)
+	{
+		bDraggingRealPlant = false;
+		bSelectedPlantSpawned = false;
+		return;
+	}
+
+	if (ValidPlantPlacement())
+	{
 		PreviewPlant->SetPlacedMaterial();
 		PreviewPlant = nullptr;
-		SelectedPlant = nullptr;
 	}
-	else {
-		if(PreviewPlant) PreviewPlant->Destroy();
+	else
+	{
+		PreviewPlant->Destroy();
 		PreviewPlant = nullptr;
-		SelectedPlant = nullptr;
 	}
+
 	bDraggingRealPlant = false;
+	bSelectedPlantSpawned = false;
 }
 
-void AUserDrone::RightMousePressed() {
-	// Mark our rmb flag
+void AUserDrone::RightMousePressed()
+{
 	bRightClickHeld = true;
 
-	// And grab our start loc
 	FHitResult Temp;
 	if (GetMouseGroundHit(Temp)) MouseDragStart = Temp.Location;
 }
 
-void AUserDrone::RightMouseReleased() {
+void AUserDrone::RightMouseReleased()
+{
 	bRightClickHeld = false;
 }
 
-void AUserDrone::MouseScroll(float Axis) {
-	if (Axis > 0) {
+void AUserDrone::MouseScroll(float Axis)
+{
+	if (Axis > 0)
+	{
 		FVector NewLoc = GetActorLocation();
 		FVector CameraVector = CameraComp->GetForwardVector();
 		NewLoc += CameraVector * 50;
 		SetActorLocation(NewLoc);
 	}
-	else if (Axis < 0) {
+	else if (Axis < 0)
+	{
 		FVector NewLoc = GetActorLocation();
 		FVector CameraVector = CameraComp->GetForwardVector();
 		NewLoc -= CameraVector * 50;
 		SetActorLocation(NewLoc);
 	}
 }
-#pragma endregion
 
-#pragma region Helper Functions
-bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit) {
+bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
+{
 	float MouseX, MouseY;
 	PC->GetMousePosition(MouseX, MouseY);
 
 	FVector WorldLocation, WorldDirection;
 	PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
 
-	// trace down to ground plane (or terrain)
 	FVector End = WorldLocation + WorldDirection * 100000.f;
 
 	FHitResult Hit;
@@ -181,19 +192,24 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit) {
 	Params.bReturnPhysicalMaterial = true;
 	Params.AddIgnoredActor(this);
 	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
+
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
-	if (!bHit) {
+	if (!bHit)
+	{
 		return false;
 	}
 
 	OutHit = Hit;
-	return bHit;
+	return true;
 }
 
-bool AUserDrone::ValidPlantPlacement() {
+bool AUserDrone::ValidPlantPlacement()
+{
 	FHitResult GroundHit;
-	if (GetMouseGroundHit(GroundHit)) {
-		if (GroundHit.PhysMaterial.IsValid()) {
+	if (GetMouseGroundHit(GroundHit))
+	{
+		if (GroundHit.PhysMaterial.IsValid())
+		{
 			UPhysicalMaterial* PhysMat = GroundHit.PhysMaterial.Get();
 			if (*PhysMat->GetName() == FName("DirtPhysMat")) return true;
 		}
@@ -201,30 +217,55 @@ bool AUserDrone::ValidPlantPlacement() {
 	return false;
 }
 
-bool AUserDrone::SpawnPlant(APlant*& Plant) {
-	if (ValidPlantPlacement()) {
-		FVector MouseWorldLocation;
-		FVector MouseWorldDirection;
+bool AUserDrone::SpawnPlant(APlant*& Plant)
+{
+	if (!SelectedPlantData) return false;
+	if (!ValidPlantPlacement()) return false;
 
-		if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return false;
+	FVector MouseWorldLocation;
+	FVector MouseWorldDirection;
 
-		FVector StartLoc = MouseWorldLocation;
-		FVector EndLoc = StartLoc + MouseWorldDirection * 10000;
+	if (!PC->DeprojectMousePositionToWorld(MouseWorldLocation, MouseWorldDirection)) return false;
 
-		FHitResult HitResult;
-		FCollisionQueryParams CollisionParams;
-		CollisionParams.AddIgnoredActor(this);
+	FVector StartLoc = MouseWorldLocation;
+	FVector EndLoc = StartLoc + MouseWorldDirection * 10000.f;
 
-		bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
+	FHitResult HitResult;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(this);
 
-		if (bHit) {
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Instigator = this;
-			Plant = GetWorld()->SpawnActor<APlant>(SelectedPlant, HitResult.Location, FRotator(0, 0, 0), SpawnParams);
-			if (Plant) return true;
+	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLoc, EndLoc, ECC_WorldStatic, CollisionParams);
+	if (!bHit) return false;
+
+	TSubclassOf<APlant> ClassToSpawn = DefaultPlantClass;
+	if (SelectedPlantData->PlantClass)
+	{
+		ClassToSpawn = SelectedPlantData->PlantClass;
+	}
+
+	if (!ClassToSpawn) return false;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Instigator = this;
+
+	Plant = GetWorld()->SpawnActor<APlant>(ClassToSpawn, HitResult.Location, FRotator::ZeroRotator, SpawnParams);
+	if (!Plant) return false;
+
+	Plant->InitializeFromPlantData(SelectedPlantData);
+
+	TArray<AActor*> Found;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGardenTimeManager::StaticClass(), Found);
+	if (Found.Num() > 0)
+	{
+		AGardenTimeManager* TM = Cast<AGardenTimeManager>(Found[0]);
+		if (TM)
+		{
+			Plant->BloomDayIndex = TM->GetCurrentDayIndex();
+			Plant->PlantingDayIndex = Plant->BloomDayIndex - Plant->DaysToBloom;
+			Plant->WitherDayIndex = Plant->BloomDayIndex + Plant->DaysToWither;
+			Plant->UpdateForDay(TM->GetCurrentDayIndex());
 		}
 	}
-	return false;
-}
-#pragma endregion
 
+	return true;
+}
