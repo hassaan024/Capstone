@@ -50,5 +50,5 @@ public:
 private:
     void SetRootWidget(TSubclassOf<UUserWidget> WidgetClass);
 
-    bool DisplayNameWidgetShown = false;
+    bool OpenWebsite = true;
 };

@@ -15,6 +15,18 @@ void USavedPlants::NativeConstruct()
 		return;
 	}
 
+	MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+
+	if (!MenuController)
+	{
+		return;
+	}
+
+	if (BTN_Back)
+	{
+		BTN_Back->OnClicked.AddDynamic(this, &USavedPlants::OnPressBack);
+	}
+
 	TV_PlantCards->OnEntryWidgetGenerated().AddUObject(this, &USavedPlants::HandleEntryGenerated);
 	FetchSavedSpecies();
 }
@@ -138,5 +150,14 @@ void USavedPlants::RemoveSavedPlantFromList(int32 TrefleId)
 			TV_PlantCards->RequestRefresh();
 			return;
 		}
+	}
+}
+
+void USavedPlants::OnPressBack()
+{
+	MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+	if (MenuController)
+	{
+		MenuController->ShowMainMenu();
 	}
 }

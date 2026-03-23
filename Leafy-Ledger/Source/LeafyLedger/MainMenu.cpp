@@ -6,7 +6,9 @@ bool UMainMenu::Initialize()
 {
     if (!Super::Initialize()) return false;
 
-    if (!(MenuController == Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0))))
+    MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+
+    if (!MenuController)
     {
         return false;
     }
@@ -30,6 +32,5 @@ void UMainMenu::OnPressUpdateDisplayName()
 
 void UMainMenu::OnPressSavedPlants()
 {
-
     MenuController->ShowSavedPlants();
 }
