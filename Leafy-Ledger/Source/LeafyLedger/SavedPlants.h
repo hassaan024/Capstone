@@ -6,7 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/ListView.h"
 #include "Components/TileView.h"
+#include "Components/Button.h"
 #include "BackendApiTypes.h"
+#include "MenuController.h"
 #include "SavedPlants.generated.h"
 
 class UPlantObject;
@@ -29,8 +31,16 @@ public:
 
 	void HandleEntryGenerated(UUserWidget& EntryWidget);
 
+	UFUNCTION()
+	void OnPressBack();
+
 	UPROPERTY(meta = (BindWidget))
 	UTileView* TV_PlantCards;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_Back;
+
+	AMenuController* MenuController;
 
 protected:
 	virtual void NativeConstruct() override;

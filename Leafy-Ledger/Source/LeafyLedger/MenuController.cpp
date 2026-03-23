@@ -66,7 +66,7 @@ void AMenuController::ShowLogin()
 
 void AMenuController::ShowMainMenu()
 {
-    if (!DisplayNameWidgetShown) {
+    if (OpenWebsite) {
         FPlatformProcess::LaunchURL(
             TEXT("http://localhost:5173/login"),
             nullptr,
@@ -79,13 +79,15 @@ void AMenuController::ShowMainMenu()
 
 void AMenuController::ShowDisplayName() 
 {
-    DisplayNameWidgetShown = true;
+    OpenWebsite = false;
 
     SetRootWidget(DisplayNameWidgetClass);
 }
 
 void AMenuController::ShowSavedPlants()
 {
+    OpenWebsite = false;
+
     SetRootWidget(SavedPlantsWidgetClass);
 }
 

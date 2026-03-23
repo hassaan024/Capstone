@@ -2,6 +2,7 @@
 
 #include "SavedPlants.h"
 #include "SavedPlantTile.h"
+#include "PlantCardPopup.h"
 #include "PlantObject.h"
 #include "BackendApiSubsystem.h"
 
@@ -13,6 +14,18 @@ void USavedPlants::NativeConstruct()
 	{
 		UE_LOG(LogTemp, Error, TEXT("TV_PlantCards is not bound"));
 		return;
+	}
+
+	MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+
+	if (!MenuController)
+	{
+		return;
+	}
+
+	if (BTN_Back)
+	{
+		BTN_Back->OnClicked.AddDynamic(this, &USavedPlants::OnPressBack);
 	}
 
 	TV_PlantCards->OnEntryWidgetGenerated().AddUObject(this, &USavedPlants::HandleEntryGenerated);
@@ -138,5 +151,14 @@ void USavedPlants::RemoveSavedPlantFromList(int32 TrefleId)
 			TV_PlantCards->RequestRefresh();
 			return;
 		}
+	}
+}
+
+void USavedPlants::OnPressBack()
+{
+	MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+	if (MenuController)
+	{
+		MenuController->ShowMainMenu();
 	}
 }
