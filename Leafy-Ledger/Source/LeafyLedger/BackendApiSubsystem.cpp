@@ -316,3 +316,102 @@ void UBackendApiSubsystem::GetCurrentUser(const FBackendCurrentUserResponse& Cal
 		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendUserDto{});
 	}
 }
+
+void UBackendApiSubsystem::GetUserLocation(const FBackendUserLocationResponse& Callback)
+{
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		Callback.ExecuteIfBound(false, Error, FBackendUserLocationDto{});
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/user/location/%d"), UserId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendUserLocationDto Location;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Location);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch user location")),
+					Location
+				);
+				return;
+			}
+
+			const FString Body = Response->GetContentAsString();
+			if (!FBackendJsonUtils::ParseUserLocation(Body, Location))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid user location JSON"), Location);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Location);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendUserLocationDto{});
+	}
+}
+
+void UBackendApiSubsystem::GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback)
+{
+	const FString Route = FString::Printf(
+		TEXT("/weather/current?latitude=%.6f&longitude=%.6f"),
+		Latitude,
+		Longitude
+	);
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendWeatherDto Weather;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Weather);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch current weather")),
+					Weather
+				);
+				return;
+			}
+
+			const FString Body = Response->GetContentAsString();
+			if (!FBackendJsonUtils::ParseWeather(Body, Weather))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid weather JSON"), Weather);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Weather);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendWeatherDto{});
+	}
+}

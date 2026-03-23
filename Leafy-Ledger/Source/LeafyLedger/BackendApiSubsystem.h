@@ -11,6 +11,8 @@
 DECLARE_DELEGATE_TwoParams(FBackendOperationResponse, bool /*bSuccess*/, const FString& /*Message*/)
 DECLARE_DELEGATE_ThreeParams(FBackendPlantsResponse, bool /*bSuccess*/, const FString& /*Message*/, const TArray<FBackendPlantDto>& /*Plants*/)
 DECLARE_DELEGATE_ThreeParams(FBackendCurrentUserResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserDto& /*User*/)
+DECLARE_DELEGATE_ThreeParams(FBackendUserLocationResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserLocationDto& /*Location*/)
+DECLARE_DELEGATE_ThreeParams(FBackendWeatherResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendWeatherDto& /*Weather*/)
 
 UCLASS()
 class LEAFYLEDGER_API UBackendApiSubsystem : public UGameInstanceSubsystem
@@ -25,6 +27,8 @@ public:
 	void DeleteSavedPlant(int32 TrefleId, const FBackendOperationResponse& Callback);
 	void UpdateDisplayName(const FString& NewDisplayName, const FBackendOperationResponse& Callback);
 	void GetCurrentUser(const FBackendCurrentUserResponse& Callback);
+	void GetUserLocation(const FBackendUserLocationResponse& Callback);
+	void GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback);
 
 private:
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest(

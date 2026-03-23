@@ -116,3 +116,55 @@ bool FBackendJsonUtils::ParseCurrentUser(const FString& JsonString, FBackendUser
 
 	return true;
 }
+
+bool FBackendJsonUtils::ParseUserLocation(const FString& JsonString, FBackendUserLocationDto& OutLocation)
+{
+	OutLocation = FBackendUserLocationDto{};
+
+	TSharedPtr<FJsonObject> Obj;
+	if (!ParseObject(JsonString, Obj) || !Obj.IsValid())
+	{
+		return false;
+	}
+
+	double NumberValue = 0.0;
+
+	if (Obj->TryGetNumberField(TEXT("latitude"), NumberValue))
+	{
+		OutLocation.Latitude = NumberValue;
+		OutLocation.bHasLatitude = true;
+	}
+
+	if (Obj->TryGetNumberField(TEXT("longitude"), NumberValue))
+	{
+		OutLocation.Longitude = NumberValue;
+		OutLocation.bHasLongitude = true;
+	}
+
+	Obj->TryGetStringField(TEXT("updatedAt"), OutLocation.UpdatedAt);
+
+	return true;
+}
+
+bool FBackendJsonUtils::ParseWeather(const FString& JsonString, FBackendWeatherDto& OutWeather)
+{
+	OutWeather = FBackendWeatherDto{};
+
+	TSharedPtr<FJsonObject> Obj;
+	if (!ParseObject(JsonString, Obj) || !Obj.IsValid())
+	{
+		return false;
+	}
+
+	double NumberValue = 0.0;
+
+	if (Obj->TryGetNumberField(TEXT("temperature_2m"), NumberValue))
+	{
+		OutWeather.Temperature2m = static_cast<float>(NumberValue);
+		OutWeather.bHasTemperature2m = true;
+	}
+
+	Obj->TryGetStringField(TEXT("description"), OutWeather.Description);
+
+	return true;
+}
