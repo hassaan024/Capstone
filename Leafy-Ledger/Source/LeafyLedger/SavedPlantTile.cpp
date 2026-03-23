@@ -19,6 +19,12 @@ bool USavedPlantTile::Initialize()
     {
         BTN_UnsavePlant->OnClicked.AddDynamic(this, &USavedPlantTile::OnPressUnsavePlant);
     }
+
+    if (BTN_OpenPlantCard)
+    {
+        BTN_OpenPlantCard->OnClicked.AddDynamic(this, &USavedPlantTile::OnPressOpenPlantCard);
+    }
+
     return true;
 }
 
@@ -31,6 +37,47 @@ void USavedPlantTile::OnPressUnsavePlant()
     }
     OnRemoveClicked.Broadcast(PlantCard->TrefleId);
 }
+
+void USavedPlantTile::OnPressOpenPlantCard()
+{
+    if (!CardPopupClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("CardPopupClass is null"));
+        return;
+    }
+
+    if (!PlantCard)
+    {
+        UE_LOG(LogTemp, Error, TEXT("PlantCard is null"));
+        return;
+    }
+
+    CardPopupInstance = CreateWidget<UPlantCardPopup>(GetOwningPlayer(), CardPopupClass);
+    if (!CardPopupInstance)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to create popup"));
+        return;
+    }
+
+    CardPopupInstance->PopulateInfo(PlantCard);
+
+    CardPopupInstance->OnRemoveClicked.AddUniqueDynamic(this, &USavedPlantTile::HandlePopupRemoveClicked);
+
+    CardPopupInstance->AddToViewport();
+}
+
+void USavedPlantTile::HandlePopupRemoveClicked(int32 TrefleId)
+{
+    //UE_LOG(LogTemp, Warning, TEXT("Tile received popup remove click for %d"), TrefleId);
+
+    OnRemoveClicked.Broadcast(TrefleId);
+
+    if (CardPopupInstance)
+    {
+        CardPopupInstance->RemoveFromParent();
+        CardPopupInstance = nullptr;
+    }
+} 
 
 static EImageFormat DetectImageFormat(const TArray<uint8>& Bytes)
 {

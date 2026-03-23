@@ -2,6 +2,7 @@
 
 #include "SavedPlants.h"
 #include "SavedPlantTile.h"
+#include "PlantCardPopup.h"
 #include "PlantObject.h"
 #include "BackendApiSubsystem.h"
 

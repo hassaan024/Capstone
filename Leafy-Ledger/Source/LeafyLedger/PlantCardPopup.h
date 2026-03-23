@@ -7,18 +7,13 @@
 #include "Http.h"
 #include "Components/Button.h"
 #include "Blueprint/IUserObjectListEntry.h"
-#include "PlantCardPopup.h"
-#include "SavedPlantTile.generated.h"
+#include "PlantCardPopup.generated.h"
 
-/**
- * 
- */
-class UImage;
 class UTextBlock;
 class UPlantObject;
 
 UCLASS()
-class LEAFYLEDGER_API USavedPlantTile : public UUserWidget, public IUserObjectListEntry
+class LEAFYLEDGER_API UPlantCardPopup : public UUserWidget
 {
 	GENERATED_BODY()
 	
@@ -30,33 +25,15 @@ public:
 
     virtual bool Initialize() override;
 
-    virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+    virtual void PopulateInfo(UObject* ListItemObject);
 
     UFUNCTION()
     void OnPressUnsavePlant();
 
-    UFUNCTION()
-    void OnPressOpenPlantCard();
-
-    UFUNCTION()
-    void HandlePopupRemoveClicked(int32 TrefleId);
-
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_UnsavePlant;
 
-    UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_OpenPlantCard;
-
-    UPROPERTY(EditAnywhere, Category = "UI")
-    TSubclassOf<UPlantCardPopup> CardPopupClass;
-
-    UPROPERTY()
-    UPlantCardPopup* CardPopupInstance = nullptr;
-
 protected:
-    UPROPERTY(meta = (BindWidget))
-    UImage* IMG_Plant;
-
     UPROPERTY(meta = (BindWidget))
     UTextBlock* TXT_CommonName;
 
@@ -64,11 +41,6 @@ protected:
     UTextBlock* TXT_ScientificName;
 
 private:
-    void DownloadImage(const FString& Url);
-    void OnImageDownloaded(FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess);
-
     UPROPERTY()
     UPlantObject* PlantCard = nullptr;
-
-    FString CurrentUrl;
 };
