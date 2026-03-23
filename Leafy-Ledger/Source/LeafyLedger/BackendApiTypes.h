@@ -17,3 +17,20 @@ struct FBackendUserDto
 	FString GoogleDisplayName;
 	bool bConfirmedName = false;
 };
+
+struct FBackendUserLocationDto
+{
+	double Latitude = 0.0;
+	double Longitude = 0.0;
+	FString UpdatedAt;
+
+	bool bHasLatitude = false;
+	bool bHasLongitude = false;
+};
+
+struct FBackendWeatherDto
+{
+	float Temperature2m = 0.f;
+	FString Description;
+	bool bHasTemperature2m = false;
+};
