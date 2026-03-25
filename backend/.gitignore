@@ -59,3 +59,7 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
+
+_pycache_/
+*.py[cod]
+*$py.class
