@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from 'database/database.service';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { WeatherService } from '../weather/weather.service';
 
 interface ChatMessage {
   role: 'user' | 'model';
@@ -14,14 +15,12 @@ export class ChatService {
   private genAI: GoogleGenerativeAI | null = null;
 
   /** Models to try in order — if one hits quota, fall back to the next */
-  private readonly MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-  ];
+  private readonly MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
   constructor(
     private readonly configService: ConfigService,
     private readonly db: DatabaseService,
+    private readonly weatherService: WeatherService,
   ) {
     const apiKey =
       this.configService.get<string>('GEMINI_API_KEY') ||
@@ -38,7 +37,8 @@ export class ChatService {
   }
 
   /**
-   * Build a personalized system prompt that includes the user's saved plants.
+   * Build a personalized system prompt that includes the user's saved plants,
+   * live weather data, and species-vs-weather alerts.
    */
   private async buildSystemPrompt(userId?: number): Promise<string> {
     let userContext = '';
@@ -81,6 +81,114 @@ export class ChatService {
               .join('\n');
             userContext += `\n\nThe user's gardens:\n${gardenInfo}`;
           }
+
+          // --- Live weather context ---
+          const typedUser = user as typeof user & {
+            latitude?: number | null;
+            longitude?: number | null;
+          };
+          const lat = typedUser.latitude ?? user.gardens?.[0]?.latitude;
+          const lng = typedUser.longitude ?? user.gardens?.[0]?.longitude;
+
+          if (
+            lat !== undefined &&
+            lat !== null &&
+            lng !== undefined &&
+            lng !== null
+          ) {
+            try {
+              const weather = await this.weatherService.getCurrentDaysWeather(
+                lat,
+                lng,
+              );
+
+              userContext +=
+                `\n\nCurrent weather at the user's location:` +
+                `\n- Temperature: ${weather.temperature_2m}°F` +
+                `\n- Conditions: ${weather.description}` +
+                `\n- Humidity: ${weather.relative_humidity_2m}%` +
+                `\n- Wind: ${weather.wind_speed_10m} mph` +
+                `\n- VPD (vapor pressure deficit): ${weather.vapour_pressure_deficit} kPa` +
+                `\n- Daily evaporation (ET0): ${weather.daily_evaporation} mm` +
+                `\n- Sunlight intensity: ${weather.sunlight_intensity} MJ/m²`;
+
+              // --- Species-vs-weather alerts ---
+              // Collect all unique species from gardens and saved species
+              const speciesMap = new Map<
+                number,
+                {
+                  commonName: string;
+                  minTemp?: number | null;
+                  maxTemp?: number | null;
+                  minHumidity?: number | null;
+                  maxHumidity?: number | null;
+                }
+              >();
+
+              if (user.savedSpecies) {
+                for (const s of user.savedSpecies) {
+                  speciesMap.set(s.id, s);
+                }
+              }
+              if (user.gardens) {
+                for (const g of user.gardens) {
+                  if (g.plants) {
+                    for (const p of g.plants) {
+                      if (p.species) {
+                        speciesMap.set(p.species.id, p.species);
+                      }
+                    }
+                  }
+                }
+              }
+
+              const alerts: string[] = [];
+              const currentTemp = weather.temperature_2m ?? 0;
+              const currentHumidity = weather.relative_humidity_2m ?? 0;
+
+              for (const species of speciesMap.values()) {
+                // Temperature alerts (species thresholds are stored in °F based on the dto)
+                if (species.minTemp != null && currentTemp < species.minTemp) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current temp (${currentTemp}°F) is BELOW its minimum preferred temp (${species.minTemp}°F). Warn the user about cold stress.`,
+                  );
+                }
+                if (species.maxTemp != null && currentTemp > species.maxTemp) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current temp (${currentTemp}°F) is ABOVE its maximum preferred temp (${species.maxTemp}°F). Warn the user about heat stress.`,
+                  );
+                }
+
+                // Humidity alerts
+                if (
+                  species.minHumidity != null &&
+                  currentHumidity < species.minHumidity
+                ) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current humidity (${currentHumidity}%) is BELOW its minimum preferred humidity (${species.minHumidity}%). Suggest misting or a humidity tray.`,
+                  );
+                }
+                if (
+                  species.maxHumidity != null &&
+                  currentHumidity > species.maxHumidity
+                ) {
+                  alerts.push(
+                    `⚠️ ${species.commonName}: Current humidity (${currentHumidity}%) is ABOVE its maximum preferred humidity (${species.maxHumidity}%). Suggest improving airflow.`,
+                  );
+                }
+              }
+
+              if (alerts.length > 0) {
+                userContext += `\n\nIMPORTANT — Plant condition alerts based on current weather:\n${alerts.join('\n')}`;
+                userContext += `\nProactively mention these alerts when relevant. The user may not be aware of these conditions.`;
+              }
+            } catch (weatherErr) {
+              this.logger.warn(
+                `Failed to fetch weather for chat context: ${(weatherErr as Error).message}`,
+              );
+              // Weather fetch failed — continue without weather context
+            }
+          }
         }
       } catch (err) {
         this.logger.warn(
@@ -96,6 +204,7 @@ You help users with:
 - Recommending plants based on their experience level, location, or preferences
 - Companion planting and garden layout tips
 - Seasonal gardening advice
+- Navigating and using the LeafyLedger app
 
 Guidelines:
 - Be warm, encouraging, and enthusiastic about plants 🌿
@@ -103,7 +212,38 @@ Guidelines:
 - Use emoji sparingly to keep it friendly
 - If you don't know something specific, say so honestly
 - When relevant, reference the user's saved plants or gardens to personalize your advice
+- If weather data is provided, use it to give climate-aware advice (e.g. watering needs, frost warnings, heat stress)
+- If plant condition alerts are provided, proactively mention them to the user
+- If the user asks how to do something in the app, guide them step-by-step using the App Guide below
 - Format responses with markdown: use **bold** for plant names and important terms, bullet lists for tips
+
+App Guide — How LeafyLedger Works:
+
+1. LOGIN (/login):
+   - The entry point to LeafyLedger. Users sign in to access their personalized data.
+   - Supports secure authentication. Unauthenticated users are redirected here automatically.
+   - After login, users land on the Dashboard.
+
+2. DASHBOARD (/dashboard):
+   - The main hub after logging in. Shows a welcome message, quick actions, and stats (gardens, plants, species counts).
+   - Quick Actions: "Create New Garden", "View Saved Plants" → /saved-species, "Browse Species" → /browse.
+   - Weather Widget: Shows live weather based on the user's location (temperature, humidity, forecast, plant stress metrics).
+   - Location Setup: Users can enter a zip/postal code or use browser geolocation — saved to their profile.
+
+3. BROWSE SPECIES (/browse):
+   - A searchable database of plant species with images, descriptions, and care info.
+   - Users can search by common name, scientific name, or keywords.
+   - Click a species to see details. Click the bookmark icon to save it to their collection.
+
+4. SAVED SPECIES (/saved-species):
+   - A personal library of bookmarked plants from the Browse page.
+   - Quick reference for care instructions without re-searching.
+   - Users can remove species they no longer want to track.
+
+5. CHATBOT (you!):
+   - The floating chat widget available on every page — that's you, Leafy!
+   - Users can expand/minimize the panel. Chat history is kept during the session.
+   - You can help with plant care, weather-based advice, and navigating the app.
 ${userContext}`;
   }
 
