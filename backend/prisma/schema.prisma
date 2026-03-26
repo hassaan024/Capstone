@@ -1,0 +1,252 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  displayName       String
+  passwordHash      String?
+  creationTimestamp DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+  gardens           Garden[]
+
+  // information for the web useres
+  latitude          Float?   
+  longitude         Float?   
+  timezone          String? 
+  
+  // stuff from google
+  googleId          String? @unique
+  verifiedEmail     Boolean?
+  googleDisplayName String? 
+  givenName         String?
+  familyName        String?
+  picture           String?
+  savedSpecies      Species[] @relation("UserSavedSpecies")
+}
+
+model Garden {
+  id                Int             @id @default(autoincrement())
+  ownerId           Int
+  name              String
+  description       String?
+  latitude          Float
+  longitude         Float
+  timezone          String?
+  creationTimestamp DateTime        @default(now())
+  lastUpdated       DateTime        @updatedAt
+  owner             User            @relation(fields: [ownerId], references: [id])
+  plants            PlantInstance[]
+}
+
+model PlantInstance {
+  id                Int      @id @default(autoincrement())
+  gardenId          Int
+  speciesId         Int
+  soilId            Int
+  heightCm          Float?   // height in cm, optional
+  ageDays           Int?     // age of plant in days, optional
+  healthStatus      HealthStatus?  
+  lastWatered       DateTime? 
+  notes             String?  // any notes
+  creationTimestamp DateTime @default(now())
+  lastUpdated       DateTime @updatedAt
+  garden            Garden   @relation(fields: [gardenId], references: [id])
+  soil              Soil     @relation(fields: [soilId], references: [id])
+  species           Species  @relation(fields: [speciesId], references: [id])
+  histories         PlantHistory[]
+}
+
+model Species {
+  // ---------- Core Identification ----------
+  id             Int      @id @default(autoincrement()) 
+  // Primary key in your database
+
+  commonName     String  
+  // Common name of the plant (e.g., "Tomato")
+
+  scientificName String  
+  // Scientific name (e.g., "Lycopersicon esculentum")
+
+  growthRate     Float  
+  // Numeric growth speed (1=Low, 2=Medium, 3=High); useful for ML predictions
+
+  cycle          String?  
+  // Life cycle (e.g., "Herbaceous Perennial")
+
+  type           String?  
+  // Plant type (e.g., "Fruit", "Herb"); reference
+
+  maintenance    String?  
+  // Maintenance level (e.g., "Moderate"); reference
+
+  careLevel      String?  
+  // Difficulty of care (e.g., "Easy", "Medium"); reference
+
+  avgHoursSun    Float?  
+  // Average sunlight hours per day; derived from sunlight array; useful for ML
+
+  minTemp        Float?  
+  // Minimum tolerated temperature (°F)
+
+  maxTemp        Float?  
+  // Maximum tolerated temperature (°F)
+
+  minHeight      Float?
+  maxHeight      Float?
+  // height in feet
+
+  wateringFreq   String?  
+  // Watering frequency category (e.g., "Average", "Frequent")
+
+  wateringMinDays Int? // water at least every x days
+  wateringMaxDays Int? // water no more than every x days
+
+  // ---------- Taxonomy ----------
+  otherNames     Json?  
+  // Alternative/common names; array
+
+  family         String?  
+  // Plant family (e.g., "Solanaceae")
+
+  genus          String?  
+  // Plant genus (e.g., "Lycopersicon")
+
+  speciesEpithet String?  
+  // Species epithet (e.g., "esculentum")
+
+  origin         Json?  
+  // Array of origin locations; e.g., ["South America"]
+
+  // ---------- Reproduction / Yield ----------
+  flowers        Boolean?  
+  // True if plant produces flowers
+
+  floweringSeason String?  
+  // Flowering season (e.g., "Spring")
+
+  fruits         Boolean?  
+  // True if plant produces fruit
+
+  edibleFruit    Boolean?  
+  // True if fruits are edible
+
+  harvestSeason  String?  
+  // Typical harvest season
+
+  leaf           Boolean?  
+  // True if leaves are significant/consumable
+
+  edibleLeaf     Boolean?  
+  // True if leaves are edible
+
+  cuisine        Boolean?  
+  // True if plant is used in cooking
+
+  medicinal      Boolean?  
+  // True if plant has medicinal uses
+
+  // ---------- Environmental / Resilience ----------
+  droughtTolerant Boolean?  
+  // True if drought-tolerant
+
+  saltTolerant    Boolean?  
+  // True if tolerant to saline soil
+
+  tropical        Boolean?  
+  // True if tropical
+
+  indoor          Boolean?  
+  // True if can grow indoors
+
+  thorny          Boolean?  
+  // True if plant has thorns
+
+  invasive        Boolean?  
+  // True if invasive
+
+  // ---------- Care Information ----------
+  pruningMonths   Json?  
+  // Array of months for pruning
+
+  pruningFrequency Int?  
+  // Number of times per year to prune
+
+  pruningInterval  String?  
+  // Interval type for pruning (e.g., "yearly")
+
+  // ---------- Visual / Anatomy ----------
+  plantAnatomy    Json?  
+  // Array of { part, color }; useful for identification
+
+  imgSrcUrls      Json?  
+  // Object with multiple image URLs { original, medium, small, thumbnail }
+
+  notes           String?  
+  // Description or additional info
+
+  // ---------- External IDs ----------
+  perenualId      Int?     @unique  
+  // Unique ID from Perenual API
+
+  trefleId        Int?     @unique  
+  // Unique ID from Trefle API for cross-API reference
+
+  // ---------- Relationships ----------
+  plantInstances  PlantInstance[]  
+  // All plant instances in user gardens using this species
+
+  savedBy         User[]   @relation("UserSavedSpecies")  
+  // Users who saved this species
+
+  @@index([commonName])
+  // Index for fast search by common name
+}
+
+model Soil {
+  id                Int             @id @default(autoincrement())
+  nitrogen          Float
+  phosphorus        Float
+  potassium         Float
+  pH                Float
+  organicPercentage Float?
+  type              SoilType
+  plantInstances    PlantInstance[]
+}
+
+model PlantHistory {
+  id             Int       @id @default(autoincrement())
+  plantId        Int
+  date           DateTime  // timestamp for the measurement or prediction
+  heightCm       Float?
+  healthStatus   HealthStatus?
+  predictedValue Float?    // model prediction
+  notes          String?
+
+  plant          PlantInstance @relation(fields: [plantId], references: [id])
+
+  @@index([plantId, date]) // good for querying ranges
+}
+
+enum HealthStatus {
+  Healthy
+  Wilting
+  Sick
+  Dead
+  NeedsWater
+}
+
+enum SoilType {
+  LOAM
+  SANDY
+  CLAY
+  SILT
+  PEAT
+  CHALK
+}

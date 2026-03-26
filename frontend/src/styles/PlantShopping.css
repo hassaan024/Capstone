@@ -1,0 +1,214 @@
+/* Plant Shopping Panel Styles */
+
+.shopping-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.shopping-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.shopping-header h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
+}
+
+.shopping-header-icon {
+  font-size: 1.4rem;
+}
+
+/* Retailer Cards Grid */
+.retailer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 600px) {
+  .retailer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.retailer-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.retailer-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  border-radius: 14px;
+  transition: opacity 0.3s ease;
+}
+
+.retailer-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.retailer-card:hover::before {
+  opacity: 0.06;
+}
+
+.retailer-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.retailer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.retailer-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 0.15rem 0;
+}
+
+.retailer-tagline {
+  font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.7);
+  margin: 0;
+}
+
+.retailer-arrow {
+  color: rgba(148, 163, 184, 0.5);
+  font-size: 1.1rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.retailer-card:hover .retailer-arrow {
+  transform: translateX(4px);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Price Chart Section */
+.price-chart-section {
+  margin-top: 0.5rem;
+}
+
+.price-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.price-chart-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(229, 231, 235, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-chart-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  font-weight: 500;
+}
+
+.price-chart-container {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 1.5rem 1rem 1rem 0;
+  position: relative;
+}
+
+.price-range-summary {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 12px;
+}
+
+.price-range-item {
+  text-align: center;
+}
+
+.price-range-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.6);
+  margin-bottom: 0.25rem;
+}
+
+.price-range-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #86efac;
+}
+
+.price-range-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+/* Loading & Error states */
+.shopping-loading {
+  text-align: center;
+  color: rgba(148, 163, 184, 0.6);
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+.shopping-loading-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(148, 163, 184, 0.2);
+  border-top-color: #86efac;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 0.75rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

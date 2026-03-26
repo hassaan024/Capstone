@@ -1,0 +1,141 @@
+========================================
+PRISMA DATABASE RESET & CLEAR GUIDE
+========================================
+
+This document explains the EASY and SAFE ways to clear or reset the database
+when working with Prisma.
+
+⚠️ IMPORTANT
+------------
+• DO NOT run destructive commands on PRODUCTION databases
+• These commands are intended for LOCAL DEVELOPMENT and TESTING only
+• When in doubt, ask the team before running anything
+
+
+========================================
+1. FULL DATABASE RESET (RECOMMENDED)
+========================================
+
+Command:
+--------
+npx prisma migrate reset
+
+What this does:
+---------------
+• Drops ALL tables
+• Recreates the database using migrations
+• Clears ALL data
+• Re-runs the seed script (if configured)
+
+When to use:
+------------
+• You want a clean database
+• Migrations are out of sync
+• Local dev environment is broken
+
+⚠️ This deletes ALL data
+
+
+========================================
+2. RESET DATABASE WITHOUT MIGRATIONS
+========================================
+
+Command:
+--------
+npx prisma db push --force-reset
+
+What this does:
+---------------
+• Drops ALL tables
+• Recreates schema directly from schema.prisma
+• No migration history is used
+
+When to use:
+------------
+• Rapid prototyping
+• Early development
+• You don’t care about migration history
+
+⚠️ This deletes ALL data
+
+
+========================================
+3. CLEAR TABLE DATA (KEEP SCHEMA)
+========================================
+
+Option A: Prisma Client (Safe)
+------------------------------
+
+Example:
+--------
+await prisma.user.deleteMany()
+await prisma.post.deleteMany()
+
+Notes:
+------
+• Deletes all rows but keeps table structure
+• Must delete child tables BEFORE parent tables
+• Database-agnostic (works everywhere)
+
+
+Option B: Raw SQL (Fast, Advanced)
+----------------------------------
+
+PostgreSQL:
+-----------
+TRUNCATE TABLE "User", "Post" RESTART IDENTITY CASCADE;
+
+MySQL:
+------
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE User;
+TRUNCATE TABLE Post;
+SET FOREIGN_KEY_CHECKS = 1;
+
+⚠️ Raw SQL should only be used by experienced developers
+
+
+========================================
+4. SEEDING THE DATABASE
+========================================
+
+If a seed script exists, it will automatically run with:
+
+npx prisma migrate reset
+
+Seed config (package.json):
+---------------------------
+"prisma": {
+  "seed": "ts-node prisma/seed.ts"
+}
+
+
+========================================
+5. WHICH OPTION SHOULD I USE?
+========================================
+
+• "I want a fresh dev DB" → migrate reset
+• "Schema is broken" → migrate reset
+• "Quick prototype reset" → db push --force-reset
+• "Just delete data" → deleteMany()
+
+
+========================================
+6. NEVER RUN IN PRODUCTION
+========================================
+
+DO NOT RUN:
+-----------
+• migrate reset
+• db push --force-reset
+• TRUNCATE TABLE
+
+ON:
+---
+• Production databases
+• Shared environments without approval
+
+
+========================================
+END OF FILE
+========================================
