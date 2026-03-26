@@ -1,5 +1,0 @@
-fastapi
-uvicorn[standard]
-pydantic
-numpy
-# add torch, tensorflow, scikit-learn, or any other ML library you need
