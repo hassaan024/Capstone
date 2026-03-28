@@ -2,7 +2,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 
-type PrismaTableName = 'User' | 'Garden' | 'PlantInstance' | 'Species' | 'Soil';
+type PrismaTableName = 'User' | 'Garden' | 'PlantInstance' | 'Species' | 'Soil' | 'PlantHistory';
 
 const deletionOrder: PrismaTableName[] = [
   'PlantInstance',
@@ -10,6 +10,7 @@ const deletionOrder: PrismaTableName[] = [
   'User',
   'Species',
   'Soil',
+  'PlantHistory',
 ];
 
 type TableMap = {
@@ -18,6 +19,7 @@ type TableMap = {
   PlantInstance: PrismaClient['plantInstance'];
   Species: PrismaClient['species'];
   Soil: PrismaClient['soil'];
+  PlantHistory: PrismaClient['plantHistory'];
 };
 
 type DatabaseTableOperation = {
@@ -48,6 +50,7 @@ export class DatabaseService
       PlantInstance: this.plantInstance,
       Species: this.species,
       Soil: this.soil,
+      PlantHistory: this.plantHistory,
     };
   }
 

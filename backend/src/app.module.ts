@@ -12,6 +12,9 @@ import { PlantShoppingModule } from './plant-shopping/plant-shopping.module.js';
 import { ChatModule } from './chat/chat.module.js';
 import { ConfigModule } from '@nestjs/config';
 import { WeatherModule } from './weather/weather.module';
+import { PredictionModule } from './prediction/prediction.module';
+import { PlantHistoryModule } from './plant-history/plant-history.module';
+import { PerenualModule } from './perenual/perenual.module';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { WeatherModule } from './weather/weather.module';
     WeatherModule,
     PlantShoppingModule,
     ChatModule,
+    PredictionModule,
+    PlantHistoryModule,
+    PerenualModule,
   ],
   controllers: [AppController],
   providers: [AppService],
