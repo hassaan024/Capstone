@@ -16,13 +16,21 @@ const BrowseSpecies: React.FC = () => {
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
   const [savedPlantIds, setSavedPlantIds] = useState<Set<number>>(new Set());
   const { user } = useAuth();
-  
+  // Suggest Chatbot interaction
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Browse Species page?' });
+      window.dispatchEvent(event);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Fetch saved species on mount
   React.useEffect(() => {
     if (user) {
       api.get(`/species/saved?userId=${user.id}`)
-        .then((res: { data: { trefleId: number }[] }) => {
-           const ids = new Set(res.data.map(s => s.trefleId));
+        .then((res: { data: { perenualId: number }[] }) => {
+           const ids = new Set(res.data.map(s => s.perenualId));
            setSavedPlantIds(ids);
         })
         .catch(err => console.error("Failed to fetch saved species", err));
@@ -65,7 +73,7 @@ const BrowseSpecies: React.FC = () => {
     }
   };
 
-  const categories = ['Vegetables', 'Fruits', 'Flowers', 'Herbs', 'Cacti'];
+  const categories = ['Tomatoes', 'Apples', 'Roses', 'Herbs', 'Cactus'];
 
   const handleSearch = async (e: React.FormEvent | string) => {
     if (typeof e !== 'string') e.preventDefault();
@@ -75,10 +83,16 @@ const BrowseSpecies: React.FC = () => {
     setLoading(true);
     setResults([]); // Clear previous
     try {
-      const { data } = await api.get(`/trefle/search?q=${encodeURIComponent(q)}`);
-      // Trefle returns { data: [...] } structure
+      const { data } = await api.get(`/perenual/search?query=${encodeURIComponent(q)}`);
+      // Perenual returns { data: [...] } structure
       if (Array.isArray(data.data)) {
-        setResults(data.data);
+        const mappedResults = data.data.map((p: any) => ({
+          id: p.id,
+          common_name: p.common_name,
+          scientific_name: Array.isArray(p.scientific_name) ? p.scientific_name[0] : p.scientific_name,
+          image_url: p.default_image?.regular_url || p.default_image?.original_url
+        }));
+        setResults(mappedResults);
       } else {
         setResults([]);
       }

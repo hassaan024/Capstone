@@ -83,8 +83,31 @@ const ChatWidget: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestionPopup, setSuggestionPopup] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Listen for suggestion events from across the app
+  useEffect(() => {
+    const handleSuggest = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setSuggestionPopup(customEvent.detail);
+      // Auto close after 7.5s
+      setTimeout(() => {
+        setSuggestionPopup(null);
+      }, 7500);
+    };
+    window.addEventListener('suggestChat', handleSuggest);
+    return () => window.removeEventListener('suggestChat', handleSuggest);
+  }, []);
+
+  const handleSuggestionClick = () => {
+    if (suggestionPopup) {
+      setIsOpen(true);
+      sendMessage(suggestionPopup);
+      setSuggestionPopup(null);
+    }
+  };
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -153,6 +176,29 @@ const ChatWidget: React.FC = () => {
 
   return (
     <>
+      {/* Suggestion Popup Tooltip */}
+      {suggestionPopup && !isOpen && (
+        <div 
+          className="chat-suggestion-tooltip"
+          onClick={handleSuggestionClick}
+        >
+          <div className="chat-suggestion-text-container">
+            <span className="chat-suggestion-bulb">💡</span>
+            <div>
+              <div className="chat-suggestion-title">Ask me about this!</div>
+              <div className="chat-suggestion-subtext">"{suggestionPopup}"</div>
+            </div>
+          </div>
+          <button 
+            className="chat-suggestion-close" 
+            onClick={(e) => { e.stopPropagation(); setSuggestionPopup(null); }}
+          >
+             <FaTimes size={12} />
+          </button>
+          <div className="chat-suggestion-timer-bar" key={suggestionPopup} />
+        </div>
+      )}
+
       {/* Floating Action Button */}
       <button
         className={`chat-fab ${isOpen ? 'chat-fab--open' : ''}`}

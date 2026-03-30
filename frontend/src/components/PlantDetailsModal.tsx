@@ -12,19 +12,27 @@ interface PlantDetailsModalProps {
 
 interface PlantDetails {
   common_name: string;
-  scientific_name: string;
-  image_url: string;
-  main_species: {
-    growth: {
-      ph_maximum: number;
-      ph_minimum: number;
-      light: number;
-      atmospheric_humidity: number;
-      soil_nutriments: number;
-      minimum_temperature: { deg_f: number; deg_c: number };
-      maximum_temperature: { deg_f: number; deg_c: number };
-    };
+  scientific_name: string[];
+  default_image?: {
+    regular_url: string;
   };
+  sunlight?: string[];
+  watering?: string;
+  hardiness?: {
+    min: string;
+    max: string;
+  };
+  care_level?: string;
+  maintenance?: string;
+  type?: string;
+  cycle?: string;
+  growth_rate?: string;
+  indoor?: boolean;
+  drought_tolerant?: boolean;
+  medicinal?: boolean;
+  edible_fruit?: boolean;
+  edible_leaf?: boolean;
+  invasive?: boolean;
 }
 
 import { FaSun, FaTint, FaThermometerHalf, FaFlask, FaInfoCircle, FaCheck, FaBookmark, FaRegBookmark, FaTimes } from 'react-icons/fa';
@@ -40,10 +48,15 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
       setLoading(true);
       setError('');
       setShowInfo(false); // Reset info on open
-      api.get(`/trefle/species/${plantId}`)
-        .then((res: { data: { data: PlantDetails } }) => {
-          setDetails(res.data.data);
+      api.get(`/perenual/details/${plantId}`)
+        .then((res: { data: PlantDetails }) => {
+          setDetails(res.data);
           setLoading(false);
+          // Suggest a question to the chatbot
+          setTimeout(() => {
+            const event = new CustomEvent('suggestChat', { detail: `Tell me some fun facts about ${res.data.common_name}!` });
+            window.dispatchEvent(event);
+          }, 1000);
         })
         .catch((err: Error) => {
           console.error(err);
@@ -55,7 +68,8 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
 
   if (!isOpen) return null;
 
-  const growth = details?.main_species?.growth;
+  // No longer need growth variable from Trefle
+  // const growth = details?.main_species?.growth;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -69,38 +83,69 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
         ) : details ? (
           <>
             <div className="modal-body">
-              {details.image_url && (
+              {details.default_image?.regular_url && (
                 <img 
-                  src={details.image_url} 
+                  src={details.default_image.regular_url} 
                   alt={details.common_name} 
                   className="modal-header-image" 
                 />
               )}
               <div className="modal-details">
                 <h2 className="modal-title">{details.common_name}</h2>
-                <p className="modal-subtitle">{details.scientific_name}</p>
+                <p className="modal-subtitle">
+                  {Array.isArray(details.scientific_name) ? details.scientific_name[0] : details.scientific_name}
+                </p>
 
                 <div className="modal-grid">
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label"><FaSun /> Light (0-10)</div>
-                    <div className="modal-stat-value">{growth?.light ?? 'N/A'}</div>
+                    <div className="modal-stat-label"><FaSun /> Sunlight</div>
+                    <div className="modal-stat-value">{details.sunlight?.join(', ') || 'N/A'}</div>
                   </div>
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label"><FaTint /> Humidity</div>
-                    <div className="modal-stat-value">{growth?.atmospheric_humidity ?? 'N/A'}/10</div>
+                    <div className="modal-stat-label"><FaTint /> Watering</div>
+                    <div className="modal-stat-value">{details.watering || 'N/A'}</div>
                   </div>
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label"><FaThermometerHalf /> Temp Range</div>
+                    <div className="modal-stat-label"><FaThermometerHalf /> Hardiness Zones</div>
                     <div className="modal-stat-value">
-                      {growth?.minimum_temperature?.deg_f ?? '?'}°F - {growth?.maximum_temperature?.deg_f ?? '?'}°F
+                      {details.hardiness?.min ?? '?'} - {details.hardiness?.max ?? '?'}
                     </div>
                   </div>
                   <div className="modal-stat-box">
-                    <div className="modal-stat-label"><FaFlask /> Soil pH</div>
+                    <div className="modal-stat-label"><FaFlask /> Maintenance</div>
                     <div className="modal-stat-value">
-                      {growth?.ph_minimum ?? '?'} - {growth?.ph_maximum ?? '?'}
+                      {details.maintenance || details.care_level || 'N/A'}
                     </div>
                   </div>
+                  
+                  {/* New Perenual Details */}
+                  {details.type && (
+                    <div className="modal-stat-box">
+                      <div className="modal-stat-label"><FaCheck /> Type</div>
+                      <div className="modal-stat-value">{details.type}</div>
+                    </div>
+                  )}
+                  {details.cycle && (
+                    <div className="modal-stat-box">
+                      <div className="modal-stat-label"><FaCheck /> Life Cycle</div>
+                      <div className="modal-stat-value">{details.cycle}</div>
+                    </div>
+                  )}
+                  {details.growth_rate && (
+                    <div className="modal-stat-box">
+                      <div className="modal-stat-label"><FaCheck /> Growth Rate</div>
+                      <div className="modal-stat-value">{details.growth_rate}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tags / Badges */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
+                  {details.indoor && <span style={{ padding: '0.25rem 0.5rem', background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>Indoor Friendly</span>}
+                  {details.drought_tolerant && <span style={{ padding: '0.25rem 0.5rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fcd34d', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>Drought Tolerant</span>}
+                  {details.medicinal && <span style={{ padding: '0.25rem 0.5rem', background: 'rgba(16, 185, 129, 0.2)', color: '#6ee7b7', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>Medicinal</span>}
+                  {(details.edible_fruit || details.edible_leaf) && <span style={{ padding: '0.25rem 0.5rem', background: 'rgba(217, 70, 239, 0.2)', color: '#f0abfc', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>Edible</span>}
+                  {details.invasive && <span style={{ padding: '0.25rem 0.5rem', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>Invasive</span>}
                 </div>
 
                 <div className="modal-actions-wrapper" style={{ marginTop: '2rem' }}>
@@ -181,7 +226,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
 
                 {/* Plant Shopping / Where to Buy */}
                 <PlantShoppingPanel
-                  plantName={details.common_name || details.scientific_name}
+                  plantName={details.common_name || (Array.isArray(details.scientific_name) ? details.scientific_name[0] : details.scientific_name)}
                   plantId={plantId}
                 />
               </div>
