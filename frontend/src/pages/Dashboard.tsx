@@ -28,11 +28,14 @@ export const Dashboard: React.FC = () => {
 
   // Suggest Chatbot interaction for Dashboard
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Dashboard?' });
-      window.dispatchEvent(event);
-    }, 2000);
-    return () => clearTimeout(timer);
+    if (!localStorage.getItem('hasSeenDashboardPopup')) {
+      const timer = setTimeout(() => {
+        const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Dashboard?' });
+        window.dispatchEvent(event);
+        localStorage.setItem('hasSeenDashboardPopup', 'true');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Fetch user location on mount

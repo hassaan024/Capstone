@@ -18,11 +18,14 @@ const BrowseSpecies: React.FC = () => {
   const { user } = useAuth();
   // Suggest Chatbot interaction
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Browse Species page?' });
-      window.dispatchEvent(event);
-    }, 2000);
-    return () => clearTimeout(timer);
+    if (!localStorage.getItem('hasSeenBrowsePopup')) {
+      const timer = setTimeout(() => {
+        const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Browse Species page?' });
+        window.dispatchEvent(event);
+        localStorage.setItem('hasSeenBrowsePopup', 'true');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Fetch saved species on mount
@@ -73,7 +76,6 @@ const BrowseSpecies: React.FC = () => {
     }
   };
 
-  const categories = ['Tomatoes', 'Apples', 'Roses', 'Herbs', 'Cactus'];
 
   const handleSearch = async (e: React.FormEvent | string) => {
     if (typeof e !== 'string') e.preventDefault();
@@ -133,21 +135,6 @@ const BrowseSpecies: React.FC = () => {
               onChange={(e) => setQuery(e.target.value)}
             />
           </form>
-
-          <div className="browse-categories">
-            {categories.map(cat => (
-              <button 
-                key={cat} 
-                className="browse-chip"
-                onClick={() => {
-                  setQuery(cat);
-                  handleSearch(cat);
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
         </section>
 
         {/* Results */}
