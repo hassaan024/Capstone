@@ -26,6 +26,18 @@ export const Dashboard: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Suggest Chatbot interaction for Dashboard
+  useEffect(() => {
+    if (!localStorage.getItem('hasSeenDashboardPopup')) {
+      const timer = setTimeout(() => {
+        const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Dashboard?' });
+        window.dispatchEvent(event);
+        localStorage.setItem('hasSeenDashboardPopup', 'true');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Fetch user location on mount
   useEffect(() => {
     if (!user?.id) return;

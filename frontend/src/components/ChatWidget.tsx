@@ -83,8 +83,44 @@ const ChatWidget: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestionPopup, setSuggestionPopup] = useState<string | null>(null);
+  const [contextPlant, setContextPlant] = useState<string | null>(null);
+  const [usedQuickReplies, setUsedQuickReplies] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Listen for suggestion events from across the app
+  useEffect(() => {
+    const handleSuggest = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const suggestionText = customEvent.detail;
+      setSuggestionPopup(suggestionText);
+
+      // Track contextual plant if the suggestion came from PlantDetailsModal
+      const plantMatch = suggestionText.match(/about (.+)!/);
+      if (plantMatch) {
+         setContextPlant(plantMatch[1]);
+         setUsedQuickReplies([]); // Reset quick replies for new plant
+      } else {
+         setContextPlant(null);
+      }
+
+      // Auto close after 5s
+      setTimeout(() => {
+        setSuggestionPopup(null);
+      }, 5000);
+    };
+    window.addEventListener('suggestChat', handleSuggest);
+    return () => window.removeEventListener('suggestChat', handleSuggest);
+  }, []);
+
+  const handleSuggestionClick = () => {
+    if (suggestionPopup) {
+      setIsOpen(true);
+      sendMessage(suggestionPopup);
+      setSuggestionPopup(null);
+    }
+  };
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -153,6 +189,29 @@ const ChatWidget: React.FC = () => {
 
   return (
     <>
+      {/* Suggestion Popup Tooltip */}
+      {suggestionPopup && !isOpen && (
+        <div 
+          className="chat-suggestion-tooltip"
+          onClick={handleSuggestionClick}
+        >
+          <div className="chat-suggestion-text-container">
+            <span className="chat-suggestion-bulb">💡</span>
+            <div>
+              <div className="chat-suggestion-title">Ask me about this!</div>
+              <div className="chat-suggestion-subtext">"{suggestionPopup}"</div>
+            </div>
+          </div>
+          <button 
+            className="chat-suggestion-close" 
+            onClick={(e) => { e.stopPropagation(); setSuggestionPopup(null); }}
+          >
+             <FaTimes size={12} />
+          </button>
+          <div className="chat-suggestion-timer-bar" key={suggestionPopup} />
+        </div>
+      )}
+
       {/* Floating Action Button */}
       <button
         className={`chat-fab ${isOpen ? 'chat-fab--open' : ''}`}
@@ -221,6 +280,34 @@ const ChatWidget: React.FC = () => {
                 {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
               </div>
             ))}
+
+            {/* Quick Replies styled exactly like welcome suggestions */}
+            {messages.length > 0 && contextPlant && !loading && (
+              <div className="chat-welcome-suggestions" style={{ marginTop: '0.5rem', alignSelf: 'center', width: '85%' }}>
+                {!usedQuickReplies.includes("weather") && (
+                  <button 
+                    className="chat-suggestion-btn"
+                    onClick={() => {
+                      sendMessage(`Can ${contextPlant} grow well in my place's weather?`);
+                      setUsedQuickReplies(prev => [...prev, "weather"]);
+                    }}
+                  >
+                    Can it grow in my weather?
+                  </button>
+                )}
+                {!usedQuickReplies.includes("pests") && (
+                  <button 
+                    className="chat-suggestion-btn"
+                    onClick={() => {
+                      sendMessage(`What are common pests for ${contextPlant}?`);
+                      setUsedQuickReplies(prev => [...prev, "pests"]);
+                    }}
+                  >
+                    Common pests?
+                  </button>
+                )}
+              </div>
+            )}
 
             {loading && (
               <div className="chat-typing">

@@ -9,11 +9,11 @@ import { FaLeaf, FaBookmark, FaSearch } from 'react-icons/fa';
 
 interface SavedPlant {
   id: number;
-  trefleId: number;
+  perenualId: number;
   commonName: string;
   scientificName: string;
-  imgSrcUrl: string;
-  familyCommonName?: string;
+  imgSrcUrls: { regular: string | null };
+  family?: string;
 }
 
 const SavedSpecies: React.FC = () => {
@@ -22,6 +22,18 @@ const SavedSpecies: React.FC = () => {
   const [savedPlants, setSavedPlants] = useState<SavedPlant[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
+
+  // Suggest Chatbot interaction
+  useEffect(() => {
+    if (!localStorage.getItem('hasSeenSavedPopup')) {
+      const timer = setTimeout(() => {
+        const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Saved Species page?' });
+        window.dispatchEvent(event);
+        localStorage.setItem('hasSeenSavedPopup', 'true');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -41,11 +53,11 @@ const SavedSpecies: React.FC = () => {
     }
   };
 
-  const handleUnsave = async (trefleId: number) => {
+  const handleUnsave = async (perenualId: number) => {
     if (!user) return;
     try {
-        await api.del(`/species/save/${trefleId}?userId=${user.id}`);
-        setSavedPlants(prev => prev.filter(p => p.trefleId !== trefleId));
+        await api.del(`/species/save/${perenualId}?userId=${user.id}`);
+        setSavedPlants(prev => prev.filter(p => p.perenualId !== perenualId));
         setSelectedPlantId(null); // Close modal if open
     } catch (err) {
         console.error("Failed to unsave plant", err);
@@ -54,11 +66,11 @@ const SavedSpecies: React.FC = () => {
 
   // Map SavedPlant (backend) to PlantCard props
   const mapToCardProps = (plant: SavedPlant) => ({
-    id: plant.trefleId, // Use trefleId for card events to match Browse page logic if needed, or just for consistency
+    id: plant.perenualId, // Use perenualId for card events to match Browse page logic if needed, or just for consistency
     common_name: plant.commonName,
     scientific_name: plant.scientificName,
-    image_url: plant.imgSrcUrl,
-    family_common_name: plant.familyCommonName
+    image_url: plant.imgSrcUrls?.regular || '',
+    family_common_name: plant.family
   });
 
   return (
@@ -97,10 +109,10 @@ const SavedSpecies: React.FC = () => {
           <div className="browse-grid">
             {savedPlants.length > 0 ? (
                 savedPlants.map(plant => (
-                <PlantCard 
+                 <PlantCard 
                     key={plant.id} 
                     plant={mapToCardProps(plant)} 
-                    onClick={() => setSelectedPlantId(plant.trefleId)} // Pass trefleId for API calls
+                    onClick={() => setSelectedPlantId(plant.perenualId)} // Pass perenualId for API calls
                 />
                 ))
             ) : (
