@@ -214,8 +214,6 @@ bool FBackendJsonUtils::ParsePlantArray(const FString& JsonString, TArray<FBacke
 		if (Obj->TryGetObjectField(TEXT("imgSrcUrls"), ImgObj) && ImgObj && ImgObj->IsValid())
 		{
 			(*ImgObj)->TryGetStringField(TEXT("regular"), Plant.ImgSrcUrls.Regular);
-			//(*ImgObj)->TryGetStringField(TEXT("original"), Plant.ImgSrcUrls.Original);
-			//(*ImgObj)->TryGetStringField(TEXT("thumbnail"), Plant.ImgSrcUrls.Thumbnail);
 		}
 
 		OutPlants.Add(MoveTemp(Plant));

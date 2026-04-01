@@ -5,8 +5,6 @@
 struct FBackendPlantImageUrlsDto
 {
 	FString Regular;
-	//FString Original;
-	//FString Thumbnail;
 };
 
 struct FBackendPlantAnatomyDto
