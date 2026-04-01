@@ -64,9 +64,6 @@ protected:
     UTextBlock* TXT_ScientificName;
 
 private:
-    void DownloadImage(const FString& Url);
-    void OnImageDownloaded(FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess);
-
     UPROPERTY()
     UPlantObject* PlantCard = nullptr;
 
