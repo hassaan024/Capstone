@@ -35,7 +35,7 @@ void USavedPlantTile::OnPressUnsavePlant()
         UE_LOG(LogTemp, Warning, TEXT("Unsave clicked but PlantCard is null"));
         return;
     }
-    OnRemoveClicked.Broadcast(PlantCard->TrefleId);
+    OnRemoveClicked.Broadcast(PlantCard->PerenualId);
 }
 
 void USavedPlantTile::OnPressOpenPlantCard()
@@ -66,11 +66,11 @@ void USavedPlantTile::OnPressOpenPlantCard()
     CardPopupInstance->AddToViewport();
 }
 
-void USavedPlantTile::HandlePopupRemoveClicked(int32 TrefleId)
+void USavedPlantTile::HandlePopupRemoveClicked(int32 PerenualId)
 {
-    //UE_LOG(LogTemp, Warning, TEXT("Tile received popup remove click for %d"), TrefleId);
+    //UE_LOG(LogTemp, Warning, TEXT("Tile received popup remove click for %d"), PerenualId);
 
-    OnRemoveClicked.Broadcast(TrefleId);
+    OnRemoveClicked.Broadcast(PerenualId);
 
     if (CardPopupInstance)
     {
