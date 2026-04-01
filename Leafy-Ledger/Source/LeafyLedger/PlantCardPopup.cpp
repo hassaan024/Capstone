@@ -24,7 +24,7 @@ void UPlantCardPopup::OnPressUnsavePlant()
         UE_LOG(LogTemp, Warning, TEXT("Unsave clicked but PlantCard is null"));
         return;
     }
-    OnRemoveClicked.Broadcast(PlantCard->TrefleId);
+    OnRemoveClicked.Broadcast(PlantCard->PerenualId);
 }
 
 void UPlantCardPopup::PopulateInfo(UObject* ListItemObject)

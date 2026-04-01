@@ -23,7 +23,7 @@ class LEAFYLEDGER_API USavedPlantTile : public UUserWidget, public IUserObjectLi
 	GENERATED_BODY()
 	
 public:
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRemoveClicked, int32, TrefleId);
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRemoveClicked, int32, PerenualId);
 
     UPROPERTY(BlueprintAssignable, Category = "Plants")
     FOnRemoveClicked OnRemoveClicked;
@@ -39,7 +39,7 @@ public:
     void OnPressOpenPlantCard();
 
     UFUNCTION()
-    void HandlePopupRemoveClicked(int32 TrefleId);
+    void HandlePopupRemoveClicked(int32 PerenualId);
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_UnsavePlant;
@@ -64,9 +64,6 @@ protected:
     UTextBlock* TXT_ScientificName;
 
 private:
-    void DownloadImage(const FString& Url);
-    void OnImageDownloaded(FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess);
-
     UPROPERTY()
     UPlantObject* PlantCard = nullptr;
 

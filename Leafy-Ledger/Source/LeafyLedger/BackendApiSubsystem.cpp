@@ -172,7 +172,7 @@ void UBackendApiSubsystem::GetSavedSpecies(const FBackendPlantsResponse& Callbac
 	}
 }
 
-void UBackendApiSubsystem::DeleteSavedPlant(int32 TrefleId, const FBackendOperationResponse& Callback)
+void UBackendApiSubsystem::DeleteSavedPlant(int32 PerenualId, const FBackendOperationResponse& Callback)
 {
 	int32 UserId = 0;
 	FString Error;
@@ -182,7 +182,7 @@ void UBackendApiSubsystem::DeleteSavedPlant(int32 TrefleId, const FBackendOperat
 		return;
 	}
 
-	const FString Route = FString::Printf(TEXT("/species/save/%d?userId=%d"), TrefleId, UserId);
+	const FString Route = FString::Printf(TEXT("/species/save/%d?userId=%d"), PerenualId, UserId);
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("DELETE"));
 
 	Req->OnProcessRequestComplete().BindLambda(

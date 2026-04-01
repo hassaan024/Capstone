@@ -24,7 +24,7 @@ public:
 	FString BaseUrl = TEXT("http://localhost:4000/backend");
 
 	void GetSavedSpecies(const FBackendPlantsResponse& Callback);
-	void DeleteSavedPlant(int32 TrefleId, const FBackendOperationResponse& Callback);
+	void DeleteSavedPlant(int32 PerenualId, const FBackendOperationResponse& Callback);
 	void UpdateDisplayName(const FString& NewDisplayName, const FBackendOperationResponse& Callback);
 	void GetCurrentUser(const FBackendCurrentUserResponse& Callback);
 	void GetUserLocation(const FBackendUserLocationResponse& Callback);

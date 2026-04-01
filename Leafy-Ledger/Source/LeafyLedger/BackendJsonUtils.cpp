@@ -75,10 +75,146 @@ bool FBackendJsonUtils::ParsePlantArray(const FString& JsonString, TArray<FBacke
 		}
 
 		FBackendPlantDto Plant;
+
+		double NumberValue = 0.0;
+
+		if (Obj->TryGetNumberField(TEXT("id"), NumberValue))
+		{
+			Plant.Id = static_cast<int32>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("perenualId"), NumberValue))
+		{
+			Plant.PerenualId = static_cast<int32>(NumberValue);
+		}
+
 		Obj->TryGetStringField(TEXT("commonName"), Plant.CommonName);
 		Obj->TryGetStringField(TEXT("scientificName"), Plant.ScientificName);
-		Obj->TryGetStringField(TEXT("imgSrcUrl"), Plant.ImgSrcUrl);
-		Obj->TryGetNumberField(TEXT("trefleId"), Plant.TrefleId);
+
+		if (Obj->TryGetNumberField(TEXT("growthRate"), NumberValue))
+		{
+			Plant.GrowthRate = static_cast<int32>(NumberValue);
+		}
+
+		Obj->TryGetStringField(TEXT("cycle"), Plant.Cycle);
+		Obj->TryGetStringField(TEXT("type"), Plant.Type);
+		Obj->TryGetStringField(TEXT("maintenance"), Plant.Maintenance);
+		Obj->TryGetStringField(TEXT("careLevel"), Plant.CareLevel);
+
+		if (Obj->TryGetNumberField(TEXT("avgHoursSun"), NumberValue))
+		{
+			Plant.AvgHoursSun = static_cast<int32>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("minTemp"), NumberValue))
+		{
+			Plant.MinTemp = static_cast<float>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("maxTemp"), NumberValue))
+		{
+			Plant.MaxTemp = static_cast<float>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("minHeight"), NumberValue))
+		{
+			Plant.MinHeight = static_cast<float>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("maxHeight"), NumberValue))
+		{
+			Plant.MaxHeight = static_cast<float>(NumberValue);
+		}
+
+		Obj->TryGetStringField(TEXT("wateringFreq"), Plant.WateringFreq);
+
+		if (Obj->TryGetNumberField(TEXT("wateringMinDays"), NumberValue))
+		{
+			Plant.WateringMinDays = static_cast<int32>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("wateringMaxDays"), NumberValue))
+		{
+			Plant.WateringMaxDays = static_cast<int32>(NumberValue);
+		}
+
+		Obj->TryGetStringField(TEXT("family"), Plant.Family);
+		Obj->TryGetStringField(TEXT("genus"), Plant.Genus);
+		Obj->TryGetStringField(TEXT("speciesEpithet"), Plant.SpeciesEpithet);
+
+		Obj->TryGetBoolField(TEXT("flowers"), Plant.bFlowers);
+		Obj->TryGetStringField(TEXT("floweringSeason"), Plant.FloweringSeason);
+		Obj->TryGetBoolField(TEXT("fruits"), Plant.bFruits);
+		Obj->TryGetBoolField(TEXT("edibleFruit"), Plant.bEdibleFruit);
+		Obj->TryGetStringField(TEXT("harvestSeason"), Plant.HarvestSeason);
+		Obj->TryGetBoolField(TEXT("leaf"), Plant.bLeaf);
+		Obj->TryGetBoolField(TEXT("edibleLeaf"), Plant.bEdibleLeaf);
+		Obj->TryGetBoolField(TEXT("cuisine"), Plant.bCuisine);
+		Obj->TryGetBoolField(TEXT("medicinal"), Plant.bMedicinal);
+		Obj->TryGetBoolField(TEXT("droughtTolerant"), Plant.bDroughtTolerant);
+		Obj->TryGetBoolField(TEXT("saltTolerant"), Plant.bSaltTolerant);
+		Obj->TryGetBoolField(TEXT("tropical"), Plant.bTropical);
+		Obj->TryGetBoolField(TEXT("indoor"), Plant.bIndoor);
+		Obj->TryGetBoolField(TEXT("thorny"), Plant.bThorny);
+		Obj->TryGetBoolField(TEXT("invasive"), Plant.bInvasive);
+
+		Obj->TryGetStringField(TEXT("pruningFrequency"), Plant.PruningFrequency);
+		Obj->TryGetStringField(TEXT("pruningInterval"), Plant.PruningInterval);
+
+		const TArray<TSharedPtr<FJsonValue>>* StringArray = nullptr;
+
+		if (Obj->TryGetArrayField(TEXT("otherNames"), StringArray))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *StringArray)
+			{
+				Plant.OtherNames.Add(Value->AsString());
+			}
+		}
+
+		if (Obj->TryGetArrayField(TEXT("origin"), StringArray))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *StringArray)
+			{
+				Plant.Origin.Add(Value->AsString());
+			}
+		}
+
+		if (Obj->TryGetArrayField(TEXT("pruningMonths"), StringArray))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *StringArray)
+			{
+				Plant.PruningMonths.Add(Value->AsString());
+			}
+		}
+
+		const TArray<TSharedPtr<FJsonValue>>* AnatomyArray = nullptr;
+		if (Obj->TryGetArrayField(TEXT("plantAnatomy"), AnatomyArray))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *AnatomyArray)
+			{
+				if (!Value.IsValid() || Value->Type != EJson::Object)
+				{
+					continue;
+				}
+
+				const TSharedPtr<FJsonObject> AnatomyObj = Value->AsObject();
+				if (!AnatomyObj.IsValid())
+				{
+					continue;
+				}
+
+				FBackendPlantAnatomyDto Anatomy;
+				AnatomyObj->TryGetStringField(TEXT("part"), Anatomy.Part);
+				AnatomyObj->TryGetStringField(TEXT("description"), Anatomy.Description);
+				Plant.PlantAnatomy.Add(MoveTemp(Anatomy));
+			}
+		}
+
+		const TSharedPtr<FJsonObject>* ImgObj = nullptr;
+		if (Obj->TryGetObjectField(TEXT("imgSrcUrls"), ImgObj) && ImgObj && ImgObj->IsValid())
+		{
+			(*ImgObj)->TryGetStringField(TEXT("regular"), Plant.ImgSrcUrls.Regular);
+		}
 
 		OutPlants.Add(MoveTemp(Plant));
 	}

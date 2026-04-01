@@ -18,7 +18,7 @@ class LEAFYLEDGER_API UPlantCardPopup : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRemoveClicked, int32, TrefleId);
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRemoveClicked, int32, PerenualId);
 
     UPROPERTY(BlueprintAssignable, Category = "Plants")
     FOnRemoveClicked OnRemoveClicked;

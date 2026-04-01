@@ -21,13 +21,13 @@ class LEAFYLEDGER_API USavedPlants : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Plants")
-	void DeleteSavedPlant(int32 TrefleId);
+	void DeleteSavedPlant(int32 PerenualId);
 
 	UFUNCTION(BlueprintCallable, Category = "Plants")
-	void RemoveSavedPlantFromList(int32 TrefleId);
+	void RemoveSavedPlantFromList(int32 PerenualId);
 
 	UFUNCTION()
-	void HandleRemoveClicked(int32 TrefleId);
+	void HandleRemoveClicked(int32 PerenualId);
 
 	void HandleEntryGenerated(UUserWidget& EntryWidget);
 

@@ -23,7 +23,7 @@ public:
 		FString ImgSrcUrl;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		int32 TrefleId = -1;
+		int32 PerenualId = -1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
 		int32 DaysToBloom = 0;

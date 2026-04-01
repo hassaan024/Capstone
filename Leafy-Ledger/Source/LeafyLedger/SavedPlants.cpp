@@ -40,9 +40,9 @@ void USavedPlants::HandleEntryGenerated(UUserWidget& EntryWidget)
 	}
 }
 
-void USavedPlants::HandleRemoveClicked(int32 TrefleId)
+void USavedPlants::HandleRemoveClicked(int32 PerenualId)
 {
-	DeleteSavedPlant(TrefleId);
+	DeleteSavedPlant(PerenualId);
 }
 
 void USavedPlants::FetchSavedSpecies()
@@ -95,14 +95,17 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 
 		PlantObject->CommonName = Plant.CommonName;
 		PlantObject->ScientificName = Plant.ScientificName;
-		PlantObject->ImgSrcUrl = Plant.ImgSrcUrl;
-		PlantObject->TrefleId = Plant.TrefleId;
+		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
+		}
+		PlantObject->PerenualId = Plant.PerenualId;
 
 		TV_PlantCards->AddItem(PlantObject);
 	}
 }
 
-void USavedPlants::DeleteSavedPlant(int32 TrefleId)
+void USavedPlants::DeleteSavedPlant(int32 PerenualId)
 {
 	if (!GetGameInstance())
 	{
@@ -118,23 +121,23 @@ void USavedPlants::DeleteSavedPlant(int32 TrefleId)
 	}
 
 	Api->DeleteSavedPlant(
-		TrefleId,
+		PerenualId,
 		FBackendOperationResponse::CreateLambda(
-			[this, TrefleId](bool bSuccess, const FString& Message)
+			[this, PerenualId](bool bSuccess, const FString& Message)
 			{
 				if (!bSuccess)
 				{
-					UE_LOG(LogTemp, Error, TEXT("DeleteSavedPlant failed for %d: %s"), TrefleId, *Message);
+					UE_LOG(LogTemp, Error, TEXT("DeleteSavedPlant failed for %d: %s"), PerenualId, *Message);
 					return;
 				}
 
-				RemoveSavedPlantFromList(TrefleId);
+				RemoveSavedPlantFromList(PerenualId);
 			}
 		)
 	);
 }
 
-void USavedPlants::RemoveSavedPlantFromList(int32 TrefleId)
+void USavedPlants::RemoveSavedPlantFromList(int32 PerenualId)
 {
 	if (!TV_PlantCards)
 	{
@@ -145,7 +148,7 @@ void USavedPlants::RemoveSavedPlantFromList(int32 TrefleId)
 	for (UObject* Obj : Items)
 	{
 		UPlantObject* Plant = Cast<UPlantObject>(Obj);
-		if (Plant && Plant->TrefleId == TrefleId)
+		if (Plant && Plant->PerenualId == PerenualId)
 		{
 			TV_PlantCards->RemoveItem(Obj);
 			TV_PlantCards->RequestRefresh();
