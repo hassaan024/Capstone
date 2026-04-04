@@ -198,6 +198,37 @@
   transform: scale(1.05);
 }
 
+.plant-category-pill {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.plant-category-pill.tree {
+  background: rgba(16, 185, 129, 0.9); /* Emerald */
+  color: white;
+}
+
+.plant-category-pill.flower {
+  background: rgba(244, 114, 182, 0.9); /* Pink */
+  color: white;
+}
+
+.plant-category-pill.vegetable {
+  background: rgba(245, 158, 11, 0.9); /* Amber */
+  color: white;
+}
+
 .plant-card-content {
   padding: 1.25rem;
   flex: 1;

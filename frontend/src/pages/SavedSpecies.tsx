@@ -14,6 +14,7 @@ interface SavedPlant {
   scientificName: string;
   imgSrcUrls: { regular: string | null };
   family?: string;
+  modelCategory?: string;
 }
 
 const SavedSpecies: React.FC = () => {
@@ -70,7 +71,8 @@ const SavedSpecies: React.FC = () => {
     common_name: plant.commonName,
     scientific_name: plant.scientificName,
     image_url: plant.imgSrcUrls?.regular || '',
-    family_common_name: plant.family
+    family_common_name: plant.family,
+    modelCategory: plant.modelCategory
   });
 
   return (
