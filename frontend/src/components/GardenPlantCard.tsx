@@ -9,6 +9,10 @@ export interface GardenPlantCardSpecies {
   cuisine?: boolean | null;
   edibleFruit?: boolean | null;
   edibleLeaf?: boolean | null;
+  medicinal?: boolean | null;
+  droughtTolerant?: boolean | null;
+  indoor?: boolean | null;
+  invasive?: boolean | null;
   imgSrcUrls?: { regular?: string | null } | Record<string, unknown> | null;
 }
 
@@ -19,6 +23,7 @@ export interface GardenPlantCardProps {
     ageDays?: number | null;
     healthStatus?: string | null;
     lastWatered?: string | null;
+    plantedDate?: string | null;
     notes?: string | null;
     species: GardenPlantCardSpecies;
     soil: { type: string };
@@ -36,9 +41,10 @@ function imageFromSpecies(s: GardenPlantCardSpecies): string {
 function formatWhen(iso: string | null | undefined): string {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     });
   } catch {
     return iso;
@@ -54,6 +60,17 @@ const chipStyle: React.CSSProperties = {
   color: '#cbd5e1',
 };
 
+const utilityBadgeStyle = (bg: string, color: string): React.CSSProperties => ({
+  padding: '0.15rem 0.4rem',
+  background: bg,
+  color: color,
+  borderRadius: '4px',
+  fontSize: '0.65rem',
+  fontWeight: 'bold',
+  textTransform: 'uppercase',
+  letterSpacing: '0.02em',
+});
+
 const GardenPlantCard: React.FC<GardenPlantCardProps> = ({ plant }) => {
   const { species } = plant;
   const category = mapPlantToVisualCategory({
@@ -64,8 +81,6 @@ const GardenPlantCard: React.FC<GardenPlantCardProps> = ({ plant }) => {
     edibleLeaf: species.edibleLeaf,
   });
   const imageUrl = imageFromSpecies(species);
-  const notesPreview =
-    plant.notes && plant.notes.length > 80 ? `${plant.notes.slice(0, 80)}…` : plant.notes;
 
   return (
     <div className="plant-card" style={{ cursor: 'default' }}>
@@ -99,31 +114,47 @@ const GardenPlantCard: React.FC<GardenPlantCardProps> = ({ plant }) => {
       <div className="plant-card-content">
         <h3 className="plant-card-title">{species.commonName || 'Plant'}</h3>
         <p className="plant-card-scientific">{species.scientificName}</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
+        
+        {/* Utility Pills */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', margin: '0.25rem 0 0.5rem' }}>
+          {(species.edibleFruit || species.edibleLeaf || species.cuisine) && (
+            <span style={utilityBadgeStyle('rgba(217, 70, 239, 0.2)', '#f0abfc')}>Edible</span>
+          )}
+          {species.medicinal && (
+            <span style={utilityBadgeStyle('rgba(16, 185, 129, 0.2)', '#6ee7b7')}>Medicinal</span>
+          )}
+          {species.indoor && (
+            <span style={utilityBadgeStyle('rgba(59, 130, 246, 0.2)', '#93c5fd')}>Indoor</span>
+          )}
+          {species.droughtTolerant && (
+            <span style={utilityBadgeStyle('rgba(245, 158, 11, 0.2)', '#fcd34d')}>Drought Tolerant</span>
+          )}
+          {species.invasive && (
+            <span style={utilityBadgeStyle('rgba(239, 68, 68, 0.2)', '#fca5a5')}>Invasive</span>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem' }}>
           {plant.healthStatus && (
             <span style={chipStyle}>Health: {plant.healthStatus}</span>
           )}
           <span style={chipStyle}>Soil: {plant.soil?.type ?? '—'}</span>
           {plant.heightCm != null && (
-            <span style={chipStyle}>{plant.heightCm.toFixed(0)} cm</span>
+            <span style={chipStyle}>{plant.heightCm.toFixed(0)} cm tall</span>
           )}
-          {plant.ageDays != null && <span style={chipStyle}>{plant.ageDays} days</span>}
+          {plant.ageDays != null && <span style={chipStyle}>{plant.ageDays} days old</span>}
         </div>
-        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.5rem' }}>
-          Last watered: {formatWhen(plant.lastWatered ?? undefined)}
-        </p>
-        {notesPreview && (
-          <p
-            style={{
-              fontSize: '0.8rem',
-              color: 'rgba(255,255,255,0.65)',
-              marginTop: '0.35rem',
-              lineHeight: 1.35,
-            }}
-          >
-            {notesPreview}
+        
+        <div style={{ marginTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between' }}>
+            <span>Planted:</span>
+            <span style={{ color: 'rgba(255,255,255,0.8)' }}>{formatWhen(plant.plantedDate)}</span>
           </p>
-        )}
+          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem' }}>
+            <span>Last watered:</span>
+            <span style={{ color: 'rgba(255,255,255,0.8)' }}>{formatWhen(plant.lastWatered)}</span>
+          </p>
+        </div>
       </div>
     </div>
   );

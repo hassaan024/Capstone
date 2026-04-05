@@ -6,7 +6,7 @@ import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe } from 'react-icons/fa';
 
 const MOCK_GARDEN = {
   id: 0,
-  name: "Emerald Sanctuary (Demo Garden)",
+  name: "Emerald Sanctuary",
   description: "A lush, experimental garden showcasing different biomes and plant species. This is a preview of how your synchronized Unreal Engine garden will appear.",
   latitude: 34.0522,
   longitude: -118.2437,
@@ -16,99 +16,119 @@ const MOCK_GARDEN = {
   _count: { plants: 5 },
   plants: [
     {
-      id: 101,
-      heightCm: 120,
-      ageDays: 45,
-      healthStatus: "Excellent",
-      lastWatered: new Date(Date.now() - 3600000 * 4).toISOString(),
-      notes: "The Japanese Maple is thriving in the partial shade area. Its leaves are showing vibrant autumn colors.",
+      id: 1,
+      heightCm: 150,
+      ageDays: 30,
+      healthStatus: "Healthy",
+      lastWatered: new Date(Date.now() - 3600000 * 6).toISOString(),
+      plantedDate: new Date(Date.now() - 3600000 * 24 * 30).toISOString(),
       species: {
-        commonName: "Japanese Maple",
-        scientificName: "Acer palmatum",
-        type: "Tree",
+        commonName: 'common sunflower',
+        scientificName: 'Helianthus annuus',
+        type: 'Flower',
+        flowers: true,
+        cuisine: true,
+        edibleFruit: true,
+        edibleLeaf: true,
+        medicinal: false,
+        droughtTolerant: true,
+        indoor: false,
+        invasive: false,
+        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/3384_helianthus_annuus/regular/52370427473_b8e914065a_b.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T182622Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=5047ce7bc2d518e6b5d75ef02307e5b025f20d131692d932e3e8d7df90fbf789' }
+      },
+      soil: { type: "LOAM" }
+    },
+    {
+      id: 2,
+      heightCm: 45,
+      ageDays: 60,
+      healthStatus: "Excellent",
+      lastWatered: new Date(Date.now() - 3600000 * 24).toISOString(),
+      plantedDate: new Date(Date.now() - 3600000 * 24 * 60).toISOString(),
+      species: {
+        commonName: 'Dolgo Apple',
+        scientificName: "Malus 'Dolgo'",
+        type: 'tree',
+        flowers: false,
+        cuisine: true,
+        edibleFruit: true,
+        edibleLeaf: false,
+        medicinal: true,
+        droughtTolerant: true,
+        indoor: false,
+        invasive: false,
+        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/359_malus_dolgo/regular/apple-zieraepfel-wild-apple-tree-branch.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T192749Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=fa0882952f67e60b12a5ef410ea67be05dd1e952f4396e8142ebfe2fd29c5025' }
+      },
+      soil: { type: "LOAM" }
+    },
+    {
+      id: 3,
+      heightCm: 80,
+      ageDays: 90,
+      healthStatus: "Nurturing",
+      lastWatered: new Date(Date.now() - 3600000 * 12).toISOString(),
+      plantedDate: new Date(Date.now() - 3600000 * 24 * 90).toISOString(),
+      species: {
+        commonName: 'rose cactus',
+        scientificName: 'Pereskia grandifolia',
+        type: 'Broadleaf evergreen',
+        flowers: true,
+        cuisine: false,
+        edibleFruit: false,
+        edibleLeaf: false,
+        medicinal: true,
+        droughtTolerant: true,
+        indoor: false,
+        invasive: false,
+        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/5809_pereskia_grandifolia/regular/27487227123_a9b4d90e13_b.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T192810Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=86b0f27d161aa3cf1a3942a5c7155856bc461807ad7242f67baffb42ef4deaa9' }
+      },
+      soil: { type: "SANDY" }
+    },
+    {
+      id: 4,
+      heightCm: 25,
+      ageDays: 15,
+      healthStatus: "NeedsWater",
+      lastWatered: new Date(Date.now() - 3600000 * 48).toISOString(),
+      plantedDate: new Date(Date.now() - 3600000 * 24 * 15).toISOString(),
+      species: {
+        commonName: 'tomato',
+        scientificName: "Lycopersicon esculentum 'Big Beef'",
+        type: 'Fruit',
+        flowers: true,
+        cuisine: true,
+        edibleFruit: true,
+        edibleLeaf: true,
+        medicinal: false,
+        droughtTolerant: false,
+        indoor: false,
+        invasive: false,
+        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/5022_lycopersicon_esculentum_big_beef/regular/52614055517_dca623a496_b.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T193104Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=29f63dd49aa3c61cdb053f549d33b5434d50c502a92c1beb41501067f771af90' }
+      },
+      soil: { type: "LOAM" }
+    },
+    {
+      id: 5,
+      heightCm: 300,
+      ageDays: 365,
+      healthStatus: "Healthy",
+      lastWatered: new Date(Date.now() - 3600000 * 72).toISOString(),
+      plantedDate: new Date(Date.now() - 3600000 * 24 * 365).toISOString(),
+      species: {
+        commonName: 'Candied Apple Flowering Crab',
+        scientificName: "Malus 'Candied Apple'",
+        type: 'tree',
         flowers: false,
         cuisine: false,
         edibleFruit: false,
         edibleLeaf: false,
-        imgSrcUrls: { regular: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&q=80&w=800" }
+        medicinal: false,
+        droughtTolerant: false,
+        indoor: false,
+        invasive: false,
+        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/355_malus_candied_apple/regular/663px-Apples_on_tree_2021_G1.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T193133Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=422a4eed7a77cea3e19f676988a2686160c46fa32b0ea638f478a3a70d64460a' }
       },
-      soil: { type: "Loamy" }
-    },
-    {
-      id: 102,
-      heightCm: 35,
-      ageDays: 20,
-      healthStatus: "Good",
-      lastWatered: new Date(Date.now() - 3600000 * 12).toISOString(),
-      notes: "The Lavender is attracting many pollinators. It smells wonderful when in bloom.",
-      species: {
-        commonName: "Lavender",
-        scientificName: "Lavandula angustifolia",
-        type: "Herb",
-        flowers: true,
-        cuisine: true,
-        edibleFruit: false,
-        edibleLeaf: true,
-        imgSrcUrls: { regular: "https://images.unsplash.com/photo-1520658406734-d022b39dd75d?auto=format&fit=crop&q=80&w=800" }
-      },
-      soil: { type: "Sandy" }
-    },
-    {
-      id: 103,
-      heightCm: 55,
-      ageDays: 30,
-      healthStatus: "Healthy",
-      lastWatered: new Date(Date.now() - 3600000 * 2).toISOString(),
-      notes: "Tomato plants are growing rapidly. Starting to see small green fruits forming.",
-      species: {
-        commonName: "Organic Tomato",
-        scientificName: "Solanum lycopersicum",
-        type: "Vegetable",
-        flowers: true,
-        cuisine: true,
-        edibleFruit: true,
-        edibleLeaf: false,
-        imgSrcUrls: { regular: "https://images.unsplash.com/photo-1592841200221-a6898f307bac?auto=format&fit=crop&q=80&w=800" }
-      },
-      soil: { type: "Compost Mix" }
-    },
-    {
-      id: 104,
-      heightCm: 25,
-      ageDays: 15,
-      healthStatus: "Rapid Growth",
-      lastWatered: new Date(Date.now() - 3600000 * 24).toISOString(),
-      notes: "Basil is bushy and ready for light pruning. Very aromatic.",
-      species: {
-        commonName: "Sweet Basil",
-        scientificName: "Ocimum basilicum",
-        type: "Herb",
-        flowers: false,
-        cuisine: true,
-        edibleFruit: false,
-        edibleLeaf: true,
-        imgSrcUrls: { regular: "https://images.unsplash.com/photo-1618375531912-77ac3142a142?auto=format&fit=crop&q=80&w=800" }
-      },
-      soil: { type: "Potting Mix" }
-    },
-    {
-      id: 105,
-      heightCm: 180,
-      ageDays: 60,
-      healthStatus: "Majestic",
-      lastWatered: new Date(Date.now() - 3600000 * 48).toISOString(),
-      notes: "The Sunflower is tall and following the sun perfectly. Petals are just about to open.",
-      species: {
-        commonName: "Common Sunflower",
-        scientificName: "Helianthus annuus",
-        type: "Flower",
-        flowers: true,
-        cuisine: true,
-        edibleFruit: true,
-        edibleLeaf: false,
-        imgSrcUrls: { regular: "https://images.unsplash.com/photo-1470509037663-253afd7f0f51?auto=format&fit=crop&q=80&w=800" }
-      },
-      soil: { type: "Loamy" }
+      soil: { type: "LOAM" }
     }
   ]
 };
@@ -142,7 +162,7 @@ const DummyGarden: React.FC = () => {
             >
               <FaSeedling />
             </span>
-            My Gardens (Preview)
+            Demo Garden
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button className="browse-back-btn" onClick={() => navigate('/gardens')}>
@@ -172,7 +192,7 @@ const DummyGarden: React.FC = () => {
                 {MOCK_GARDEN.description}
               </p>
             </div>
-            <div className="browse-chip active">DEMO MODE</div>
+            <div className="browse-chip active">DEMO GARDEN</div>
           </div>
           <div
             style={{
@@ -204,7 +224,7 @@ const DummyGarden: React.FC = () => {
             </div>
             <div style={{ opacity: 0.85 }}>Created {formatDt(MOCK_GARDEN.creationTimestamp)}</div>
             <div style={{ fontWeight: 600, marginTop: '0.25rem', color: '#86efac' }}>
-              {MOCK_GARDEN.plants.length} plant{MOCK_GARDEN.plants.length === 1 ? '' : 's'} in this demo garden
+              {MOCK_GARDEN.plants.length} plant{MOCK_GARDEN.plants.length === 1 ? '' : 's'} in this garden
             </div>
           </div>
         </section>
