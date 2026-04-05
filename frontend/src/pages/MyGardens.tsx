@@ -140,9 +140,11 @@ const MyGardens: React.FC = () => {
             </span>
             My Gardens
           </div>
-          <button className="browse-back-btn" onClick={() => navigate('/dashboard')}>
-            Back to Dashboard
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="browse-back-btn" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </button>
+          </div>
         </header>
 
         {listLoading ? (
@@ -166,6 +168,13 @@ const MyGardens: React.FC = () => {
               Gardens are created in <strong>Unreal Engine</strong>. When you build a garden and sync
               it to your account, it will show up here with every plant you have placed.
             </p>
+            <button 
+              className="browse-back-btn" 
+              onClick={() => navigate('/demo-garden')}
+              style={{ marginTop: '1.5rem', borderColor: 'rgba(74, 222, 128, 0.5)', color: '#86efac', padding: '0.75rem 1.5rem' }}
+            >
+              View Demo Garden Visualization
+            </button>
           </div>
         ) : (
           <>
