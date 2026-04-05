@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/BrowseSpecies.css';
 import { api } from '../utils/api';
@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import GardenPlantCard, {
   type GardenPlantCardSpecies,
 } from '../components/GardenPlantCard';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe } from 'react-icons/fa';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint } from 'react-icons/fa';
+import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
 
 interface GardenSummary {
   id: number;
@@ -27,6 +28,7 @@ interface GardenDetailPlant {
   healthStatus: string | null;
   lastWatered: string | null;
   notes: string | null;
+  creationTimestamp: string;
   species: GardenPlantCardSpecies;
   soil: { type: string };
 }
@@ -43,6 +45,53 @@ const MyGardens: React.FC = () => {
   const [detail, setDetail] = useState<GardenDetail | null>(null);
   const [listLoading, setListLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  const analytics = useMemo(() => {
+    if (!detail) return null;
+    const plants = detail.plants;
+    const uniqueSpecies = new Set(plants.map(p => p.species.commonName.toLowerCase())).size;
+    const categories = plants.reduce((acc: any, p) => {
+      const cat = mapPlantToVisualCategory({
+        type: p.species.type,
+        flowers: p.species.flowers,
+        cuisine: p.species.cuisine,
+        edibleFruit: p.species.edibleFruit,
+        edibleLeaf: p.species.edibleLeaf,
+      });
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+
+    const threeDaysAgo = Date.now() - 3 * 24 * 3600 * 1000;
+    const needsWater = plants.filter(p => {
+      const last = p.lastWatered ? new Date(p.lastWatered).getTime() : 0;
+      return last < threeDaysAgo || p.healthStatus === 'NeedsWater' || p.healthStatus === 'Wilting';
+    });
+
+    const speciesCounts = plants.reduce((acc: any, p) => {
+      const name = p.species.commonName;
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      total: plants.length,
+      unique: uniqueSpecies,
+      categories,
+      thirsty: needsWater,
+      speciesCounts
+    };
+  }, [detail]);
+
+  const filteredPlants = useMemo(() => {
+    if (!detail) return [];
+    return detail.plants.filter(p => 
+      p.species.commonName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.species.scientificName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [detail, searchTerm]);
 
   const loadList = useCallback(async () => {
     if (!user?.id) return;
@@ -207,16 +256,31 @@ const MyGardens: React.FC = () => {
                     borderRadius: '12px',
                     padding: '1.25rem 1.5rem',
                     marginBottom: '1.75rem',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                 >
-                  <h2 style={{ margin: '0 0 0.5rem', color: 'rgba(255,255,255,0.95)' }}>
-                    {detail.name}
-                  </h2>
-                  {detail.description ? (
-                    <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 1rem', lineHeight: 1.5 }}>
-                      {detail.description}
-                    </p>
-                  ) : null}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <h2 style={{ margin: '0 0 0.5rem', color: 'rgba(255,255,255,0.95)' }}>
+                        {detail.name}
+                      </h2>
+                      {detail.description ? (
+                        <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 1rem', lineHeight: 1.5, maxWidth: '800px' }}>
+                          {detail.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    {detail.plants.length > 0 && (
+                      <button 
+                        className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 
+                        onClick={() => setShowAnalytics(!showAnalytics)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: showAnalytics ? '#86efac' : undefined, borderColor: showAnalytics ? '#86efac' : undefined, backgroundColor: 'rgba(15, 23, 42, 0.4)' }}
+                      >
+                        <FaChartBar /> {showAnalytics ? 'Hide Analytics' : 'Garden Analytics'}
+                      </button>
+                    )}
+                  </div>
                   <div
                     style={{
                       display: 'grid',
@@ -244,9 +308,16 @@ const MyGardens: React.FC = () => {
                         <FaGlobe /> {detail.timezone}
                       </div>
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <FaClock /> Updated {formatDt(detail.lastUpdated)}
-                    </div>
+                    {analytics && analytics.thirsty.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#fca5a5' }}>
+                        <FaTint /> {analytics.thirsty.length} plants need attention
+                      </div>
+                    )}
+                    {analytics && analytics.thirsty.length === 0 && detail.plants.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#86efac' }}>
+                        <FaTint /> All plants recently watered
+                      </div>
+                    )}
                     <div style={{ opacity: 0.85 }}>Created {formatDt(detail.creationTimestamp)}</div>
                     <div style={{ fontWeight: 600, marginTop: '0.25rem' }}>
                       {detail.plants.length} plant{detail.plants.length === 1 ? '' : 's'} in this garden
@@ -254,25 +325,134 @@ const MyGardens: React.FC = () => {
                   </div>
                 </section>
 
-                <h3
-                  style={{
-                    color: 'rgba(255,255,255,0.9)',
-                    fontSize: '1.1rem',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  Plants
-                </h3>
+                {showAnalytics && analytics && (
+                  <section
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid rgba(74, 222, 128, 0.3)',
+                      borderRadius: '16px',
+                      padding: '1.5rem',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '1.5rem',
+                      animation: 'slideUp 0.3s ease-out',
+                      backdropFilter: 'blur(12px)',
+                      marginBottom: '2rem'
+                    }}
+                  >
+                    <div className="modal-state-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px' }}>
+                      <h4 style={{ color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                        <FaLeaf /> Species Diversity
+                      </h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{analytics.unique}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Unique Species</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{analytics.total}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>Total Plants</div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '1rem' }}>
+                        {Object.entries(analytics.speciesCounts).map(([name, count]: [any, any]) => (
+                          <div key={name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '0.2rem 0' }}>
+                            <span style={{ color: 'rgba(255,255,255,0.8)' }}>{name}</span>
+                            <span style={{ color: '#86efac', fontWeight: 'bold' }}>x{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="modal-state-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px' }}>
+                      <h4 style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                        <FaChartBar /> Category Breakdown
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {Object.entries(analytics.categories).map(([cat, count]: [any, any]) => (
+                          <div key={cat} style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                              <span style={{ textTransform: 'capitalize', color: 'white' }}>{cat}s</span>
+                              <span>{count}</span>
+                            </div>
+                            <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div 
+                                style={{ 
+                                  height: '100%', 
+                                  width: `${(count / analytics.total) * 100}%`, 
+                                  background: cat === 'tree' ? '#10b981' : cat === 'flower' ? '#f472b6' : '#f59e0b' 
+                                }} 
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="modal-state-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px' }}>
+                      <h4 style={{ color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                        <FaExclamationTriangle /> Needs Attention
+                      </h4>
+                      {analytics.thirsty.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {analytics.thirsty.map((p: any) => (
+                            <div key={p.id} style={{ padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', borderRadius: '4px' }}>
+                              <div style={{ fontSize: '0.9rem', color: 'white', fontWeight: 'bold' }}>{p.species.commonName}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#fca5a5' }}>
+                                Not watered in {Math.floor((Date.now() - new Date(p.lastWatered!).getTime()) / (1000 * 3600 * 24))} days
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '1rem', color: 'rgba(255,255,255,0.5)' }}>
+                          <FaTint style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#86efac' }} />
+                          <p>Your garden is perfectly hydrated!</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+
                 {detail.plants.length === 0 ? (
                   <p style={{ color: 'rgba(255,255,255,0.5)' }}>
                     No plants in this garden yet. Add them from Unreal.
                   </p>
                 ) : (
-                  <div className="browse-grid">
-                    {detail.plants.map((p) => (
-                      <GardenPlantCard key={p.id} plant={p} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="browse-search-bar" style={{ maxWidth: '100%', marginBottom: '1rem' }}>
+                      <FaSearch className="browse-search-icon" />
+                      <input
+                        type="text"
+                        className="browse-search-input"
+                        placeholder="Search plants in your garden..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.2rem', margin: 0 }}>
+                        Plants
+                      </h3>
+                      <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)' }}>
+                        Showing {filteredPlants.length} of {detail.plants.length}
+                      </span>
+                    </div>
+
+                    {filteredPlants.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(255,255,255,0.4)' }}>
+                        <FaSearch style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
+                        <p>No plants match your search "{searchTerm}"</p>
+                      </div>
+                    ) : (
+                      <div className="browse-grid">
+                        {filteredPlants.map((p) => (
+                          <GardenPlantCard key={p.id} plant={{ ...p, plantedDate: p.creationTimestamp } as any} />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
