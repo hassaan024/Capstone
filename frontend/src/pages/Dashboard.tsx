@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaPlus, FaSignOutAlt, FaSpa, FaSearch, FaBookmark, FaMapMarkerAlt, FaCompass, FaTimes } from 'react-icons/fa';
+import { FaCog, FaLeaf, FaSeedling, FaChartBar, FaSignOutAlt, FaSpa, FaSearch, FaBookmark, FaMapMarkerAlt, FaCompass, FaTimes } from 'react-icons/fa';
 import { BACKEND_BASE_URL, countries } from "../utils/constants";
 import { validatePostalCode } from "../utils/helper_functions";
-import { fetchLongLatFromZipAndCountry } from "../utils/api";
+import { fetchLongLatFromZipAndCountry, api } from "../utils/api";
 import { sendLocationToBackend } from "../utils/backend_api";
 import { WeatherInfo } from "../components/WeatherInfoCard";
 
@@ -18,6 +18,7 @@ export const Dashboard: React.FC = () => {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationSaving, setLocationSaving] = useState(false);
   const [locationSuccess, setLocationSuccess] = useState("");
+  const [stats, setStats] = useState({ gardens: 0, plantsInGardens: 0, savedSpecies: 0 });
 
   // Redirect to login if user is not authenticated
   useEffect(() => {
@@ -60,6 +61,32 @@ export const Dashboard: React.FC = () => {
     };
 
     fetchUserLocation();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const loadStats = async () => {
+      try {
+        const [gardensRes, savedRes] = await Promise.all([
+          api.get(`/garden/by-user/${user.id}`),
+          api.get(`/species/saved?userId=${user.id}`),
+        ]);
+        const gardens = gardensRes.data as { _count?: { plants: number } }[];
+        const plantsInGardens = gardens.reduce(
+          (sum, g) => sum + (g._count?.plants ?? 0),
+          0,
+        );
+        const saved = savedRes.data as unknown[];
+        setStats({
+          gardens: gardens.length,
+          plantsInGardens,
+          savedSpecies: saved.length,
+        });
+      } catch (e) {
+        console.error("Dashboard stats load failed", e);
+      }
+    };
+    loadStats();
   }, [user?.id]);
 
   const handleLogout = () => {
@@ -272,9 +299,12 @@ export const Dashboard: React.FC = () => {
           <div className="dashboard-card">
             <h2 className="dashboard-card-title">Quick Actions</h2>
             <div className="dashboard-actions">
-              <button className="ll-btn ll-btn-primary dashboard-action-btn">
-                <span className="dashboard-action-icon"><FaPlus /></span>
-                Create New Garden
+              <button
+                className="ll-btn ll-btn-primary dashboard-action-btn"
+                onClick={() => navigate("/gardens")}
+              >
+                <span className="dashboard-action-icon"><FaSeedling /></span>
+                View my gardens
               </button>
               <button 
                 className="ll-btn ll-btn-ghost dashboard-action-btn"
@@ -297,7 +327,7 @@ export const Dashboard: React.FC = () => {
             <div className="dashboard-stat-card">
               <div className="dashboard-stat-icon"><FaLeaf /></div>
               <div className="dashboard-stat-content">
-                <div className="dashboard-stat-value">0</div>
+                <div className="dashboard-stat-value">{stats.gardens}</div>
                 <div className="dashboard-stat-label">Gardens</div>
               </div>
             </div>
@@ -305,16 +335,16 @@ export const Dashboard: React.FC = () => {
             <div className="dashboard-stat-card">
               <div className="dashboard-stat-icon"><FaSpa /></div>
               <div className="dashboard-stat-content">
-                <div className="dashboard-stat-value">0</div>
-                <div className="dashboard-stat-label">Plants</div>
+                <div className="dashboard-stat-value">{stats.plantsInGardens}</div>
+                <div className="dashboard-stat-label">Plants in gardens</div>
               </div>
             </div>
 
             <div className="dashboard-stat-card">
               <div className="dashboard-stat-icon"><FaChartBar /></div>
               <div className="dashboard-stat-content">
-                <div className="dashboard-stat-value">0</div>
-                <div className="dashboard-stat-label">Species</div>
+                <div className="dashboard-stat-value">{stats.savedSpecies}</div>
+                <div className="dashboard-stat-label">Saved species</div>
               </div>
             </div>
           </div>
