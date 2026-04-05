@@ -64,6 +64,7 @@ struct FBackendPlantDto
 
 	TArray<FBackendPlantAnatomyDto> PlantAnatomy;
 	FBackendPlantImageUrlsDto ImgSrcUrls;
+	FString ModelCategory;
 };
 
 struct FBackendUserDto
