@@ -31,6 +31,9 @@ public:
     UFUNCTION()
     void HandleLoginFailed(const FString& Error);
 
+    UFUNCTION()
+    void HandleLoginSucceededWarmCaches();
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
     TSubclassOf<UUserWidget> LoginWidgetClass;
 

@@ -5,7 +5,7 @@
 #include "PlantCardPopup.h"
 #include "PlantObject.h"
 #include "BackendApiSubsystem.h"
-#include "PlantImageCacheSubsystem.h"
+#include "SavedPlantCacheSubsystem.h"
 
 void USavedPlants::NativeConstruct()
 {
@@ -54,15 +54,21 @@ void USavedPlants::FetchSavedSpecies()
 		return;
 	}
 
-	UBackendApiSubsystem* Api = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
-	if (!Api)
+	USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+	if (!Cache)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Backend API subsystem not found"));
+		UE_LOG(LogTemp, Error, TEXT("SavedPlantCacheSubsystem not found"));
 		return;
 	}
 
-	Api->GetSavedSpecies(
-		FBackendPlantsResponse::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse)
+	if (Cache->HasCachedPlants())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Using cached saved plants immediately"));
+		PopulatePlants(Cache->GetCachedPlants());
+	}
+
+	Cache->RefreshSavedPlants(
+		FOnSavedPlantsRefreshed::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse)
 	);
 }
 
@@ -74,7 +80,6 @@ void USavedPlants::HandleFetchSavedSpeciesResponse(bool bSuccess, const FString&
 		return;
 	}
 
-	PrefetchPlantImages(Plants);
 	PopulatePlants(Plants);
 }
 
@@ -97,10 +102,7 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 
 		PlantObject->CommonName = Plant.CommonName;
 		PlantObject->ScientificName = Plant.ScientificName;
-		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
-		{
-			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
-		}
+		PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
 		PlantObject->PerenualId = Plant.PerenualId;
 		PlantObject->ModelCategory = Plant.ModelCategory;
 
@@ -132,6 +134,12 @@ void USavedPlants::DeleteSavedPlant(int32 PerenualId)
 				{
 					UE_LOG(LogTemp, Error, TEXT("DeleteSavedPlant failed for %d: %s"), PerenualId, *Message);
 					return;
+				}
+
+				USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+				if (Cache)
+				{
+					Cache->RemoveCachedPlantByPerenualId(PerenualId);
 				}
 
 				RemoveSavedPlantFromList(PerenualId);
@@ -166,51 +174,5 @@ void USavedPlants::OnPressBack()
 	if (MenuController)
 	{
 		MenuController->ShowMainMenu();
-	}
-}
-
-void USavedPlants::PrefetchPlantImages(const TArray<FBackendPlantDto>& Plants)
-{
-	if (!GetGameInstance())
-	{
-		return;
-	}
-
-	UPlantImageCacheSubsystem* ImageCache = GetGameInstance()->GetSubsystem<UPlantImageCacheSubsystem>();
-	if (!ImageCache)
-	{
-		return;
-	}
-
-	for (const FBackendPlantDto& Plant : Plants)
-	{
-		FString UrlToPrefetch;
-
-		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
-		{
-			UrlToPrefetch = Plant.ImgSrcUrls.Regular;
-		}
-
-		if (UrlToPrefetch.IsEmpty())
-		{
-			continue;
-		}
-
-		ImageCache->GetOrLoadImage(
-			UrlToPrefetch,
-			FOnPlantImageReady::CreateLambda(
-				[Plant](UTexture2D* Texture)
-				{
-					UE_LOG(
-						LogTemp,
-						Log,
-						TEXT("Prefetch image for %s (%d): %s"),
-						*Plant.CommonName,
-						Plant.PerenualId,
-						Texture ? TEXT("cached") : TEXT("failed")
-					);
-				}
-			)
-		);
 	}
 }

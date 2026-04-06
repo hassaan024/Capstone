@@ -5,7 +5,7 @@
 #include "PlantObject.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "PlantImageCacheSubsystem.h"
+#include "SavedPlantCacheSubsystem.h"
 
 bool USavedPlantTile::Initialize()
 {
@@ -95,8 +95,8 @@ void USavedPlantTile::NativeOnListItemObjectSet(UObject* ListItemObject)
             return;
         }
 
-        UPlantImageCacheSubsystem* ImageCache =
-            GetGameInstance()->GetSubsystem<UPlantImageCacheSubsystem>();
+        USavedPlantCacheSubsystem* ImageCache =
+            GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
 
         if (!ImageCache)
         {

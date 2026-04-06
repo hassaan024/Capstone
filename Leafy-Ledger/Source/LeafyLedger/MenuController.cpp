@@ -3,6 +3,7 @@
 
 #include "MenuController.h"
 #include "OAuthGISubsystem.h"
+#include "SavedPlantCacheSubsystem.h"
 
 void AMenuController::BeginPlay()
 {
@@ -16,12 +17,12 @@ void AMenuController::BeginPlay()
     }
 
     Auth->OnLoginSucceeded.AddDynamic(this, &AMenuController::ShowMainMenu);
+    Auth->OnLoginSucceeded.AddDynamic(this, &AMenuController::HandleLoginSucceededWarmCaches);
     Auth->OnLoginFailed.AddDynamic(this, &AMenuController::HandleLoginFailed);
 
     if (Auth->IsLoggedIn()) {
         UE_LOG(LogTemp, Warning, TEXT("ShowMainMenu Auth Logged In"));
         ShowMainMenu();
-        //ShowDisplayName();
     }
     else {
         ShowLogin();
@@ -94,4 +95,22 @@ void AMenuController::ShowSavedPlants()
 void AMenuController::HandleLoginFailed(const FString& Error)
 {
     UE_LOG(LogTemp, Error, TEXT("Login failed: %s"), *Error);
+}
+
+void AMenuController::HandleLoginSucceededWarmCaches()
+{
+    if (!GetGameInstance())
+    {
+        return;
+    }
+
+    USavedPlantCacheSubsystem* PlantCache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+    if (!PlantCache)
+    {
+        UE_LOG(LogTemp, Error, TEXT("SavedPlantCacheSubsystem not found"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("Login succeeded: warming saved plant cache"));
+    PlantCache->WarmAfterLogin();
 }
