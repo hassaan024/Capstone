@@ -6,6 +6,7 @@
 #include "PlantObject.h"
 #include "BackendApiSubsystem.h"
 #include "PlantImageCacheSubsystem.h"
+#include "SavedPlantCacheSubsystem.h"
 
 void USavedPlants::NativeConstruct()
 {
@@ -54,15 +55,21 @@ void USavedPlants::FetchSavedSpecies()
 		return;
 	}
 
-	UBackendApiSubsystem* Api = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
-	if (!Api)
+	USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+	if (!Cache)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Backend API subsystem not found"));
+		UE_LOG(LogTemp, Error, TEXT("SavedPlantCacheSubsystem not found"));
 		return;
 	}
 
-	Api->GetSavedSpecies(
-		FBackendPlantsResponse::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse)
+	if (Cache->HasCachedPlants())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Using cached saved plants immediately"));
+		PopulatePlants(Cache->GetCachedPlants());
+	}
+
+	Cache->RefreshSavedPlants(
+		FOnSavedPlantsRefreshed::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse)
 	);
 }
 
@@ -97,10 +104,7 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 
 		PlantObject->CommonName = Plant.CommonName;
 		PlantObject->ScientificName = Plant.ScientificName;
-		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
-		{
-			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
-		}
+		PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
 		PlantObject->PerenualId = Plant.PerenualId;
 		PlantObject->ModelCategory = Plant.ModelCategory;
 
@@ -132,6 +136,12 @@ void USavedPlants::DeleteSavedPlant(int32 PerenualId)
 				{
 					UE_LOG(LogTemp, Error, TEXT("DeleteSavedPlant failed for %d: %s"), PerenualId, *Message);
 					return;
+				}
+
+				USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+				if (Cache)
+				{
+					Cache->RemoveCachedPlantByPerenualId(PerenualId);
 				}
 
 				RemoveSavedPlantFromList(PerenualId);
