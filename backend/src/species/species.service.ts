@@ -57,7 +57,29 @@ export class SpeciesService {
     });
 
     if (!user) throw new NotFoundException('User not found');
-    return user.savedSpecies;
+    
+    // Compute 'modelCategory' dynamically for Unreal Engine and React clients
+    return user.savedSpecies.map((species) => {
+      let modelCategory = 'flower'; // Default category
+      const typeStr = (species.type || '').toLowerCase();
+
+      if (
+        typeStr.includes('vegetable') ||
+        species.edibleFruit ||
+        species.edibleLeaf
+      ) {
+        modelCategory = 'vegetable';
+      } else if (typeStr.includes('tree') || typeStr.includes('shrub')) {
+        modelCategory = 'tree';
+      } else {
+        modelCategory = 'flower';
+      }
+
+      return {
+        ...species,
+        modelCategory,
+      };
+    });
   }
 
   // Standard CRUD operations

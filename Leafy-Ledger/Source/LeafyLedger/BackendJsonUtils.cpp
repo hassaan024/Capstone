@@ -216,6 +216,8 @@ bool FBackendJsonUtils::ParsePlantArray(const FString& JsonString, TArray<FBacke
 			(*ImgObj)->TryGetStringField(TEXT("regular"), Plant.ImgSrcUrls.Regular);
 		}
 
+		Obj->TryGetStringField(TEXT("modelCategory"), Plant.ModelCategory);
+
 		OutPlants.Add(MoveTemp(Plant));
 	}
 

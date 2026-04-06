@@ -14,26 +14,32 @@ class LEAFYLEDGER_API UPlantObject : public UObject
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		FString CommonName;
+	FString CommonName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		FString ScientificName;
+	FString ScientificName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		FString ImgSrcUrl;
+	FString ImgSrcUrl;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		int32 PerenualId = -1;
+	int32 PerenualId = -1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		int32 DaysToBloom = 0;
+	int32 DaysToBloom = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		int32 DaysToWither = 0;
+	int32 DaysToWither = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		TSubclassOf<APlant> PlantClass;
+	TSubclassOf<APlant> PlantClass;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-		UStaticMesh* PlantMesh = nullptr;
+	UStaticMesh* PlantMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString ModelCategory;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString SelectedMeshId;
 };

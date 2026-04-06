@@ -7,6 +7,7 @@ interface PlantCardProps {
     scientific_name: string;
     image_url?: string;
     family_common_name?: string;
+    modelCategory?: string;
   };
   onClick: () => void;
 }
@@ -15,6 +16,11 @@ const PlantCard: React.FC<PlantCardProps> = ({ plant, onClick }) => {
   return (
     <div className="plant-card" onClick={onClick}>
       <div className="plant-card-image-wrapper">
+        {plant.modelCategory && (
+          <div className={`plant-category-pill ${plant.modelCategory.toLowerCase()}`}>
+            {plant.modelCategory}
+          </div>
+        )}
         {plant.image_url ? (
           <img 
             src={plant.image_url} 
