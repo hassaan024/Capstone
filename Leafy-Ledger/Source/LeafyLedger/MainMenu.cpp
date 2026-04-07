@@ -4,6 +4,7 @@
 #include "BackendApiSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/Image.h"
+#include "Components/SlateWrapperTypes.h"
 
 bool UMainMenu::Initialize()
 {
@@ -26,6 +27,16 @@ bool UMainMenu::Initialize()
 	if (BTN_SavedPlants)
 	{
 		BTN_SavedPlants->OnClicked.AddDynamic(this, &UMainMenu::OnPressSavedPlants);
+	}
+
+	if (BTN_CreateGarden)
+	{
+		BTN_CreateGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressCreateGarden);
+	}
+
+	if (BTN_LoadGarden)
+	{
+		BTN_LoadGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressLoadGarden);
 	}
 
 	if (TXT_CurrentTemp)
@@ -55,7 +66,12 @@ void UMainMenu::OnPressSavedPlants()
 
 void UMainMenu::OnPressCreateGarden()
 {
+	//UE_LOG(LogTemp, Error, TEXT("Create Garden pressed"));
 
+	UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
+	// get saved plants
+	// add each saved plant to a dropdown (by name)
+	// you can drag out a plant 
 }
 
 void UMainMenu::OnPressLoadGarden()
@@ -93,27 +109,12 @@ void UMainMenu::HandleUserLocationResponse(bool bSuccess, const FString& Message
 	{
 		if (TXT_CurrentTemp)
 		{
-			TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
+			TXT_CurrentTemp->SetText(FText::FromString(TEXT("")));
 		}
 
 		if (TXT_WeatherDesc)
 		{
-			TXT_WeatherDesc->SetText(FText::FromString(Message));
-		}
-
-		return;
-	}
-
-	if (!Location.bHasLatitude || !Location.bHasLongitude)
-	{
-		if (TXT_CurrentTemp)
-		{
-			TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
-		}
-
-		if (TXT_WeatherDesc)
-		{
-			TXT_WeatherDesc->SetText(FText::FromString(TEXT("Location missing")));
+			TXT_WeatherDesc->SetText(FText::FromString(TEXT("")));
 		}
 
 		return;
@@ -142,12 +143,12 @@ void UMainMenu::HandleWeatherResponse(bool bSuccess, const FString& Message, con
 	{
 		if (TXT_CurrentTemp)
 		{
-			TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
+			TXT_CurrentTemp->SetText(FText::FromString(TEXT("")));
 		}
 
 		if (TXT_WeatherDesc)
 		{
-			TXT_WeatherDesc->SetText(FText::FromString(Message));
+			TXT_WeatherDesc->SetText(FText::FromString(TEXT("")));
 		}
 
 		UpdateWeatherIcon(TEXT(""));
@@ -229,6 +230,7 @@ void UMainMenu::UpdateWeatherIcon(const FString& Description)
 	if (UTexture2D* ChosenIcon = GetWeatherIconForDescription(Description))
 	{
 		IMG_WeatherIcon->SetBrushFromTexture(ChosenIcon);
+		IMG_WeatherIcon->SetVisibility(ESlateVisibility::Visible);
 	}
 	else
 	{

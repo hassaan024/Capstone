@@ -42,6 +42,7 @@ protected:
 	void UpdateWeatherIcon(const FString& Description);
 	UTexture2D* GetWeatherIconForDescription(const FString& Description) const;
 
+	//buttons
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_UpdateDisplayName;
 
@@ -54,6 +55,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_LoadGarden;
 
+	// weather stuff
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* TXT_CurrentTemp;
 

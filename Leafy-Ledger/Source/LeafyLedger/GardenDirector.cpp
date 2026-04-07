@@ -2,6 +2,9 @@
 
 
 #include "GardenDirector.h"
+#include "SavedPlantCacheSubsystem.h"
+#include "PlantSelect.h"
+#include "PlantObject.h"
 
 // Sets default values
 AGardenDirector::AGardenDirector()
@@ -25,3 +28,63 @@ void AGardenDirector::Tick(float DeltaTime)
 
 }
 
+void AGardenDirector::MakePlantList()
+{
+	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	UPlantSelect* PlantSelect = CreateWidget<UPlantSelect>(PlayerController, PlantSelectClass);
+	PlantSelect->AddToViewport();
+
+	UGameInstance* GI = GetGameInstance();
+	USavedPlantCacheSubsystem* PlantCache = GI->GetSubsystem<USavedPlantCacheSubsystem>();
+
+	// Use cached plants
+	if (PlantCache->HasCachedPlants())
+	{
+		const TArray<FBackendPlantDto>& CachedPlants = PlantCache->GetCachedPlants();
+
+		for (const FBackendPlantDto& Plant : CachedPlants)
+		{
+			PlantSelect->AddPlantToShelf(
+				Plant.CommonName,
+				4,
+				6,
+				//Plant.DaysToBloom,
+				//Plant.DaysToWither,
+				Plant.ModelCategory
+			);
+		}
+	}
+
+	// Check for non-cached plants and refresh if any
+	PlantCache->RefreshSavedPlants(
+		FOnSavedPlantsRefreshed::CreateWeakLambda(
+			PlantSelect,
+			[PlantSelect](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+			{
+				if (!PlantSelect)
+				{
+					return;
+				}
+
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Error, TEXT("MakePlantList refresh failed: %s"), *Message);
+					return;
+				}
+
+				PlantSelect->PlantShelf->ClearListItems();
+				for (const FBackendPlantDto& Plant : Plants)
+				{
+					PlantSelect->AddPlantToShelf(
+						Plant.CommonName,
+						4,
+						6,
+						//Plant.DaysToBloom,
+						//Plant.DaysToWither,
+						Plant.ModelCategory
+					);
+				}
+			}
+		)
+	);
+}

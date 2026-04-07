@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "GardenDirector.generated.h"
 
+class UPlantSelect;
+
 UCLASS()
 class LEAFYLEDGER_API AGardenDirector : public AActor
 {
@@ -24,9 +26,13 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 public:
-	UFUNCTION(BlueprintImplementableEvent)
+	//UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION()
 	void MakePlantList();
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrabPlants();
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UPlantSelect> PlantSelectClass;
 };
