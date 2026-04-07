@@ -29,6 +29,10 @@ model User {
   familyName        String?
   picture           String?
   savedSpecies      Species[] @relation("UserSavedSpecies")
+
+  // Chatbot preferences
+  plantRecommendations    Boolean @default(true)
+  pageInfoRecommendations Boolean @default(true)
 }
 
 model Garden {

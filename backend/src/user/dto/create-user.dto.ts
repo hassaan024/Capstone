@@ -58,4 +58,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   updatedAt?: Date;
+
+  // Chatbot Settings
+  @IsOptional()
+  @IsBoolean()
+  plantRecommendations?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  pageInfoRecommendations?: boolean;
 }

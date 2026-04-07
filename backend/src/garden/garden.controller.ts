@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { GardenService } from './garden.service.js';
 import { CreateGardenDto } from './dto/create-garden.dto.js';
@@ -25,8 +26,20 @@ export class GardenController {
     return this.gardenService.findAll();
   }
 
+  /** List gardens for a user (read-only web). Must be before @Get(':id'). */
+  @Get('by-user/:userId')
+  findByUser(@Param('userId') userId: string) {
+    return this.gardenService.findGardensByOwnerId(+userId);
+  }
+
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @Query('userId') userId?: string,
+  ) {
+    if (userId !== undefined && userId !== '') {
+      return this.gardenService.findGardenForOwner(+id, +userId);
+    }
     return this.gardenService.findOne(+id);
   }
 

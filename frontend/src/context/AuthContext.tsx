@@ -9,6 +9,8 @@ interface User {
   latitude?: number;
   longitude?: number;
   lastUpdated: string;
+  plantRecommendations?: boolean;
+  pageInfoRecommendations?: boolean;
 }
 
 interface AuthContextType {

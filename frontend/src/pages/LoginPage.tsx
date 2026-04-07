@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import { BACKEND_BASE_URL, GOOGLE_OAUTH_CLIENT_ID} from "../utils/constants";
-import { FaEye, FaEyeSlash, FaSeedling, FaCloudSun, FaCoins } from 'react-icons/fa';
+import { FaRobot, FaLeaf, FaSeedling, FaCloudSun, FaArrowLeft } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -147,26 +147,25 @@ const LoginPage: React.FC = () => {
 
           <div className="leafy-login-hero-copy">
             <h1 className="leafy-login-hero-title">
-              Plan <span>smarter gardens</span> with clear data.
+              Grow <span>smarter gardens</span> with Leafy AI.
             </h1>
             <p className="leafy-login-hero-subtitle">
-              LeafyLedger helps you line up seed dates, bloom windows, climate
-              limits, and yearly costs so you can see how your garden evolves
-              before you plant it.
+              LeafyLedger provides an intelligent chatbot, comprehensive plant databases, 
+              localized climate tracking, and beautiful simulations to help you visualize your garden before planting.
             </p>
 
             <div className="leafy-login-icon-row">
               <div className="leafy-login-icon-pill">
-                <span><FaSeedling /></span>
-                <span>Plant lifetimes</span>
+                <span><FaRobot /></span>
+                <span>Context-Aware AI</span>
               </div>
               <div className="leafy-login-icon-pill">
                 <span><FaCloudSun /></span>
-                <span>Climate tolerance</span>
+                <span>Live Weather Sync</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span><FaCoins /></span>
-                <span>Yearly profit view</span>
+                <span><FaSeedling /></span>
+                <span>3D Visuals</span>
               </div>
             </div>
 
@@ -197,7 +196,7 @@ const LoginPage: React.FC = () => {
                 </div>
                 <div className="leafy-login-growth-stage">
                   <div className="leafy-login-growth-stage-label">End</div>
-                  <div>Wither & profit</div>
+                  <div>Wither / Harvest</div>
                 </div>
               </div>
             </div>
@@ -213,212 +212,42 @@ const LoginPage: React.FC = () => {
           {/* Heading + Learn more */}
           <div className="leafy-login-header-row">
             <div className="leafy-login-header-title">
-              {isRegistering ? "Create Account" : "Sign in"}
+              Sign in {/* {isRegistering ? "Create Account" : "Sign in"} */}
             </div>
             <button
               type="button"
               className="leafy-login-header-link"
               onClick={() => navigate("/")}
             >
-              Learn more
+              <FaArrowLeft style={{ marginRight: '6px', fontSize: '10px' }} />
+              Explore Features
             </button>
           </div>
 
-          {!isRegistering ? (
-            /* LOGIN FORM */
-            <form className="leafy-login-form" onSubmit={handleEmailLogin}>
-              <input
-                className="leafy-login-input"
-                type="email"
-                name="email"
-                autoComplete="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              
-              <div className="leafy-login-password-wrapper">
-                <input
-                  className="leafy-login-input"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="leafy-login-password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "👁️" : "👁️‍🗨️"}
-                </button>
+          {/* Email/Password login options have been disabled/commented-out per request. */}
+
+          {/* New Google Only Login */}
+          <div className="leafy-login-form">
+            <div className="leafy-login-buttons" style={{ marginTop: '2rem' }}>
+              <button
+                type="button"
+                className="ll-btn ll-btn-ghost leafy-login-google-btn"
+                style={{ border: "1px solid rgba(148, 163, 184, 0.4)", width: "100%", padding: "1rem" }}
+                onClick={() => handleGoogleLogin()}
+              >
+                  <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt="Google logo"
+                  />
+                  Sign in with Google
+              </button>
+            </div>
+            {message && (
+              <div className={`leafy-login-message leafy-login-message--${message.type}`} style={{marginTop: '1rem'}}>
+                {message.text}
               </div>
-
-              <div className="leafy-login-forgot-row">
-                <button
-                  type="button"
-                  className="leafy-login-forgot-btn"
-                  onClick={handleForgotPassword}
-                >
-                  Forgot password?
-                </button>
-              </div>
-
-              {/* Inline message */}
-              {message && (
-                <div className={`leafy-login-message leafy-login-message--${message.type}`}>
-                  {message.text}
-                </div>
-              )}
-
-              <div className="leafy-login-buttons">
-                <button 
-                  type="submit" 
-                  className="ll-btn ll-btn-primary"
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Logging in...' : 'Log In'}
-                </button>
-
-                <div className="leafy-login-divider">Or continue with</div>
-
-                <button
-                  type="button"
-                  className="ll-btn ll-btn-ghost leafy-login-google-btn"
-                  style={{ border: "1px solid rgba(148, 163, 184, 0.4)" }}
-                  onClick={() => handleGoogleLogin()}
-                >
-                    <img
-                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                      alt="Google logo"
-                    />
-                    Google
-                </button>
-
-                <button
-                  type="button"
-                  className="ll-btn ll-btn-ghost leafy-login-create-btn"
-                  onClick={() => {
-                    setIsRegistering(true);
-                    setMessage(null);
-                  }}
-                >
-                  Create account
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* REGISTER FORM */
-            <form className="leafy-login-form" onSubmit={handleRegister}>
-              <div className="leafy-login-row-split">
-                <input
-                  className="leafy-login-input"
-                  type="text"
-                  name="firstName"
-                  autoComplete="given-name"
-                  placeholder="First Name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                />
-                <input
-                  className="leafy-login-input"
-                  type="text"
-                  name="lastName"
-                  autoComplete="family-name"
-                  placeholder="Last Name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <input
-                className="leafy-login-input"
-                type="email"
-                name="email"
-                autoComplete="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              
-              <div className="leafy-login-password-wrapper">
-                <input
-                  className="leafy-login-input"
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  autoComplete="new-password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="leafy-login-password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-              
-              <div className="leafy-login-password-wrapper">
-                <input
-                  className="leafy-login-input"
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="confirmPassword"
-                  autoComplete="new-password"
-                  placeholder="Confirm Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="leafy-login-password-toggle"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-
-              {/* Inline message */}
-              {message && (
-                <div className={`leafy-login-message leafy-login-message--${message.type}`}>
-                  {message.text}
-                </div>
-              )}
-
-              <div className="leafy-login-buttons">
-                <button 
-                  type="submit" 
-                  className="ll-btn ll-btn-primary"
-                  disabled={isLoading || !password || !confirmPassword || password !== confirmPassword}
-                  style={{ 
-                    opacity: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 0.7 : 1, 
-                    cursor: (isLoading || !password || !confirmPassword || password !== confirmPassword) ? 'not-allowed' : 'pointer' 
-                  }}
-                >
-                  {isLoading ? 'Creating...' : 'Create Account'}
-                </button>
-
-                <button
-                  type="button"
-                  className="ll-btn ll-btn-ghost"
-                  onClick={() => {
-                    setIsRegistering(false);
-                    setMessage(null);
-                  }}
-                >
-                  Back to Login
-                </button>
-              </div>
-            </form>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

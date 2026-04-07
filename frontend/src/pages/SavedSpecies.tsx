@@ -26,15 +26,14 @@ const SavedSpecies: React.FC = () => {
 
   // Suggest Chatbot interaction
   useEffect(() => {
-    if (!localStorage.getItem('hasSeenSavedPopup')) {
+    if (user?.pageInfoRecommendations !== false) {
       const timer = setTimeout(() => {
         const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Saved Species page?' });
         window.dispatchEvent(event);
-        localStorage.setItem('hasSeenSavedPopup', 'true');
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [user?.pageInfoRecommendations]);
 
   useEffect(() => {
     if (user) {
