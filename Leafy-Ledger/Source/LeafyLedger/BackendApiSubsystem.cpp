@@ -415,3 +415,241 @@ void UBackendApiSubsystem::GetCurrentWeather(float Latitude, float Longitude, co
 		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendWeatherDto{});
 	}
 }
+
+void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback)
+{
+	const FString TrimmedName = Name.TrimStartAndEnd();
+	if (TrimmedName.IsEmpty())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Garden name is empty"), FBackendGardenDto{});
+		return;
+	}
+
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		Callback.ExecuteIfBound(false, Error, FBackendGardenDto{});
+		return;
+	}
+
+	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+	BodyObj->SetNumberField(TEXT("ownerId"), UserId);
+	BodyObj->SetStringField(TEXT("name"), TrimmedName);
+	BodyObj->SetStringField(TEXT("description"), Description);
+	BodyObj->SetNumberField(TEXT("latitude"), Latitude);
+	BodyObj->SetNumberField(TEXT("longitude"), Longitude);
+
+	if (!Timezone.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("timezone"), Timezone);
+	}
+
+	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(TEXT("/garden"), TEXT("POST"), BodyStr);
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendGardenDto Garden;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Garden);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to create garden")),
+					Garden
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			if (!FBackendJsonUtils::ParseObject(Response->GetContentAsString(), Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid garden JSON"), Garden);
+				return;
+			}
+
+			double Num = 0.0;
+
+			if (Obj->TryGetNumberField(TEXT("id"), Num))
+			{
+				Garden.Id = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("ownerId"), Num))
+			{
+				Garden.OwnerId = static_cast<int32>(Num);
+			}
+
+			Obj->TryGetStringField(TEXT("name"), Garden.Name);
+			Obj->TryGetStringField(TEXT("description"), Garden.Description);
+
+			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
+			{
+				Garden.Latitude = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("longitude"), Num))
+			{
+				Garden.Longitude = static_cast<float>(Num);
+			}
+
+			Obj->TryGetStringField(TEXT("timezone"), Garden.Timezone);
+			Obj->TryGetStringField(TEXT("creationTimestamp"), Garden.CreationTimestamp);
+			Obj->TryGetStringField(TEXT("lastUpdated"), Garden.LastUpdated);
+
+			Callback.ExecuteIfBound(true, TEXT("Garden created"), Garden);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendGardenDto{});
+	}
+}
+
+void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"), FBackendPlantInstanceDto{});
+		return;
+	}
+
+	if (SpeciesId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("SpeciesId must be > 0"), FBackendPlantInstanceDto{});
+		return;
+	}
+
+	if (SoilId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("SoilId must be > 0"), FBackendPlantInstanceDto{});
+		return;
+	}
+
+	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+	BodyObj->SetNumberField(TEXT("gardenId"), GardenId);
+	BodyObj->SetNumberField(TEXT("speciesId"), SpeciesId);
+	BodyObj->SetNumberField(TEXT("soilId"), SoilId);
+
+	if (HeightCm)
+	{
+		BodyObj->SetNumberField(TEXT("heightCm"), *HeightCm);
+	}
+
+	if (AgeDays)
+	{
+		BodyObj->SetNumberField(TEXT("ageDays"), *AgeDays);
+	}
+
+	if (HealthStatus && !HealthStatus->IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("healthStatus"), *HealthStatus);
+	}
+
+	if (LastWateredIso8601 && !LastWateredIso8601->IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("lastWatered"), *LastWateredIso8601);
+	}
+
+	if (!Notes.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("notes"), Notes);
+	}
+
+	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(TEXT("/plant-instance"), TEXT("POST"), BodyStr);
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendPlantInstanceDto PlantInstance;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), PlantInstance);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to create plant instance")),
+					PlantInstance
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			if (!FBackendJsonUtils::ParseObject(Response->GetContentAsString(), Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid plant instance JSON"), PlantInstance);
+				return;
+			}
+
+			double Num = 0.0;
+
+			if (Obj->TryGetNumberField(TEXT("id"), Num))
+			{
+				PlantInstance.Id = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("gardenId"), Num))
+			{
+				PlantInstance.GardenId = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("speciesId"), Num))
+			{
+				PlantInstance.SpeciesId = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("soilId"), Num))
+			{
+				PlantInstance.SoilId = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("heightCm"), Num))
+			{
+				PlantInstance.HeightCm = static_cast<float>(Num);
+				PlantInstance.bHasHeightCm = true;
+			}
+
+			if (Obj->TryGetNumberField(TEXT("ageDays"), Num))
+			{
+				PlantInstance.AgeDays = static_cast<int32>(Num);
+				PlantInstance.bHasAgeDays = true;
+			}
+
+			if (Obj->TryGetStringField(TEXT("healthStatus"), PlantInstance.HealthStatus))
+			{
+				PlantInstance.bHasHealthStatus = !PlantInstance.HealthStatus.IsEmpty();
+			}
+
+			if (Obj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered))
+			{
+				PlantInstance.bHasLastWatered = !PlantInstance.LastWatered.IsEmpty();
+			}
+
+			Obj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
+			Obj->TryGetStringField(TEXT("creationTimestamp"), PlantInstance.CreationTimestamp);
+			Obj->TryGetStringField(TEXT("lastUpdated"), PlantInstance.LastUpdated);
+
+			Callback.ExecuteIfBound(true, TEXT("Plant instance created"), PlantInstance);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendPlantInstanceDto{});
+	}
+}

@@ -53,6 +53,16 @@ void UMainMenu::OnPressSavedPlants()
 	MenuController->ShowSavedPlants();
 }
 
+void UMainMenu::OnPressCreateGarden()
+{
+
+}
+
+void UMainMenu::OnPressLoadGarden()
+{
+
+}
+
 void UMainMenu::RequestWeatherFromStoredLocation()
 {
 	if (!GetGameInstance())
@@ -74,9 +84,7 @@ void UMainMenu::RequestWeatherFromStoredLocation()
 		return;
 	}
 
-	Backend->GetUserLocation(
-		FBackendUserLocationResponse::CreateUObject(this, &UMainMenu::HandleUserLocationResponse)
-	);
+	Backend->GetUserLocation(FBackendUserLocationResponse::CreateUObject(this, &UMainMenu::HandleUserLocationResponse));
 }
 
 void UMainMenu::HandleUserLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location)

@@ -29,6 +29,12 @@ protected:
 	UFUNCTION()
 	void OnPressSavedPlants();
 
+	UFUNCTION()
+	void OnPressCreateGarden();
+
+	UFUNCTION()
+	void OnPressLoadGarden();
+
 	void RequestWeatherFromStoredLocation();
 	void HandleUserLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location);
 	void HandleWeatherResponse(bool bSuccess, const FString& Message, const FBackendWeatherDto& Weather);
@@ -41,6 +47,12 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_SavedPlants;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_CreateGarden;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_LoadGarden;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* TXT_CurrentTemp;

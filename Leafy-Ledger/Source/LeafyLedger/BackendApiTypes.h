@@ -168,3 +168,87 @@ struct FBackendWeatherDto
 	UPROPERTY(BlueprintReadWrite)
 	bool bHasTemperature2m = false;
 };
+
+USTRUCT(BlueprintType)
+struct FBackendGardenDto
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 Id = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 OwnerId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString Name;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString Description;
+
+	UPROPERTY(BlueprintReadWrite)
+	float Latitude = 0.f;
+
+	UPROPERTY(BlueprintReadWrite)
+	float Longitude = 0.f;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString Timezone;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString CreationTimestamp;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString LastUpdated;
+};
+
+USTRUCT(BlueprintType)
+struct FBackendPlantInstanceDto
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 Id = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 GardenId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 SpeciesId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 SoilId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	float HeightCm = 0.f;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 AgeDays = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString HealthStatus;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString LastWatered;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString Notes;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString CreationTimestamp;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString LastUpdated;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasHeightCm = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasAgeDays = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasHealthStatus = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasLastWatered = false;
+};

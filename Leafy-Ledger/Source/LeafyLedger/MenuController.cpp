@@ -92,6 +92,8 @@ void AMenuController::ShowSavedPlants()
     SetRootWidget(SavedPlantsWidgetClass);
 }
 
+
+
 void AMenuController::HandleLoginFailed(const FString& Error)
 {
     UE_LOG(LogTemp, Error, TEXT("Login failed: %s"), *Error);

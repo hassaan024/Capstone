@@ -13,6 +13,8 @@ DECLARE_DELEGATE_ThreeParams(FBackendPlantsResponse, bool /*bSuccess*/, const FS
 DECLARE_DELEGATE_ThreeParams(FBackendCurrentUserResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserDto& /*User*/)
 DECLARE_DELEGATE_ThreeParams(FBackendUserLocationResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserLocationDto& /*Location*/)
 DECLARE_DELEGATE_ThreeParams(FBackendWeatherResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendWeatherDto& /*Weather*/)
+DECLARE_DELEGATE_ThreeParams(FBackendGardenResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendGardenDto& /*Garden*/)
+DECLARE_DELEGATE_ThreeParams(FBackendPlantInstanceResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendPlantInstanceDto& /*PlantInstance*/)
 
 UCLASS()
 class LEAFYLEDGER_API UBackendApiSubsystem : public UGameInstanceSubsystem
@@ -29,6 +31,8 @@ public:
 	void GetCurrentUser(const FBackendCurrentUserResponse& Callback);
 	void GetUserLocation(const FBackendUserLocationResponse& Callback);
 	void GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback);
+	void CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
+	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
 
 private:
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest(
