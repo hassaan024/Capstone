@@ -55,6 +55,31 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleToggleSetting = async (setting: 'plantRecommendations' | 'pageInfoRecommendations') => {
+    if (!user) return;
+    const currentValue = user[setting] !== false; // Defaults to true if undefined
+    setIsLoading(true);
+    try {
+      const payload = { [setting]: !currentValue };
+      const res = await fetch(`${BACKEND_BASE_URL}/user/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        updateUser(data);
+      } else {
+        setNameMessage({ type: 'error', text: 'Failed to update settings' }); // Reuse nameMessage for global toast
+      }
+    } catch (err) {
+      setNameMessage({ type: 'error', text: 'Could not connect to server' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordMessage(null);
@@ -168,6 +193,47 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
+          {/* Chatbot Preferences */}
+          <div className="settings-card">
+            <h2 className="settings-card-title">Chatbot Preferences</h2>
+            
+            <div className="settings-field" style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="settings-label" style={{ marginBottom: 0 }}>Plant Recommendations</span>
+                <label className="settings-toggle">
+                  <input 
+                    type="checkbox" 
+                    checked={user.plantRecommendations !== false}
+                    onChange={() => handleToggleSetting('plantRecommendations')}
+                    disabled={isLoading}
+                  />
+                  <span className="settings-toggle-slider"></span>
+                </label>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'rgba(148, 163, 184, 0.7)', marginTop: '0.5rem' }}>
+                Turn on to receive AI insight popups whenever you click to view a specific plant.
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="settings-label" style={{ marginBottom: 0 }}>Page Info Recommendations</span>
+                <label className="settings-toggle">
+                  <input 
+                    type="checkbox" 
+                    checked={user.pageInfoRecommendations !== false}
+                    onChange={() => handleToggleSetting('pageInfoRecommendations')}
+                    disabled={isLoading}
+                  />
+                  <span className="settings-toggle-slider"></span>
+                </label>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'rgba(148, 163, 184, 0.7)', marginTop: '0.5rem' }}>
+                Turn on to receive a helpful guide popup the first time you visit a new section of the app.
+              </div>
+            </div>
+          </div>
+
           {/* Update Name */}
           <form className="settings-card" onSubmit={handleUpdateName}>
             <h2 className="settings-card-title">Update Name</h2>
@@ -199,6 +265,7 @@ const Settings: React.FC = () => {
           </form>
 
           {/* Change Password */}
+          {/* Change Password Commented Out
           <form className="settings-card" onSubmit={handleChangePassword}>
             <h2 className="settings-card-title">Change Password</h2>
             <div className="settings-field">
@@ -235,7 +302,6 @@ const Settings: React.FC = () => {
               />
             </div>
             
-            {/* Password section message */}
             {passwordMessage && (
               <div className={`settings-message settings-message--${passwordMessage.type}`}>
                 {passwordMessage.text}
@@ -250,6 +316,7 @@ const Settings: React.FC = () => {
               {isLoading ? 'Changing...' : 'Change Password'}
             </button>
           </form>
+          */}
 
           {/* Delete Account */}
           <div className="settings-card settings-card--danger">
