@@ -151,6 +151,7 @@
 .leafy-login-hero-title span {
   background: linear-gradient(135deg, var(--ll-accent-soft), var(--ll-accent-2));
   -webkit-background-clip: text;
+  background-clip: text;
   color: transparent;
 }
 
@@ -355,13 +356,27 @@
 }
 
 .leafy-login-header-link {
-  border: none;
-  background: transparent;
-  color: var(--ll-text-muted);
-  font-size: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(148, 163, 184, 0.05);
+  color: rgba(229, 231, 235, 0.6);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  padding: 4px 0;
-  text-decoration: underline;
+  padding: 6px 12px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.leafy-login-header-link:hover {
+  background: rgba(148, 163, 184, 0.15);
+  color: white;
+  border-color: rgba(148, 163, 184, 0.4);
+  transform: translateX(-2px);
 }
 
 /* Form: email & password */

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
 import { BACKEND_BASE_URL, GOOGLE_OAUTH_CLIENT_ID} from "../utils/constants";
-import { FaEye, FaEyeSlash, FaSeedling, FaCloudSun, FaCoins } from 'react-icons/fa';
+import { FaRobot, FaLeaf, FaSeedling, FaCloudSun, FaArrowLeft } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -147,26 +147,25 @@ const LoginPage: React.FC = () => {
 
           <div className="leafy-login-hero-copy">
             <h1 className="leafy-login-hero-title">
-              Plan <span>smarter gardens</span> with clear data.
+              Grow <span>smarter gardens</span> with Leafy AI.
             </h1>
             <p className="leafy-login-hero-subtitle">
-              LeafyLedger helps you line up seed dates, bloom windows, climate
-              limits, and yearly costs so you can see how your garden evolves
-              before you plant it.
+              LeafyLedger provides an intelligent chatbot, comprehensive plant databases, 
+              localized climate tracking, and beautiful simulations to help you visualize your garden before planting.
             </p>
 
             <div className="leafy-login-icon-row">
               <div className="leafy-login-icon-pill">
-                <span><FaSeedling /></span>
-                <span>Plant lifetimes</span>
+                <span><FaRobot /></span>
+                <span>Context-Aware AI</span>
               </div>
               <div className="leafy-login-icon-pill">
                 <span><FaCloudSun /></span>
-                <span>Climate tolerance</span>
+                <span>Live Weather Sync</span>
               </div>
               <div className="leafy-login-icon-pill">
-                <span><FaCoins /></span>
-                <span>Yearly profit view</span>
+                <span><FaSeedling /></span>
+                <span>3D Visuals</span>
               </div>
             </div>
 
@@ -197,7 +196,7 @@ const LoginPage: React.FC = () => {
                 </div>
                 <div className="leafy-login-growth-stage">
                   <div className="leafy-login-growth-stage-label">End</div>
-                  <div>Wither & profit</div>
+                  <div>Wither / Harvest</div>
                 </div>
               </div>
             </div>
@@ -220,7 +219,8 @@ const LoginPage: React.FC = () => {
               className="leafy-login-header-link"
               onClick={() => navigate("/")}
             >
-              Learn more
+              <FaArrowLeft style={{ marginRight: '6px', fontSize: '10px' }} />
+              Explore Features
             </button>
           </div>
 
