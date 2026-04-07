@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import FeaturePieChart from "../components/FeaturePieChart";
 
-type FeatureId = "growth" | "climate" | "layout" | "finance" | "events";
+type FeatureId = "chatbot" | "gardens" | "database" | "simulation" | "weather";
 
 interface Feature {
   id: FeatureId;
@@ -16,67 +16,67 @@ interface Feature {
 
 const features: Feature[] = [
   {
-    id: "growth",
-    label: "Growth Timeline",
-    short: "Seed to bloom to wither.",
+    id: "chatbot",
+    label: "AI Chatbot Assistant",
+    short: "Your context-aware gardening coach.",
     description:
-      "Model how each plant moves through its life cycle so you can line up seed dates, bloom windows, and wither times.",
+      "A floating AI assistant powered by Gemini that understands exactly what page or plant you are looking at to provide personalized tips and quick-replies.",
     bullets: [
-      "Time to sprout, bloom, and wither",
-      "See your garden at any date on a timeline",
-      "Spot gaps or overlaps in color and coverage",
+      "Context-aware AI assistance anytime",
+      "Dynamic prompt suggestions and quick-replies",
+      "Customizable popup behaviors in Account Settings"
     ],
     color: "#22c55e",
   },
   {
-    id: "climate",
-    label: "Climate & Soil",
-    short: "Match plants to your conditions.",
+    id: "gardens",
+    label: "Garden Management",
+    short: "Organize your plant collections.",
     description:
-      "Use local climate expectations and soil nutrition to pick plants that can actually thrive where you live.",
+      "Create virtual layouts for your different plots, link specific saved plants, and bind coordinates for hyper-accurate tracking.",
     bullets: [
-      "Temperature and humidity tolerances",
-      "Sunlight needs vs. your location",
-      "Stretch goal: soil nutrition modeling",
+      "Create multiple custom gardens",
+      "Assign precise geographical locations",
+      "Seamlessly link plants from your saved species"
     ],
     color: "#38bdf8",
   },
   {
-    id: "layout",
-    label: "Garden Layout",
-    short: "Design the space, not just the list.",
+    id: "database",
+    label: "Global Plant Database",
+    short: "Search thousands of species instantly.",
     description:
-      "Shape the house and garden in Unreal, place plants, and see how the layout evolves over time.",
+      "Tap into the Perenual API to browse, discover, and save plants while learning their sunlight, water, hardiness, and edibility metrics.",
     bullets: [
-      "Place plants in the engine",
-      "House and garden shape customization",
-      "See visual changes as the timeline moves",
+      "Extensive browsing and search capabilities",
+      "Detailed health, edibility, and lifecycle stats",
+      "Save favorites to your personal collection"
     ],
     color: "#a855f7",
   },
   {
-    id: "finance",
-    label: "Financial View",
-    short: "See cost and profit clearly.",
+    id: "simulation",
+    label: "Growth Simulation",
+    short: "Watch your garden evolve.",
     description:
-      "Estimate what your garden costs now and what it could be worth at peak bloom, especially for lumber or resale.",
+      "Experience our Demo Garden to visualize how different combinations of tree, flower, and vegetable models visually transition through growth stages.",
     bullets: [
-      "Cost of seeds and setup",
-      "Yearly maintenance cost",
-      "Value at bloom minus cost of seeds",
+      "Dynamic Unreal Engine model categorizations",
+      "Visualize Seeded, Leafy, Bloom, and Peak stages",
+      "Experiment with layouts before buying seeds"
     ],
     color: "#f97316",
   },
   {
-    id: "events",
-    label: "Unexpected Events",
-    short: "Floods, frosts, and surprises.",
+    id: "weather",
+    label: "Weather Sync",
+    short: "Hyper-local climate conditions.",
     description:
-      "Tell the system about floods, heat waves, or other events and refresh the simulation to see the impact.",
+      "Automatically map your garden locations to the Open-Meteo API to bring in real-time temperature, humidity, and atmospheric data.",
     bullets: [
-      "User-entered events like floods",
-      "Re-simulate plant health and outcomes",
-      "Compare “before vs. after” timelines",
+      "Automated coordinate to weather-station mapping",
+      "Live tracking of extreme temperature risks",
+      "Ensures your garden layout fits your local climate"
     ],
     color: "#eab308",
   },
@@ -84,7 +84,7 @@ const features: Feature[] = [
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedId, setSelectedId] = useState<FeatureId>("growth");
+  const [selectedId, setSelectedId] = useState<FeatureId>("chatbot");
 
   const selectedFeature =
     features.find((f) => f.id === selectedId) ?? features[0];
@@ -128,18 +128,17 @@ const LandingPage: React.FC = () => {
           <div className="leafy-landing-hero-inner leafy-landing-shell">
             <div className="leafy-hero-glow" />
             <h1 className="leafy-landing-title">
-              Grow <span>smarter gardens</span>, not spreadsheets.
+              Grow <span>smarter gardens</span> with Leafy AI.
             </h1>
             <p className="leafy-landing-subtitle">
-              LeafyLedger pulls plant lifetimes, climate limits, layout, and
-              costs into one timeline so you can see how your garden will look
-              and perform before you plant it.
+              LeafyLedger provides an intelligent chatbot, comprehensive plant databases, 
+              localized climate tracking, and beautiful simulations to help you visualize your garden before planting.
             </p>
 
             <div className="leafy-landing-tag-row">
-              <div className="ll-pill">Timeline of plant lifecycles</div>
-              <div className="ll-pill">Climate &amp; soil checks</div>
-              <div className="ll-pill">Cost vs. yield view</div>
+              <div className="ll-pill">AI Assistance</div>
+              <div className="ll-pill">Weather Syncing</div>
+              <div className="ll-pill">Growth Simulation</div>
             </div>
 
             {/* <div className="leafy-landing-stats-row leafy-landing-stats-row--center">

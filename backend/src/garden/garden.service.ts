@@ -46,6 +46,36 @@ export class GardenService {
     });
   }
 
+  findGardensByOwnerId(ownerId: number) {
+    return this.db.garden.findMany({
+      where: { ownerId },
+      orderBy: { lastUpdated: 'desc' },
+      include: {
+        _count: { select: { plants: true } },
+      },
+    });
+  }
+
+  async findGardenForOwner(gardenId: number, ownerId: number) {
+    const garden = await this.db.garden.findFirst({
+      where: { id: gardenId, ownerId },
+      include: {
+        plants: {
+          include: {
+            species: true,
+            soil: true,
+          },
+        },
+      },
+    });
+    if (!garden) {
+      throw new NotFoundException(
+        `Garden ${gardenId} not found or not owned by user ${ownerId}`,
+      );
+    }
+    return garden;
+  }
+
   async update(id: number, updateGardenDto: UpdateGardenDto) {
     try {
       return await this.db.garden.update({

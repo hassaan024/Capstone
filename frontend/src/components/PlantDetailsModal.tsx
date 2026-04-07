@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import PlantShoppingPanel from './PlantShoppingPanel';
 
 interface PlantDetailsModalProps {
@@ -38,6 +39,7 @@ interface PlantDetails {
 import { FaSun, FaTint, FaThermometerHalf, FaFlask, FaInfoCircle, FaCheck, FaBookmark, FaRegBookmark, FaTimes } from 'react-icons/fa';
 
 const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, onClose, isSaved, onToggleSave }) => {
+  const { user } = useAuth();
   const [details, setDetails] = useState<PlantDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,11 +54,13 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({ plantId, isOpen, 
         .then((res: { data: PlantDetails }) => {
           setDetails(res.data);
           setLoading(false);
-          // Suggest a question to the chatbot
-          setTimeout(() => {
-            const event = new CustomEvent('suggestChat', { detail: `Tell me some fun facts about ${res.data.common_name}!` });
-            window.dispatchEvent(event);
-          }, 1000);
+          // Suggest a question to the chatbot, honoring user preferences
+          if (user?.plantRecommendations !== false) {
+            setTimeout(() => {
+              const event = new CustomEvent('suggestChat', { detail: `Tell me some fun facts about ${res.data.common_name}!` });
+              window.dispatchEvent(event);
+            }, 1000);
+          }
         })
         .catch((err: Error) => {
           console.error(err);

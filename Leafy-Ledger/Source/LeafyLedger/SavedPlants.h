@@ -49,4 +49,5 @@ private:
 	void FetchSavedSpecies();
 	void HandleFetchSavedSpeciesResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants);
 	void PopulatePlants(const TArray<FBackendPlantDto>& Plants);
+	void PrefetchPlantImages(const TArray<FBackendPlantDto>& Plants);
 };

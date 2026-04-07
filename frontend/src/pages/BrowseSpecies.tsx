@@ -18,15 +18,14 @@ const BrowseSpecies: React.FC = () => {
   const { user } = useAuth();
   // Suggest Chatbot interaction
   React.useEffect(() => {
-    if (!localStorage.getItem('hasSeenBrowsePopup')) {
+    if (user?.pageInfoRecommendations !== false) {
       const timer = setTimeout(() => {
         const event = new CustomEvent('suggestChat', { detail: 'What can I do on the Browse Species page?' });
         window.dispatchEvent(event);
-        localStorage.setItem('hasSeenBrowsePopup', 'true');
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [user?.pageInfoRecommendations]);
 
   // Fetch saved species on mount
   React.useEffect(() => {
