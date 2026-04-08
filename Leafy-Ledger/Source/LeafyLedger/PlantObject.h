@@ -42,4 +42,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FString SelectedMeshId;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float SliderValue = 0.0f;
 };

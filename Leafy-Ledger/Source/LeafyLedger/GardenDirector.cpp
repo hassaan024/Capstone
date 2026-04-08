@@ -46,10 +46,8 @@ void AGardenDirector::MakePlantList()
 		{
 			PlantSelect->AddPlantToShelf(
 				Plant.CommonName,
-				4,
-				6,
-				//Plant.DaysToBloom,
-				//Plant.DaysToWither,
+				4, //Plant.DaysToBloom,
+				6, //Plant.DaysToWither,
 				Plant.ModelCategory
 			);
 		}
@@ -77,10 +75,8 @@ void AGardenDirector::MakePlantList()
 				{
 					PlantSelect->AddPlantToShelf(
 						Plant.CommonName,
-						4,
-						6,
-						//Plant.DaysToBloom,
-						//Plant.DaysToWither,
+						4, //Plant.DaysToBloom,
+						6, //Plant.DaysToWither,
 						Plant.ModelCategory
 					);
 				}

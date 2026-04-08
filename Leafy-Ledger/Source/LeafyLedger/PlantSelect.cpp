@@ -12,5 +12,7 @@ void UPlantSelect::AddPlantToShelf(FString Name, int32 DaysToBloom, int32 DaysTo
 	PlantObject->DaysToWither = DaysToWither;
 	PlantObject->ModelCategory = ModelCategory;
 
+	PlantObject->SliderValue = 0.0f;
+
 	PlantShelf->AddItem(PlantObject);
 }
