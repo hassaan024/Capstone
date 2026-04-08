@@ -5,7 +5,6 @@
 #include "PlantCardPopup.h"
 #include "PlantObject.h"
 #include "BackendApiSubsystem.h"
-#include "PlantImageCacheSubsystem.h"
 #include "SavedPlantCacheSubsystem.h"
 
 void USavedPlants::NativeConstruct()
@@ -81,7 +80,6 @@ void USavedPlants::HandleFetchSavedSpeciesResponse(bool bSuccess, const FString&
 		return;
 	}
 
-	PrefetchPlantImages(Plants);
 	PopulatePlants(Plants);
 }
 
@@ -176,51 +174,5 @@ void USavedPlants::OnPressBack()
 	if (MenuController)
 	{
 		MenuController->ShowMainMenu();
-	}
-}
-
-void USavedPlants::PrefetchPlantImages(const TArray<FBackendPlantDto>& Plants)
-{
-	if (!GetGameInstance())
-	{
-		return;
-	}
-
-	UPlantImageCacheSubsystem* ImageCache = GetGameInstance()->GetSubsystem<UPlantImageCacheSubsystem>();
-	if (!ImageCache)
-	{
-		return;
-	}
-
-	for (const FBackendPlantDto& Plant : Plants)
-	{
-		FString UrlToPrefetch;
-
-		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
-		{
-			UrlToPrefetch = Plant.ImgSrcUrls.Regular;
-		}
-
-		if (UrlToPrefetch.IsEmpty())
-		{
-			continue;
-		}
-
-		ImageCache->GetOrLoadImage(
-			UrlToPrefetch,
-			FOnPlantImageReady::CreateLambda(
-				[Plant](UTexture2D* Texture)
-				{
-					UE_LOG(
-						LogTemp,
-						Log,
-						TEXT("Prefetch image for %s (%d): %s"),
-						*Plant.CommonName,
-						Plant.PerenualId,
-						Texture ? TEXT("cached") : TEXT("failed")
-					);
-				}
-			)
-		);
 	}
 }
