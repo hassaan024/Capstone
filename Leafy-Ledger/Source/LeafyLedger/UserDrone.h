@@ -70,5 +70,5 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	UFUNCTION(BlueprintCallable)
-		void SetSelectedPlantData(UPlantObject* InPlantData);
+	void SetSelectedPlantData(UPlantObject* InPlantData);
 };

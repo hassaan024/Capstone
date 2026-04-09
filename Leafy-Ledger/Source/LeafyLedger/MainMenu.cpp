@@ -67,17 +67,7 @@ void UMainMenu::OnPressSavedPlants()
 
 void UMainMenu::OnPressCreateGarden()
 {
-	//UE_LOG(LogTemp, Error, TEXT("Create Garden pressed"));
-
 	UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
-
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	FInputModeGameOnly InputMode;
-	PC->SetInputMode(InputMode);
-
-	// get saved plants
-	// add each saved plant to a dropdown (by name)
-	// you can drag out a plant 
 }
 
 void UMainMenu::OnPressLoadGarden()

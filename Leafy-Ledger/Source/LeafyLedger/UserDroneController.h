@@ -13,7 +13,11 @@ UCLASS()
 class LEAFYLEDGER_API AUserDroneController : public APlayerController
 {
 	GENERATED_BODY()
+
 public:
 	// Sets default values for this character's properties
 	AUserDroneController();
+
+protected:
+	virtual void BeginPlay() override;
 };

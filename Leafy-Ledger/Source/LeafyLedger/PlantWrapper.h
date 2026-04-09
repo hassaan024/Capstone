@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/IUserObjectListEntry.h"
-#include "Components/TextBlock.h"
-#include "Components/Slider.h"
-#include "PlantObject.h"
+#include "Input/Reply.h"
 #include "PlantWrapper.generated.h"
 
-/**
- * 
- */
+class UTextBlock;
+class USlider;
+class AUserDrone;
+class UPlantObject;
+
 UCLASS()
 class LEAFYLEDGER_API UPlantWrapper : public UUserWidget, public IUserObjectListEntry
 {
@@ -20,17 +20,18 @@ class LEAFYLEDGER_API UPlantWrapper : public UUserWidget, public IUserObjectList
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UTextBlock* TXT_PlantWrapper;
+	UTextBlock* TXT_PlantWrapper = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	USlider* PWSlider;
+	USlider* PWSlider = nullptr;
 
-	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override
-	{
-		if (UPlantObject* PlantData = Cast<UPlantObject>(ListItemObject))
-		{
-			TXT_PlantWrapper->SetText(FText::FromString(PlantData->CommonName));
-			PWSlider->SetValue(PlantData->SliderValue);
-		}
-	}
+	UPROPERTY(BlueprintReadOnly, Category = "Plant")
+	AUserDrone* UserDrone = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Plant")
+	UPlantObject* PlantData = nullptr;
+
+	virtual void NativeConstruct() override;
+	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 };
