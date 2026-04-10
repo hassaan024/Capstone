@@ -2,7 +2,7 @@
 
 #include "MainMenu.h"
 #include "BackendApiSubsystem.h"
-#include "Kismet/GameplayStatics.h"
+//#include "Kismet/GameplayStatics.h"
 #include "Components/Image.h"
 #include "Components/SlateWrapperTypes.h"
 #include "GameFramework/PlayerController.h"
@@ -67,7 +67,20 @@ void UMainMenu::OnPressSavedPlants()
 
 void UMainMenu::OnPressCreateGarden()
 {
-	UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
+	if (!CreateGardenPopupClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("CreateGardenPopupClass is null"));
+		return;
+	}
+
+	CreateGardenPopupInstance = CreateWidget<UCreateGardenPopup>(GetOwningPlayer(), CreateGardenPopupClass);
+	if (!CreateGardenPopupInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to create popup"));
+		return;
+	}
+
+	CreateGardenPopupInstance->AddToViewport();
 }
 
 void UMainMenu::OnPressLoadGarden()

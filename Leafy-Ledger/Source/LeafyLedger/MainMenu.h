@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "MenuController.h"
 #include "BackendApiTypes.h"
+#include "CreateGardenPopup.h"
 #include "MainMenu.generated.h"
 
 class UBackendApiSubsystem;
@@ -41,6 +42,12 @@ protected:
 
 	void UpdateWeatherIcon(const FString& Description);
 	UTexture2D* GetWeatherIconForDescription(const FString& Description) const;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UCreateGardenPopup> CreateGardenPopupClass;
+
+	UPROPERTY()
+	UCreateGardenPopup* CreateGardenPopupInstance = nullptr;
 
 	//buttons
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))

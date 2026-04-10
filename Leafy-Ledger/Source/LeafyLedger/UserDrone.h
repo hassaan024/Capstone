@@ -60,6 +60,7 @@ private:
 private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
+	void TrackPlacedPlant(APlant* PlantActor);
 public:
 	UFUNCTION(BlueprintCallable)
 	bool SpawnPlant(APlant*& Plant);

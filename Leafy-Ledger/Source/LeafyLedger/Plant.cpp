@@ -56,9 +56,12 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 {
 	if (!PlantData) return;
 
+	PerenualId = PlantData->PerenualId;
 	PlantName = PlantData->CommonName;
 	DaysToBloom = PlantData->DaysToBloom;
 	DaysToWither = PlantData->DaysToWither;
+
+	UE_LOG(LogTemp, Log, TEXT("InitializeFromPlantData: %s PerenualId=%d"), *PlantName, PerenualId);
 
 	if (PreviewMesh && PlantData->PlantMesh)
 	{

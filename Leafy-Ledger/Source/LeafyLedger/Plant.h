@@ -59,6 +59,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		FString PlantName;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	int32 PerenualId = -1;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
+	FGuid LocalPlantId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
+	bool bIsTrackedInGardenDraft = false;
+
 	UFUNCTION()
 		void HandleDayChanged(int32 NewDayIndex);
 

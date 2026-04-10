@@ -17,7 +17,7 @@ class LEAFYLEDGER_API UPlantSelect : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-	void AddPlantToShelf(FString Name, int32 DaysToBloom, int32 DaysToWither, FString ModelCategory);
+	void AddPlantToShelf(int32 Id, FString Name, int32 DaysToBloom, int32 DaysToWither, FString ModelCategory);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UListView* PlantShelf;

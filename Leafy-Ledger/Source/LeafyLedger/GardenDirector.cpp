@@ -3,6 +3,7 @@
 
 #include "GardenDirector.h"
 #include "SavedPlantCacheSubsystem.h"
+#include "GardenSessionSubsystem.h"
 #include "PlantSelect.h"
 #include "PlantObject.h"
 
@@ -19,6 +20,19 @@ void AGardenDirector::BeginPlay()
 {
 	Super::BeginPlay();
 	MakePlantList();
+
+	if (!GetGameInstance()) return;
+
+	UGardenSessionSubsystem* GardenSession =
+		GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+
+	if (!GardenSession || !GardenSession->HasActiveDraft())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No active garden draft found"));
+		return;
+	}
+
+	const FEditableGardenState& Draft = GardenSession->GetDraft();
 }
 
 // Called every frame
@@ -45,6 +59,7 @@ void AGardenDirector::MakePlantList()
 		for (const FBackendPlantDto& Plant : CachedPlants)
 		{
 			PlantSelect->AddPlantToShelf(
+				Plant.PerenualId,
 				Plant.CommonName,
 				4, //Plant.DaysToBloom,
 				6, //Plant.DaysToWither,
@@ -59,10 +74,7 @@ void AGardenDirector::MakePlantList()
 			PlantSelect,
 			[PlantSelect](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
 			{
-				if (!PlantSelect)
-				{
-					return;
-				}
+				if (!PlantSelect) return;
 
 				if (!bSuccess)
 				{
@@ -74,6 +86,7 @@ void AGardenDirector::MakePlantList()
 				for (const FBackendPlantDto& Plant : Plants)
 				{
 					PlantSelect->AddPlantToShelf(
+						Plant.PerenualId,
 						Plant.CommonName,
 						4, //Plant.DaysToBloom,
 						6, //Plant.DaysToWither,

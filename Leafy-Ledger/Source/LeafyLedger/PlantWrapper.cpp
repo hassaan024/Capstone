@@ -63,7 +63,7 @@ FReply UPlantWrapper::NativeOnMouseButtonDown(
 		if (UserDrone && PlantData)
 		{
 			UserDrone->SetSelectedPlantData(PlantData);
-			UE_LOG(LogTemp, Warning, TEXT("SELECTED: %s"), *PlantData->CommonName);
+			//UE_LOG(LogTemp, Warning, TEXT("SELECTED: %s"), *PlantData->CommonName);
 			return FReply::Handled();
 		}
 
