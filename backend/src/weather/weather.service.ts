@@ -5,7 +5,6 @@ import { celsiusToFahrenheit, metersPerSecondToMph } from 'utils/util-functions'
 import { hourlyToDaily } from 'utils/array';
 import { 
   getTodaysDateAsString, 
-  calculatePastDate,
   goForwardDays,
   goBackDays,
 } from 'utils/time';
@@ -226,14 +225,14 @@ export class WeatherService {
     // cacluate the range of days we are fetching
     let start_date: string;
     let end_date: string;
+    const oneYearAgo = goBackDays(getTodaysDateAsString(), 365);
 
-    if (offset === 0){
-      start_date = goBackDays(getTodaysDateAsString(), days);
-      end_date = getTodaysDateAsString();
-    } 
-    else {
-      start_date = calculatePastDate(offset, PAGE_SIZE); // page start
-      end_date = goForwardDays(start_date, days); // page end
+    if (offset === 0) {
+      start_date = oneYearAgo;
+      end_date = goForwardDays(start_date, days);
+    } else {
+      start_date = goForwardDays(oneYearAgo, offset * PAGE_SIZE);
+      end_date = goForwardDays(start_date, days);
     }
 
     this.logger.log(`
@@ -275,7 +274,6 @@ export class WeatherService {
         URL: ${url}
         ===============================================
       `);
-      const data = await res.json();
       throw new BadRequestException(
         `Weather API error (${res.status}): ${errorText}`
       );
