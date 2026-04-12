@@ -1,13 +1,8 @@
 import { Type } from 'class-transformer';
 import {
-  IsDate,
-  IsEnum,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
+  IsBoolean, IsDate, IsEnum, IsInt, IsNumber, IsOptional, IsString,
 } from 'class-validator';
-import { HealthStatus } from 'enums/table_enums';
+import { HealthStatus, SoilType, GrowthStage } from 'enums/table_enums';
 
 export class CreatePlantInstanceDto {
   @IsInt()
@@ -16,8 +11,8 @@ export class CreatePlantInstanceDto {
   @IsInt()
   speciesId: number;
 
-  @IsInt()
-  soilId: number;
+  @IsEnum(SoilType)
+  soilType: SoilType;
 
   @IsOptional()
   @IsNumber()
@@ -28,10 +23,16 @@ export class CreatePlantInstanceDto {
   ageDays?: number;
 
   @IsOptional()
-  @IsEnum(HealthStatus, {
-    message: 'healthStatus must be a valid HealthStatus enum value',
-  })
+  @IsEnum(HealthStatus)
   healthStatus?: HealthStatus;
+
+  @IsOptional()
+  @IsEnum(GrowthStage)
+  growthStage?: GrowthStage;
+
+  @IsOptional()
+  @IsBoolean()
+  bloomState?: boolean;
 
   @IsOptional()
   @IsDate()

@@ -14,3 +14,11 @@ export enum HealthStatus {
   Dead = 'Dead',
   NeedsWater = 'NeedsWater',
 }
+
+export enum GrowthStage {
+  Seedling = 'Seedling',
+  Vegetative = 'Vegetative',
+  Flowering = 'Flowering',
+  Fruiting = 'Fruiting',
+  Dormant = 'Dormant',
+}

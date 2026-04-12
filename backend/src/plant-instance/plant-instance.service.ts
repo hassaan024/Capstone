@@ -7,6 +7,7 @@ import { CreatePlantInstanceDto } from './dto/create-plant-instance.dto';
 import { UpdatePlantInstanceDto } from './dto/update-plant-instance.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
+import { getSoilDefaults } from 'utils/soil-defaults';
 
 @Injectable()
 export class PlantInstanceService {
@@ -14,26 +15,41 @@ export class PlantInstanceService {
 
   async create(createPlantInstanceDto: CreatePlantInstanceDto) {
     try {
+      // Auto-create soil from type + defaults
+      const defaults = getSoilDefaults(createPlantInstanceDto.soilType);
+      const soil = await this.db.soil.create({
+        data: {
+          type: createPlantInstanceDto.soilType,
+          ...defaults,
+        },
+      });
+
+      // Create plant instance linked to that soil
       return await this.db.plantInstance.create({
         data: {
-          ...createPlantInstanceDto,
+          gardenId: createPlantInstanceDto.gardenId,
+          speciesId: createPlantInstanceDto.speciesId,
+          soilId: soil.id,
+          heightCm: createPlantInstanceDto.heightCm ?? null,
+          ageDays: createPlantInstanceDto.ageDays ?? null,
+          healthStatus: createPlantInstanceDto.healthStatus ?? null,
+          growthStage: createPlantInstanceDto.growthStage ?? null,
+          bloomState: createPlantInstanceDto.bloomState ?? false,
+          lastWatered: createPlantInstanceDto.lastWatered ?? null,
+          notes: createPlantInstanceDto.notes ?? null,
         },
       });
     } catch (err: unknown) {
-      // P2003 = Foreign key constraint failed
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2003'
       ) {
         const field = err.meta?.constraint ?? 'foreign key';
-        console.log(field);
         switch (field) {
           case 'PlantInstance_gardenId_fkey':
             throw new BadRequestException('invalid foreign key for gardenId');
           case 'PlantInstance_speciesId_fkey':
             throw new BadRequestException('invalid foreign key for speciesId');
-          case 'PlantInstance_soilId_fkey':
-            throw new BadRequestException('invalid foreign key for soilId');
           default:
             throw new BadRequestException('Invalid foreign key reference');
         }

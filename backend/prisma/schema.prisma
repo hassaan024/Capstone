@@ -59,6 +59,10 @@ model PlantInstance {
   healthStatus      HealthStatus?  
   lastWatered       DateTime? 
   notes             String?  // any notes
+
+  growthStage       GrowthStage?  // Seedling, Vegetative, Flowering, Fruiting, Dormant
+  bloomState        Boolean @default(false)  // is it currently blooming?
+
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
   garden            Garden   @relation(fields: [gardenId], references: [id])
@@ -244,6 +248,14 @@ enum HealthStatus {
   Sick
   Dead
   NeedsWater
+}
+
+enum GrowthStage {
+  Seedling
+  Vegetative
+  Flowering
+  Fruiting
+  Dormant
 }
 
 enum SoilType {
