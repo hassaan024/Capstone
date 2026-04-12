@@ -55,10 +55,12 @@ model PlantInstance {
   speciesId         Int
   soilId            Int
   heightCm          Float?   // height in cm, optional
-  ageDays           Int?     // age of plant in days, optional
   healthStatus      HealthStatus?  
   lastWatered       DateTime? 
   notes             String?  // any notes
+
+  plantedDate       DateTime  @default(now())  // when it was planted, fixed
+  currentGameDate   DateTime  @default(now())  // current in-game date, updated by Unreal
 
   growthStage       GrowthStage?  // Seedling, Vegetative, Flowering, Fruiting, Dormant
   bloomState        Boolean @default(false)  // is it currently blooming?

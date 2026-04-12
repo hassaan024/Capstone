@@ -7,10 +7,10 @@ const BASE_PERENUAL_URL = 'https://perenual.com/api/v2/';
 
 // api interface for the deminsions
 export interface Dimension {
-  type: string | null; 
-  min_value: number | null; 
-  max_value: number | null; 
-  units: string | null;
+  type: string | null;
+  min_value: number | null;
+  max_value: number | null;
+  unit: string | null;
 }
 
 export interface MinMax {
@@ -164,10 +164,10 @@ export class PerenualService {
 
   // ---------------- HELPERS ----------------
 
-  private mapGrowthRate(rate: string | null): number | null {
-    if (!rate) return null;
+  private mapGrowthRate(rate: string | null): number {
+    if (!rate) return 2;
     const map = { Low: 1, Medium: 2, High: 3 };
-    return map[rate] ?? null;
+    return map[rate] ?? 2;
   }
 
   private mapSunlightHours(sunlight: string[]): number | null {
@@ -200,7 +200,7 @@ export class PerenualService {
     if (min === null || max === null) return res;
 
     // normalize units
-    const units: string = (dimensions.units ?? 'feet').toLowerCase();
+    const units: string = (dimensions.unit || 'feet').toLowerCase();
 
     switch (units) {
       case 'inches':

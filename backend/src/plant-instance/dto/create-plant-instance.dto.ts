@@ -19,10 +19,6 @@ export class CreatePlantInstanceDto {
   heightCm?: number;
 
   @IsOptional()
-  @IsInt()
-  ageDays?: number;
-
-  @IsOptional()
   @IsEnum(HealthStatus)
   healthStatus?: HealthStatus;
 
@@ -38,6 +34,16 @@ export class CreatePlantInstanceDto {
   @IsDate()
   @Type(() => Date)
   lastWatered?: Date;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  plantedDate?: Date;   // defaults to now() if not provided
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  currentGameDate?: Date;  // defaults to now() if not provided
 
   @IsOptional()
   @IsString()

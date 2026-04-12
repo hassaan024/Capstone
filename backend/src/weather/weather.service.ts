@@ -85,6 +85,52 @@ const weatherCodeMap = {
 export class WeatherService {
   private readonly logger = new Logger(WeatherService.name);
 
+  // weather.service.ts
+  async getWeatherForGameDate(
+    latitude: number,
+    longitude: number,
+    gameDate: Date,
+    days: number,
+  ): Promise<WeatherInfoDto[]> {
+
+    // Anchor to 1 year before the game date for seasonal accuracy
+    const gameDateStr = gameDate.toISOString().split('T')[0];
+    const oneYearBeforeGame = goBackDays(gameDateStr, 365);
+    const end_date = goForwardDays(oneYearBeforeGame, days);
+
+    const daily_args = [
+      'temperature_2m_max',
+      'temperature_2m_min',
+      'precipitation_sum',
+      'et0_fao_evapotranspiration',
+      'shortwave_radiation_sum',
+    ];
+
+    const hourly_args = [
+      'vapour_pressure_deficit',
+      'wind_speed_10m',
+      'relative_humidity_2m',
+    ];
+
+    const url =
+      `${OPEN_METEO_ARCHIVE_FORCAST_URL}?latitude=${latitude}&longitude=${longitude}` +
+      `&start_date=${oneYearBeforeGame}&end_date=${end_date}` +
+      `&daily=${daily_args.join(',')}` +
+      `&hourly=${hourly_args.join(',')}` +
+      `&timezone=auto`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      this.logger.error(`Open-Meteo API Error: ${res.status} ${errorText}`);
+      throw new BadRequestException(`Weather API error (${res.status}): ${errorText}`);
+    }
+
+    const data = await res.json();
+    return this.mapWeatherApiDataToDto(data, true);
+  }
+  
   // GET (current days weather) ##################################################################
   // FIXME: add soil_temperature_6cm
   // FIXME: add soil_moisture_0_to_3cm

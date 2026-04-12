@@ -31,11 +31,12 @@ export class PlantInstanceService {
           speciesId: createPlantInstanceDto.speciesId,
           soilId: soil.id,
           heightCm: createPlantInstanceDto.heightCm ?? null,
-          ageDays: createPlantInstanceDto.ageDays ?? null,
           healthStatus: createPlantInstanceDto.healthStatus ?? null,
           growthStage: createPlantInstanceDto.growthStage ?? null,
           bloomState: createPlantInstanceDto.bloomState ?? false,
           lastWatered: createPlantInstanceDto.lastWatered ?? null,
+          plantedDate: createPlantInstanceDto.plantedDate ?? new Date(),
+          currentGameDate: createPlantInstanceDto.currentGameDate ?? new Date(),
           notes: createPlantInstanceDto.notes ?? null,
         },
       });
