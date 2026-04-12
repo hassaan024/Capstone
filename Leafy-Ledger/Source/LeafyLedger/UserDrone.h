@@ -48,6 +48,7 @@ private:
 	bool bDraggingRealPlant = false;
 	FVector MouseDragStart;
 	APlant* PreviewPlant = nullptr;
+	FTransform DragOriginalTransform;
 #pragma endregion
 
 #pragma region Tick Functions

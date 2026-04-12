@@ -5,7 +5,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/EngineTypes.h"
 
-AUserDroneController::AUserDroneController() {
+AUserDroneController::AUserDroneController()
+{
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 }
@@ -14,8 +15,9 @@ void AUserDroneController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FInputModeGameOnly InputMode;
+	FInputModeGameAndUI InputMode;
+	InputMode.SetHideCursorDuringCapture(false);
 	SetInputMode(InputMode);
 
-	UGameplayStatics::SetViewportMouseCaptureMode(GetWorld(), EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+	UGameplayStatics::SetViewportMouseCaptureMode(GetWorld(), EMouseCaptureMode::CaptureDuringMouseDown);
 }

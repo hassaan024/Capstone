@@ -39,7 +39,6 @@ void AGardenDirector::BeginPlay()
 void AGardenDirector::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void AGardenDirector::MakePlantList()

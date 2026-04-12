@@ -58,10 +58,7 @@ void AUserDrone::UpdatePan()
 	if (!PC) return;
 
 	FHitResult CurrentHit;
-	if (!GetMouseGroundHit(CurrentHit))
-	{
-		return;
-	}
+	if (!GetMouseGroundHit(CurrentHit)) return;
 
 	FVector CurrentLoc = CurrentHit.Location;
 	const FVector Delta = MouseDragStart - CurrentLoc;
@@ -111,6 +108,7 @@ void AUserDrone::LeftMousePressed()
 		PreviewPlant = Temp;
 		bDraggingRealPlant = true;
 		bSelectedPlantSpawned = false;
+		DragOriginalTransform = Temp->GetActorTransform();
 		return;
 	}
 
@@ -161,7 +159,11 @@ void AUserDrone::LeftMouseReleased()
 	}
 	else
 	{
-		if (!bDraggingRealPlant)
+		if (bDraggingRealPlant)
+		{
+			FinalizedPlant->SetActorTransform(DragOriginalTransform);
+		}
+		else
 		{
 			FinalizedPlant->Destroy();
 		}
@@ -221,10 +223,7 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
 	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
-	if (!bHit)
-	{
-		return false;
-	}
+	if (!bHit) return false;
 
 	OutHit = Hit;
 	return true;
@@ -299,10 +298,7 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 
 void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 {
-	if (!PlantActor)
-	{
-		return;
-	}
+	if (!PlantActor) return;
 
 	if (!GetGameInstance())
 	{
@@ -340,6 +336,9 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 		PlantActor->GetActorRotation(),
 		PlantActor->GetActorScale3D()
 	);
+
+	const FEditableGardenState& Draft = GardenSession->GetDraft();
+	UE_LOG(LogTemp, Error, TEXT("Draft now has %d plant(s)"), Draft.Plants.Num());
 
 	if (!LocalId.IsValid())
 	{
