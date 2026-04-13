@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BackendApiTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "GardenSessionSubsystem.generated.h"
 
@@ -22,6 +23,18 @@ struct FEditablePlantPlacement
 
 	UPROPERTY(BlueprintReadWrite)
 	int32 SoilId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 PerenualId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString SpeciesCommonName;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString SpeciesScientificName;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString SpeciesModelCategory;
 
 	UPROPERTY(BlueprintReadWrite)
 	FVector Location = FVector::ZeroVector;
@@ -98,6 +111,8 @@ class LEAFYLEDGER_API UGardenSessionSubsystem : public UGameInstanceSubsystem
 public:
 	UFUNCTION(BlueprintCallable)
 	void StartNewGardenDraft(const FString& Name, const FString& Description);
+
+	void LoadGardenDraft(const FBackendGardenDetailDto& Garden);
 
 	UFUNCTION(BlueprintCallable)
 	void ClearDraft();

@@ -16,6 +16,8 @@ DECLARE_DELEGATE_ThreeParams(FBackendUserLocationResponse, bool /*bSuccess*/, co
 DECLARE_DELEGATE_ThreeParams(FBackendWeatherResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendWeatherDto& /*Weather*/)
 DECLARE_DELEGATE_ThreeParams(FBackendGardenResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendGardenDto& /*Garden*/)
 DECLARE_DELEGATE_ThreeParams(FBackendPlantInstanceResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendPlantInstanceDto& /*PlantInstance*/)
+DECLARE_DELEGATE_ThreeParams(FBackendGardenSummariesResponse, bool /*bSuccess*/, const FString& /*Message*/, const TArray<FBackendGardenSummaryDto>& /*Gardens*/)
+DECLARE_DELEGATE_ThreeParams(FBackendGardenDetailResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendGardenDetailDto& /*Garden*/)
 
 UCLASS()
 class LEAFYLEDGER_API UBackendApiSubsystem : public UGameInstanceSubsystem
@@ -32,9 +34,12 @@ public:
 	void GetCurrentUser(const FBackendCurrentUserResponse& Callback);
 	void GetUserLocation(const FBackendUserLocationResponse& Callback);
 	void GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback);
+	void GetGardensByUser(const FBackendGardenSummariesResponse& Callback);
+	void GetGardenDetail(int32 GardenId, const FBackendGardenDetailResponse& Callback);
 	void CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
 	void EnsureGenericSoil(const FBackendSoilIdResponse& Callback);
-	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
+	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
+	void UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
 
 private:
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest(

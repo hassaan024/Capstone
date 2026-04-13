@@ -6,6 +6,33 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 
+namespace
+{
+	static void ParsePlantDtoFromObject(const TSharedPtr<FJsonObject>& Obj, FBackendPlantDto& OutPlant)
+	{
+		if (!Obj.IsValid())
+		{
+			return;
+		}
+
+		double NumberValue = 0.0;
+
+		if (Obj->TryGetNumberField(TEXT("id"), NumberValue))
+		{
+			OutPlant.Id = static_cast<int32>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("perenualId"), NumberValue))
+		{
+			OutPlant.PerenualId = static_cast<int32>(NumberValue);
+		}
+
+		Obj->TryGetStringField(TEXT("commonName"), OutPlant.CommonName);
+		Obj->TryGetStringField(TEXT("scientificName"), OutPlant.ScientificName);
+		Obj->TryGetStringField(TEXT("modelCategory"), OutPlant.ModelCategory);
+	}
+}
+
 bool FBackendJsonUtils::ParseObject(const FString& JsonString, TSharedPtr<FJsonObject>& OutObject)
 {
 	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
@@ -303,6 +330,211 @@ bool FBackendJsonUtils::ParseWeather(const FString& JsonString, FBackendWeatherD
 	}
 
 	Obj->TryGetStringField(TEXT("description"), OutWeather.Description);
+
+	return true;
+}
+
+bool FBackendJsonUtils::ParseGardenSummaryArray(const FString& JsonString, TArray<FBackendGardenSummaryDto>& OutGardens)
+{
+	OutGardens.Reset();
+
+	TSharedPtr<FJsonValue> RootValue;
+	if (!ParseValue(JsonString, RootValue) || !RootValue.IsValid() || RootValue->Type != EJson::Array)
+	{
+		return false;
+	}
+
+	for (const TSharedPtr<FJsonValue>& ItemVal : RootValue->AsArray())
+	{
+		if (!ItemVal.IsValid() || ItemVal->Type != EJson::Object)
+		{
+			continue;
+		}
+
+		const TSharedPtr<FJsonObject> Obj = ItemVal->AsObject();
+		if (!Obj.IsValid())
+		{
+			continue;
+		}
+
+		FBackendGardenSummaryDto Garden;
+		double NumberValue = 0.0;
+
+		if (Obj->TryGetNumberField(TEXT("id"), NumberValue))
+		{
+			Garden.Id = static_cast<int32>(NumberValue);
+		}
+
+		Obj->TryGetStringField(TEXT("name"), Garden.Name);
+		Obj->TryGetStringField(TEXT("description"), Garden.Description);
+		Obj->TryGetStringField(TEXT("timezone"), Garden.Timezone);
+
+		if (Obj->TryGetNumberField(TEXT("latitude"), NumberValue))
+		{
+			Garden.Latitude = static_cast<float>(NumberValue);
+		}
+
+		if (Obj->TryGetNumberField(TEXT("longitude"), NumberValue))
+		{
+			Garden.Longitude = static_cast<float>(NumberValue);
+		}
+
+		const TSharedPtr<FJsonObject>* CountObj = nullptr;
+		if (Obj->TryGetObjectField(TEXT("_count"), CountObj) && CountObj && CountObj->IsValid() && (*CountObj)->TryGetNumberField(TEXT("plants"), NumberValue))
+		{
+			Garden.PlantCount = static_cast<int32>(NumberValue);
+		}
+
+		OutGardens.Add(MoveTemp(Garden));
+	}
+
+	return true;
+}
+
+bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGardenDetailDto& OutGarden)
+{
+	OutGarden = FBackendGardenDetailDto{};
+
+	TSharedPtr<FJsonObject> Obj;
+	if (!ParseObject(JsonString, Obj) || !Obj.IsValid())
+	{
+		return false;
+	}
+
+	double NumberValue = 0.0;
+
+	if (Obj->TryGetNumberField(TEXT("id"), NumberValue))
+	{
+		OutGarden.Id = static_cast<int32>(NumberValue);
+	}
+
+	if (Obj->TryGetNumberField(TEXT("ownerId"), NumberValue))
+	{
+		OutGarden.OwnerId = static_cast<int32>(NumberValue);
+	}
+
+	Obj->TryGetStringField(TEXT("name"), OutGarden.Name);
+	Obj->TryGetStringField(TEXT("description"), OutGarden.Description);
+	Obj->TryGetStringField(TEXT("timezone"), OutGarden.Timezone);
+
+	if (Obj->TryGetNumberField(TEXT("latitude"), NumberValue))
+	{
+		OutGarden.Latitude = static_cast<float>(NumberValue);
+	}
+
+	if (Obj->TryGetNumberField(TEXT("longitude"), NumberValue))
+	{
+		OutGarden.Longitude = static_cast<float>(NumberValue);
+	}
+
+	const TArray<TSharedPtr<FJsonValue>>* PlantsArray = nullptr;
+	if (!Obj->TryGetArrayField(TEXT("plants"), PlantsArray))
+	{
+		return true;
+	}
+
+	for (const TSharedPtr<FJsonValue>& PlantValue : *PlantsArray)
+	{
+		if (!PlantValue.IsValid() || PlantValue->Type != EJson::Object)
+		{
+			continue;
+		}
+
+		const TSharedPtr<FJsonObject> PlantObj = PlantValue->AsObject();
+		if (!PlantObj.IsValid())
+		{
+			continue;
+		}
+
+		FBackendGardenPlantInstanceDto PlantInstance;
+
+		if (PlantObj->TryGetNumberField(TEXT("id"), NumberValue))
+		{
+			PlantInstance.Id = static_cast<int32>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("gardenId"), NumberValue))
+		{
+			PlantInstance.GardenId = static_cast<int32>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("speciesId"), NumberValue))
+		{
+			PlantInstance.SpeciesId = static_cast<int32>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("soilId"), NumberValue))
+		{
+			PlantInstance.SoilId = static_cast<int32>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("locationX"), NumberValue))
+		{
+			PlantInstance.Location.X = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("locationY"), NumberValue))
+		{
+			PlantInstance.Location.Y = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("locationZ"), NumberValue))
+		{
+			PlantInstance.Location.Z = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("rotationPitch"), NumberValue))
+		{
+			PlantInstance.Rotation.Pitch = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("rotationYaw"), NumberValue))
+		{
+			PlantInstance.Rotation.Yaw = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("rotationRoll"), NumberValue))
+		{
+			PlantInstance.Rotation.Roll = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("scaleX"), NumberValue))
+		{
+			PlantInstance.Scale.X = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("scaleY"), NumberValue))
+		{
+			PlantInstance.Scale.Y = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("scaleZ"), NumberValue))
+		{
+			PlantInstance.Scale.Z = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("heightCm"), NumberValue))
+		{
+			PlantInstance.HeightCm = static_cast<float>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("ageDays"), NumberValue))
+		{
+			PlantInstance.AgeDays = static_cast<int32>(NumberValue);
+		}
+
+		PlantObj->TryGetStringField(TEXT("healthStatus"), PlantInstance.HealthStatus);
+		PlantObj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered);
+		PlantObj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
+
+		const TSharedPtr<FJsonObject>* SpeciesObj = nullptr;
+		if (PlantObj->TryGetObjectField(TEXT("species"), SpeciesObj) && SpeciesObj && SpeciesObj->IsValid())
+		{
+			ParsePlantDtoFromObject(*SpeciesObj, PlantInstance.Species);
+		}
+
+		OutGarden.Plants.Add(MoveTemp(PlantInstance));
+	}
 
 	return true;
 }

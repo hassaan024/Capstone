@@ -11,6 +11,47 @@ void UGardenSessionSubsystem::StartNewGardenDraft(const FString& Name, const FSt
 	Draft.bIsInitialized = true;
 }
 
+void UGardenSessionSubsystem::LoadGardenDraft(const FBackendGardenDetailDto& Garden)
+{
+	Draft = FEditableGardenState{};
+	Draft.BackendGardenId = Garden.Id;
+	Draft.Name = Garden.Name;
+	Draft.Description = Garden.Description;
+	Draft.Latitude = Garden.Latitude;
+	Draft.Longitude = Garden.Longitude;
+	Draft.Timezone = Garden.Timezone;
+	Draft.bIsInitialized = true;
+	Draft.bHasUnsavedChanges = false;
+
+	for (int32 Index = 0; Index < Garden.Plants.Num(); ++Index)
+	{
+		const FBackendGardenPlantInstanceDto& SourcePlant = Garden.Plants[Index];
+
+		FEditablePlantPlacement Plant;
+		Plant.LocalId = FGuid::NewGuid();
+		Plant.BackendPlantInstanceId = SourcePlant.Id;
+		Plant.SpeciesId = SourcePlant.SpeciesId;
+		Plant.SoilId = SourcePlant.SoilId;
+		Plant.PerenualId = SourcePlant.Species.PerenualId;
+		Plant.SpeciesCommonName = SourcePlant.Species.CommonName;
+		Plant.SpeciesScientificName = SourcePlant.Species.ScientificName;
+		Plant.SpeciesModelCategory = SourcePlant.Species.ModelCategory;
+		Plant.Location = SourcePlant.Location;
+		Plant.Rotation = SourcePlant.Rotation;
+		Plant.Scale = SourcePlant.Scale;
+		Plant.HeightCm = SourcePlant.HeightCm;
+		Plant.AgeDays = SourcePlant.AgeDays;
+		Plant.HealthStatus = SourcePlant.HealthStatus;
+		Plant.LastWateredIso8601 = SourcePlant.LastWatered;
+		Plant.Notes = SourcePlant.Notes;
+		Plant.bPendingCreate = false;
+		Plant.bPendingUpdate = false;
+		Plant.bPendingDelete = false;
+
+		Draft.Plants.Add(MoveTemp(Plant));
+	}
+}
+
 void UGardenSessionSubsystem::ClearDraft()
 {
 	Draft = FEditableGardenState{};

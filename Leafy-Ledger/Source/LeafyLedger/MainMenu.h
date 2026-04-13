@@ -11,6 +11,7 @@
 #include "MenuController.h"
 #include "BackendApiTypes.h"
 #include "CreateGardenPopup.h"
+#include "LoadGardenPopup.h"
 #include "MainMenu.generated.h"
 
 class UBackendApiSubsystem;
@@ -35,6 +36,7 @@ protected:
 
 	UFUNCTION()
 	void OnPressLoadGarden();
+	void HandleLoadGardenSelected(int32 GardenId);
 
 	void RequestWeatherFromStoredLocation();
 	void HandleUserLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location);
@@ -48,6 +50,12 @@ protected:
 
 	UPROPERTY()
 	UCreateGardenPopup* CreateGardenPopupInstance = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<ULoadGardenPopup> LoadGardenPopupClass;
+
+	UPROPERTY()
+	ULoadGardenPopup* LoadGardenPopupInstance = nullptr;
 
 	//buttons
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))

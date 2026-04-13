@@ -416,6 +416,114 @@ void UBackendApiSubsystem::GetCurrentWeather(float Latitude, float Longitude, co
 	}
 }
 
+void UBackendApiSubsystem::GetGardensByUser(const FBackendGardenSummariesResponse& Callback)
+{
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		const TArray<FBackendGardenSummaryDto> EmptyGardens;
+		Callback.ExecuteIfBound(false, Error, EmptyGardens);
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/garden/by-user/%d"), UserId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			TArray<FBackendGardenSummaryDto> Gardens;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Gardens);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch gardens")),
+					Gardens
+				);
+				return;
+			}
+
+			if (!FBackendJsonUtils::ParseGardenSummaryArray(Response->GetContentAsString(), Gardens))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid gardens JSON"), Gardens);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Gardens);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		const TArray<FBackendGardenSummaryDto> EmptyGardens;
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), EmptyGardens);
+	}
+}
+
+void UBackendApiSubsystem::GetGardenDetail(int32 GardenId, const FBackendGardenDetailResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"), FBackendGardenDetailDto{});
+		return;
+	}
+
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		Callback.ExecuteIfBound(false, Error, FBackendGardenDetailDto{});
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/garden/%d?userId=%d"), GardenId, UserId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendGardenDetailDto Garden;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Garden);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch garden detail")),
+					Garden
+				);
+				return;
+			}
+
+			if (!FBackendJsonUtils::ParseGardenDetail(Response->GetContentAsString(), Garden))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid garden detail JSON"), Garden);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Garden);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendGardenDetailDto{});
+	}
+}
+
 void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback)
 {
 	const FString TrimmedName = Name.TrimStartAndEnd();
@@ -636,7 +744,7 @@ void UBackendApiSubsystem::EnsureGenericSoil(const FBackendSoilIdResponse& Callb
 	}
 }
 
-void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (GardenId <= 0)
 	{
@@ -660,6 +768,15 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 	BodyObj->SetNumberField(TEXT("gardenId"), GardenId);
 	BodyObj->SetNumberField(TEXT("speciesId"), SpeciesId);
 	BodyObj->SetNumberField(TEXT("soilId"), SoilId);
+	BodyObj->SetNumberField(TEXT("locationX"), Location.X);
+	BodyObj->SetNumberField(TEXT("locationY"), Location.Y);
+	BodyObj->SetNumberField(TEXT("locationZ"), Location.Z);
+	BodyObj->SetNumberField(TEXT("rotationPitch"), Rotation.Pitch);
+	BodyObj->SetNumberField(TEXT("rotationYaw"), Rotation.Yaw);
+	BodyObj->SetNumberField(TEXT("rotationRoll"), Rotation.Roll);
+	BodyObj->SetNumberField(TEXT("scaleX"), Scale.X);
+	BodyObj->SetNumberField(TEXT("scaleY"), Scale.Y);
+	BodyObj->SetNumberField(TEXT("scaleZ"), Scale.Z);
 
 	if (HeightCm)
 	{
@@ -739,6 +856,51 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 				PlantInstance.SoilId = static_cast<int32>(Num);
 			}
 
+			if (Obj->TryGetNumberField(TEXT("locationX"), Num))
+			{
+				PlantInstance.Location.X = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("locationY"), Num))
+			{
+				PlantInstance.Location.Y = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("locationZ"), Num))
+			{
+				PlantInstance.Location.Z = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("rotationPitch"), Num))
+			{
+				PlantInstance.Rotation.Pitch = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("rotationYaw"), Num))
+			{
+				PlantInstance.Rotation.Yaw = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("rotationRoll"), Num))
+			{
+				PlantInstance.Rotation.Roll = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("scaleX"), Num))
+			{
+				PlantInstance.Scale.X = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("scaleY"), Num))
+			{
+				PlantInstance.Scale.Y = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("scaleZ"), Num))
+			{
+				PlantInstance.Scale.Z = static_cast<float>(Num);
+			}
+
 			if (Obj->TryGetNumberField(TEXT("heightCm"), Num))
 			{
 				PlantInstance.HeightCm = static_cast<float>(Num);
@@ -766,6 +928,169 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 			Obj->TryGetStringField(TEXT("lastUpdated"), PlantInstance.LastUpdated);
 
 			Callback.ExecuteIfBound(true, TEXT("Plant instance created"), PlantInstance);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendPlantInstanceDto{});
+	}
+}
+
+void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+{
+	if (PlantInstanceId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("PlantInstanceId must be > 0"), FBackendPlantInstanceDto{});
+		return;
+	}
+
+	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+	BodyObj->SetNumberField(TEXT("locationX"), Location.X);
+	BodyObj->SetNumberField(TEXT("locationY"), Location.Y);
+	BodyObj->SetNumberField(TEXT("locationZ"), Location.Z);
+	BodyObj->SetNumberField(TEXT("rotationPitch"), Rotation.Pitch);
+	BodyObj->SetNumberField(TEXT("rotationYaw"), Rotation.Yaw);
+	BodyObj->SetNumberField(TEXT("rotationRoll"), Rotation.Roll);
+	BodyObj->SetNumberField(TEXT("scaleX"), Scale.X);
+	BodyObj->SetNumberField(TEXT("scaleY"), Scale.Y);
+	BodyObj->SetNumberField(TEXT("scaleZ"), Scale.Z);
+	BodyObj->SetNumberField(TEXT("heightCm"), HeightCm);
+	BodyObj->SetNumberField(TEXT("ageDays"), AgeDays);
+	BodyObj->SetStringField(TEXT("healthStatus"), HealthStatus);
+	BodyObj->SetStringField(TEXT("lastWatered"), LastWateredIso8601);
+
+	if (!Notes.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("notes"), Notes);
+	}
+
+	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+	const FString Route = FString::Printf(TEXT("/plant-instance/%d"), PlantInstanceId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("PATCH"), BodyStr);
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendPlantInstanceDto PlantInstance;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), PlantInstance);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to update plant instance")),
+					PlantInstance
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			if (!FBackendJsonUtils::ParseObject(Response->GetContentAsString(), Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid plant instance JSON"), PlantInstance);
+				return;
+			}
+
+			double Num = 0.0;
+
+			if (Obj->TryGetNumberField(TEXT("id"), Num))
+			{
+				PlantInstance.Id = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("gardenId"), Num))
+			{
+				PlantInstance.GardenId = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("speciesId"), Num))
+			{
+				PlantInstance.SpeciesId = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("soilId"), Num))
+			{
+				PlantInstance.SoilId = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("locationX"), Num))
+			{
+				PlantInstance.Location.X = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("locationY"), Num))
+			{
+				PlantInstance.Location.Y = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("locationZ"), Num))
+			{
+				PlantInstance.Location.Z = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("rotationPitch"), Num))
+			{
+				PlantInstance.Rotation.Pitch = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("rotationYaw"), Num))
+			{
+				PlantInstance.Rotation.Yaw = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("rotationRoll"), Num))
+			{
+				PlantInstance.Rotation.Roll = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("scaleX"), Num))
+			{
+				PlantInstance.Scale.X = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("scaleY"), Num))
+			{
+				PlantInstance.Scale.Y = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("scaleZ"), Num))
+			{
+				PlantInstance.Scale.Z = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("heightCm"), Num))
+			{
+				PlantInstance.HeightCm = static_cast<float>(Num);
+				PlantInstance.bHasHeightCm = true;
+			}
+
+			if (Obj->TryGetNumberField(TEXT("ageDays"), Num))
+			{
+				PlantInstance.AgeDays = static_cast<int32>(Num);
+				PlantInstance.bHasAgeDays = true;
+			}
+
+			if (Obj->TryGetStringField(TEXT("healthStatus"), PlantInstance.HealthStatus))
+			{
+				PlantInstance.bHasHealthStatus = !PlantInstance.HealthStatus.IsEmpty();
+			}
+
+			if (Obj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered))
+			{
+				PlantInstance.bHasLastWatered = !PlantInstance.LastWatered.IsEmpty();
+			}
+
+			Obj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
+			Obj->TryGetStringField(TEXT("creationTimestamp"), PlantInstance.CreationTimestamp);
+			Obj->TryGetStringField(TEXT("lastUpdated"), PlantInstance.LastUpdated);
+
+			Callback.ExecuteIfBound(true, TEXT("Plant instance updated"), PlantInstance);
 		}
 	);
 

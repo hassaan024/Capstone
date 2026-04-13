@@ -117,9 +117,12 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 	{
 		const FEditablePlantPlacement& Plant = Plants[i];
 
-		if (!Plant.bPendingCreate || Plant.bPendingDelete) continue;
+		if (Plant.bPendingDelete)
+		{
+			continue;
+		}
 
-		if (Plant.SpeciesId <= 0)
+		if (Plant.bPendingCreate && Plant.SpeciesId <= 0)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Skipping plant save with invalid species id. LocalId=%s SpeciesId=%d SoilId=%d"),
 				*Plant.LocalId.ToString(),
@@ -129,6 +132,61 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 		}
 
 		TWeakObjectPtr<UGardenExit> WeakThis(this);
+
+		if (Plant.bPendingUpdate && Plant.BackendPlantInstanceId > 0)
+		{
+			UE_LOG(
+				LogTemp,
+				Log,
+				TEXT("Updating plant instance: LocalId=%s BackendPlantInstanceId=%d"),
+				*Plant.LocalId.ToString(),
+				Plant.BackendPlantInstanceId
+			);
+
+			BackendApi->UpdatePlantInstance(
+				Plant.BackendPlantInstanceId,
+				Plant.Location,
+				Plant.Rotation,
+				Plant.Scale,
+				Plant.HeightCm,
+				Plant.AgeDays,
+				Plant.HealthStatus,
+				Plant.LastWateredIso8601,
+				Plant.Notes,
+				FBackendPlantInstanceResponse::CreateLambda(
+					[WeakThis, GardenSession, Plants, GardenId, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
+					{
+						if (!bSuccess)
+						{
+							UE_LOG(LogTemp, Error, TEXT("UpdatePlantInstance failed: %s"), *Message);
+							return;
+						}
+
+						UE_LOG(
+							LogTemp,
+							Log,
+							TEXT("Plant instance updated. LocalId=%s BackendPlantInstanceId=%d"),
+							*Plant.LocalId.ToString(),
+							PlantInstance.Id
+						);
+
+						GardenSession->MarkPlantSaved(Plant.LocalId, PlantInstance.Id);
+
+						if (WeakThis.IsValid())
+						{
+							WeakThis->SavePendingPlants(GardenId, Plants, i + 1);
+						}
+					}
+				)
+			);
+
+			return;
+		}
+
+		if (!Plant.bPendingCreate)
+		{
+			continue;
+		}
 
 		BackendApi->EnsureGenericSoil(
 			FBackendSoilIdResponse::CreateLambda(
@@ -155,6 +213,9 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 						GardenId,
 						Plant.SpeciesId,
 						SoilId,
+						Plant.Location,
+						Plant.Rotation,
+						Plant.Scale,
 						HeightPtr,
 						AgePtr,
 						HealthPtr,

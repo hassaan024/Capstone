@@ -73,4 +73,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetSelectedPlantData(UPlantObject* InPlantData);
+
+	TSubclassOf<APlant> GetDefaultPlantClass() const { return DefaultPlantClass; }
 };

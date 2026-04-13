@@ -8,6 +8,7 @@
 
 class UPlantSelect;
 class UGardenExit;
+struct FEditablePlantPlacement;
 
 UCLASS()
 class LEAFYLEDGER_API AGardenDirector : public AActor
@@ -32,6 +33,9 @@ public:
 
 	UFUNCTION()
 	void AddButtons();
+
+	UFUNCTION()
+	void SpawnLoadedPlants();
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrabPlants();

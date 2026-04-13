@@ -61,8 +61,6 @@ void AMenuController::SetRootWidget(TSubclassOf<UUserWidget> WidgetClass)
 
 void AMenuController::ShowLogin()
 {
-    OpenWebsite = true;
-
     SetRootWidget(LoginWidgetClass);
 }
 
@@ -74,6 +72,7 @@ void AMenuController::ShowMainMenu()
             nullptr,
             nullptr
         );
+        OpenWebsite = false;
     }
 
     SetRootWidget(MainMenuWidgetClass);

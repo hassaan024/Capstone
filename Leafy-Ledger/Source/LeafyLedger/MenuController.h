@@ -53,16 +53,5 @@ public:
 private:
     void SetRootWidget(TSubclassOf<UUserWidget> WidgetClass);
 
-    bool OpenWebsite = false;
+    bool OpenWebsite = true;
 };
-
-/** 
-
-create garden
-
-1. select a garden that has plants saved to it (but not planted) OR
-2. start from scratch and have all plants available
-
-1. read from backend and add the plants saved in that JSON or whatever to the plant select dropdown
-2. read from the backend but add every plant there to the plant select dropdown
-*/ 

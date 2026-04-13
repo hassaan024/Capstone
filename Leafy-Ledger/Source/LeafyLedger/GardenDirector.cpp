@@ -7,6 +7,9 @@
 #include "PlantSelect.h"
 #include "PlantObject.h"
 #include "GardenExit.h"
+#include "UserDrone.h"
+#include "Plant.h"
+#include "GameFramework/PlayerController.h"
 
 // Sets default values
 AGardenDirector::AGardenDirector()
@@ -33,6 +36,10 @@ void AGardenDirector::BeginPlay()
 	}
 
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
+	if (Draft.BackendGardenId > 0 && Draft.Plants.Num() > 0)
+	{
+		SpawnLoadedPlants();
+	}
 }
 
 // Called every frame
@@ -46,6 +53,71 @@ void AGardenDirector::AddButtons()
 	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	UGardenExit* GardenExit = CreateWidget<UGardenExit>(PlayerController, GardenExitClass);
 	GardenExit->AddToViewport();
+}
+
+void AGardenDirector::SpawnLoadedPlants()
+{
+	if (!GetGameInstance() || !GetWorld())
+	{
+		return;
+	}
+
+	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+	if (!GardenSession || !GardenSession->HasActiveDraft())
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	AUserDrone* UserDrone = PlayerController ? Cast<AUserDrone>(PlayerController->GetPawn()) : nullptr;
+	TSubclassOf<APlant> PlantClass = UserDrone ? UserDrone->GetDefaultPlantClass() : APlant::StaticClass();
+
+	const FEditableGardenState& Draft = GardenSession->GetDraft();
+	for (const FEditablePlantPlacement& PlantPlacement : Draft.Plants)
+	{
+		if (PlantPlacement.BackendPlantInstanceId <= 0)
+		{
+			continue;
+		}
+
+		FActorSpawnParameters SpawnParams;
+		APlant* PlantActor = GetWorld()->SpawnActor<APlant>(
+			PlantClass,
+			PlantPlacement.Location,
+			PlantPlacement.Rotation,
+			SpawnParams
+		);
+
+		if (!PlantActor)
+		{
+			continue;
+		}
+
+		UPlantObject* PlantData = NewObject<UPlantObject>(this);
+		if (PlantData)
+		{
+			PlantData->CommonName = PlantPlacement.SpeciesCommonName;
+			PlantData->ScientificName = PlantPlacement.SpeciesScientificName;
+			PlantData->PerenualId = PlantPlacement.PerenualId;
+			PlantData->SpeciesId = PlantPlacement.SpeciesId;
+			PlantData->ModelCategory = PlantPlacement.SpeciesModelCategory;
+			PlantData->DaysToBloom = 4;
+			PlantData->DaysToWither = 6;
+			PlantActor->InitializeFromPlantData(PlantData);
+		}
+
+		PlantActor->SetActorRotation(PlantPlacement.Rotation);
+		PlantActor->SetActorScale3D(PlantPlacement.Scale);
+		PlantActor->SetActorLocation(PlantPlacement.Location);
+		PlantActor->LocalPlantId = PlantPlacement.LocalId;
+		PlantActor->bIsTrackedInGardenDraft = true;
+		PlantActor->HeightCm = PlantPlacement.HeightCm;
+		PlantActor->AgeDays = PlantPlacement.AgeDays;
+		PlantActor->HealthStatus = PlantPlacement.HealthStatus;
+		PlantActor->LastWateredIso8601 = PlantPlacement.LastWateredIso8601;
+		PlantActor->Notes = PlantPlacement.Notes;
+		PlantActor->SetPlacedMaterial();
+	}
 }
 
 void AGardenDirector::MakePlantList()
