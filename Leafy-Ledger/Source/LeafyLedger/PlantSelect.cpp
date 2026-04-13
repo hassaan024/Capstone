@@ -3,11 +3,12 @@
 #include "PlantSelect.h"
 #include "PlantObject.h"
 
-void UPlantSelect::AddPlantToShelf(int32 Id, FString Name, int32 DaysToBloom, int32 DaysToWither, FString ModelCategory)
+void UPlantSelect::AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Name, int32 DaysToBloom, int32 DaysToWither, FString ModelCategory)
 {
 	UPlantObject* PlantObject = NewObject<UPlantObject>(this);
 
-	PlantObject->PerenualId = Id;
+	PlantObject->PerenualId = PerenualId;
+	PlantObject->SpeciesId = SpeciesId;
 	PlantObject->CommonName = Name;
 	PlantObject->DaysToBloom = DaysToBloom;
 	PlantObject->DaysToWither = DaysToWither;

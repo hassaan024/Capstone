@@ -6,13 +6,13 @@
 #include "GardenSessionSubsystem.h"
 #include "PlantSelect.h"
 #include "PlantObject.h"
+#include "GardenExit.h"
 
 // Sets default values
 AGardenDirector::AGardenDirector()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+ 	// Set this actor to call Tick() every frame. You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 }
 
 // Called when the game starts or when spawned
@@ -20,11 +20,11 @@ void AGardenDirector::BeginPlay()
 {
 	Super::BeginPlay();
 	MakePlantList();
+	AddButtons();
 
 	if (!GetGameInstance()) return;
 
-	UGardenSessionSubsystem* GardenSession =
-		GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
 
 	if (!GardenSession || !GardenSession->HasActiveDraft())
 	{
@@ -39,6 +39,13 @@ void AGardenDirector::BeginPlay()
 void AGardenDirector::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+}
+
+void AGardenDirector::AddButtons()
+{
+	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	UGardenExit* GardenExit = CreateWidget<UGardenExit>(PlayerController, GardenExitClass);
+	GardenExit->AddToViewport();
 }
 
 void AGardenDirector::MakePlantList()
@@ -59,6 +66,7 @@ void AGardenDirector::MakePlantList()
 		{
 			PlantSelect->AddPlantToShelf(
 				Plant.PerenualId,
+				Plant.Id,
 				Plant.CommonName,
 				4, //Plant.DaysToBloom,
 				6, //Plant.DaysToWither,
@@ -86,6 +94,7 @@ void AGardenDirector::MakePlantList()
 				{
 					PlantSelect->AddPlantToShelf(
 						Plant.PerenualId,
+						Plant.Id,
 						Plant.CommonName,
 						4, //Plant.DaysToBloom,
 						6, //Plant.DaysToWither,

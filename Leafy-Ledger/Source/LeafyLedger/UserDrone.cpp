@@ -321,20 +321,29 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 		return;
 	}
 
-	if (PlantActor->PerenualId <= 0)
+	const int32 SoilId = 1;
+	PlantActor->HeightCm = 0.f;
+	PlantActor->AgeDays = 0;
+	PlantActor->HealthStatus = TEXT("Healthy");
+	PlantActor->LastWateredIso8601 = FDateTime::UtcNow().ToIso8601();
+
+	if (PlantActor->SpeciesId <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: PlantActor->PerenualId is invalid (%d)"), PlantActor->PerenualId);
+		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: PlantActor->SpeciesId is invalid (%d)"), PlantActor->SpeciesId);
 		return;
 	}
 
-	const int32 SoilId = 1;
-
 	const FGuid LocalId = GardenSession->AddPlantPlacement(
-		PlantActor->PerenualId,
+		PlantActor->SpeciesId,
 		SoilId,
 		PlantActor->GetActorLocation(),
 		PlantActor->GetActorRotation(),
-		PlantActor->GetActorScale3D()
+		PlantActor->GetActorScale3D(),
+		PlantActor->HeightCm,
+		PlantActor->AgeDays,
+		PlantActor->HealthStatus,
+		PlantActor->LastWateredIso8601,
+		PlantActor->Notes
 	);
 
 	const FEditableGardenState& Draft = GardenSession->GetDraft();

@@ -15,6 +15,7 @@ import { WeatherModule } from './weather/weather.module';
 import { PredictionModule } from './prediction/prediction.module';
 import { PlantHistoryModule } from './plant-history/plant-history.module';
 import { PerenualModule } from './perenual/perenual.module';
+import { PlantInstanceModule } from './plant-instance/plant-instance.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PerenualModule } from './perenual/perenual.module';
     PredictionModule,
     PlantHistoryModule,
     PerenualModule,
+    PlantInstanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

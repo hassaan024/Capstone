@@ -55,18 +55,6 @@ struct FEditablePlantPlacement
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bPendingDelete = false;
-
-	UPROPERTY(BlueprintReadWrite)
-	bool bHasHeightCm = false;
-
-	UPROPERTY(BlueprintReadWrite)
-	bool bHasAgeDays = false;
-
-	UPROPERTY(BlueprintReadWrite)
-	bool bHasHealthStatus = false;
-
-	UPROPERTY(BlueprintReadWrite)
-	bool bHasLastWatered = false;
 };
 
 USTRUCT(BlueprintType)
@@ -127,12 +115,28 @@ public:
 	void MarkDirty();
 
 	UFUNCTION(BlueprintCallable)
+	bool IsDirty() const;
+
+	UFUNCTION(BlueprintCallable)
+	FEditableGardenState GetDraftCopy() const;
+
+	UFUNCTION(BlueprintCallable)
+	void MarkGardenSaved(int32 InBackendGardenId);
+
+	UFUNCTION(BlueprintCallable)
+	void MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId);
+
 	FGuid AddPlantPlacement(
 		int32 SpeciesId,
 		int32 SoilId,
 		const FVector& Location,
 		const FRotator& Rotation,
-		const FVector& Scale
+		const FVector& Scale,
+		float HeightCm,
+		int32 AgeDays,
+		const FString& HealthStatus,
+		const FString& LastWateredIso8601,
+		const FString& Notes = TEXT("")
 	);
 
 	UFUNCTION(BlueprintCallable)
@@ -154,4 +158,5 @@ private:
 	FEditableGardenState Draft;
 
 	int32 FindPlantIndexByLocalId(const FGuid& LocalId) const;
+	void RefreshDirtyState();
 };

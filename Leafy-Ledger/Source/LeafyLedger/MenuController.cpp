@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "MenuController.h"
 #include "OAuthGISubsystem.h"
 #include "SavedPlantCacheSubsystem.h"
@@ -62,6 +61,8 @@ void AMenuController::SetRootWidget(TSubclassOf<UUserWidget> WidgetClass)
 
 void AMenuController::ShowLogin()
 {
+    OpenWebsite = true;
+
     SetRootWidget(LoginWidgetClass);
 }
 
@@ -80,15 +81,11 @@ void AMenuController::ShowMainMenu()
 
 void AMenuController::ShowDisplayName() 
 {
-    OpenWebsite = false;
-
     SetRootWidget(DisplayNameWidgetClass);
 }
 
 void AMenuController::ShowSavedPlants()
 {
-    OpenWebsite = false;
-
     SetRootWidget(SavedPlantsWidgetClass);
 }
 

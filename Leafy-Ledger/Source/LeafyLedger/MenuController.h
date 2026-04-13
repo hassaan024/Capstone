@@ -53,7 +53,7 @@ public:
 private:
     void SetRootWidget(TSubclassOf<UUserWidget> WidgetClass);
 
-    bool OpenWebsite = true;
+    bool OpenWebsite = false;
 };
 
 /** 

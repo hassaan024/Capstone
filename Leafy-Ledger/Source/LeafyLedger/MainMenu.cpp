@@ -2,7 +2,6 @@
 
 #include "MainMenu.h"
 #include "BackendApiSubsystem.h"
-//#include "Kismet/GameplayStatics.h"
 #include "Components/Image.h"
 #include "Components/SlateWrapperTypes.h"
 #include "GameFramework/PlayerController.h"

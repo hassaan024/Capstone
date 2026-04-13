@@ -103,8 +103,11 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 		PlantObject->CommonName = Plant.CommonName;
 		PlantObject->ScientificName = Plant.ScientificName;
 		PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
+		PlantObject->SpeciesId = Plant.Id;
 		PlantObject->PerenualId = Plant.PerenualId;
 		PlantObject->ModelCategory = Plant.ModelCategory;
+
+		//UE_LOG(LogTemp, Log, TEXT("PopulatePlants: %s Plant.Id=%d Plant.PerenualId=%d"), *Plant.CommonName, Plant.Id, Plant.PerenualId);
 
 		TV_PlantCards->AddItem(PlantObject);
 	}

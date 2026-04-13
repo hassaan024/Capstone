@@ -515,6 +515,127 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 	}
 }
 
+void UBackendApiSubsystem::EnsureGenericSoil(const FBackendSoilIdResponse& Callback)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> GetReq = CreateRequest(TEXT("/soil"), TEXT("GET"));
+
+	GetReq->OnProcessRequestComplete().BindLambda(
+		[this, Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response while fetching soil"), 0);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch soil")),
+					0
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonValue> RootValue;
+			if (!FBackendJsonUtils::ParseValue(Response->GetContentAsString(), RootValue) || !RootValue.IsValid() || RootValue->Type != EJson::Array)
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid soil JSON"), 0);
+				return;
+			}
+
+			const TArray<TSharedPtr<FJsonValue>>& Items = RootValue->AsArray();
+			for (const TSharedPtr<FJsonValue>& ItemVal : Items)
+			{
+				if (!ItemVal.IsValid() || ItemVal->Type != EJson::Object)
+				{
+					continue;
+				}
+
+				const TSharedPtr<FJsonObject> Obj = ItemVal->AsObject();
+				if (!Obj.IsValid())
+				{
+					continue;
+				}
+
+				double SoilIdNumber = 0.0;
+				if (Obj->TryGetNumberField(TEXT("id"), SoilIdNumber))
+				{
+					const int32 SoilId = static_cast<int32>(SoilIdNumber);
+					if (SoilId > 0)
+					{
+						Callback.ExecuteIfBound(true, TEXT("Using existing soil"), SoilId);
+						return;
+					}
+				}
+			}
+
+			TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+			BodyObj->SetNumberField(TEXT("nitrogen"), 1.0);
+			BodyObj->SetNumberField(TEXT("phosphorus"), 1.0);
+			BodyObj->SetNumberField(TEXT("potassium"), 1.0);
+			BodyObj->SetNumberField(TEXT("pH"), 6.5);
+			BodyObj->SetNumberField(TEXT("organicPercentage"), 5.0);
+			BodyObj->SetStringField(TEXT("type"), TEXT("LOAM"));
+
+			const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe> PostReq = CreateRequest(TEXT("/soil"), TEXT("POST"), BodyStr);
+
+			PostReq->OnProcessRequestComplete().BindLambda(
+				[Callback](FHttpRequestPtr PostRequest, FHttpResponsePtr PostResponse, bool bPostSuccess)
+				{
+					if (!bPostSuccess || !PostResponse.IsValid())
+					{
+						Callback.ExecuteIfBound(false, TEXT("No response while creating soil"), 0);
+						return;
+					}
+
+					if (!UBackendApiSubsystem::IsHttpSuccess(PostResponse))
+					{
+						Callback.ExecuteIfBound(
+							false,
+							UBackendApiSubsystem::BuildErrorMessage(PostResponse, TEXT("Failed to create generic soil")),
+							0
+						);
+						return;
+					}
+
+					TSharedPtr<FJsonObject> Obj;
+					if (!FBackendJsonUtils::ParseObject(PostResponse->GetContentAsString(), Obj) || !Obj.IsValid())
+					{
+						Callback.ExecuteIfBound(false, TEXT("Invalid generic soil JSON"), 0);
+						return;
+					}
+
+					double SoilIdNumber = 0.0;
+					if (Obj->TryGetNumberField(TEXT("id"), SoilIdNumber))
+					{
+						const int32 SoilId = static_cast<int32>(SoilIdNumber);
+						if (SoilId > 0)
+						{
+							Callback.ExecuteIfBound(true, TEXT("Created generic soil"), SoilId);
+							return;
+						}
+					}
+
+					Callback.ExecuteIfBound(false, TEXT("Generic soil response missing id"), 0);
+				}
+			);
+
+			if (!PostReq->ProcessRequest())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Failed to start soil creation request"), 0);
+			}
+		}
+	);
+
+	if (!GetReq->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start soil fetch request"), 0);
+	}
+}
+
 void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (GardenId <= 0)

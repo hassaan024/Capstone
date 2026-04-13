@@ -28,10 +28,7 @@ const FEditableGardenState& UGardenSessionSubsystem::GetDraft() const
 
 void UGardenSessionSubsystem::SetGardenLocation(float Latitude, float Longitude, const FString& Timezone)
 {
-	if (!Draft.bIsInitialized)
-	{
-		return;
-	}
+	if (!Draft.bIsInitialized) return;
 
 	Draft.Latitude = Latitude;
 	Draft.Longitude = Longitude;
@@ -41,10 +38,7 @@ void UGardenSessionSubsystem::SetGardenLocation(float Latitude, float Longitude,
 
 void UGardenSessionSubsystem::MarkDirty()
 {
-	if (!Draft.bIsInitialized)
-	{
-		return;
-	}
+	if (!Draft.bIsInitialized) return;
 
 	Draft.bHasUnsavedChanges = true;
 }
@@ -54,7 +48,12 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	int32 SoilId,
 	const FVector& Location,
 	const FRotator& Rotation,
-	const FVector& Scale
+	const FVector& Scale,
+	float HeightCm,
+	int32 AgeDays,
+	const FString& HealthStatus,
+	const FString& LastWateredIso8601,
+	const FString& Notes
 )
 {
 	if (!Draft.bIsInitialized)
@@ -69,6 +68,11 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	Plant.Location = Location;
 	Plant.Rotation = Rotation;
 	Plant.Scale = Scale;
+	Plant.HeightCm = HeightCm;
+	Plant.AgeDays = AgeDays;
+	Plant.HealthStatus = HealthStatus;
+	Plant.LastWateredIso8601 = LastWateredIso8601;
+	Plant.Notes = Notes;
 	Plant.bPendingCreate = true;
 
 	Draft.Plants.Add(Plant);
@@ -85,10 +89,7 @@ bool UGardenSessionSubsystem::UpdatePlantTransform(
 )
 {
 	const int32 Index = FindPlantIndexByLocalId(LocalId);
-	if (Index == INDEX_NONE)
-	{
-		return false;
-	}
+	if (Index == INDEX_NONE) return false;
 
 	FEditablePlantPlacement& Plant = Draft.Plants[Index];
 	Plant.Location = Location;
@@ -107,10 +108,7 @@ bool UGardenSessionSubsystem::UpdatePlantTransform(
 bool UGardenSessionSubsystem::RemovePlantPlacement(const FGuid& LocalId)
 {
 	const int32 Index = FindPlantIndexByLocalId(LocalId);
-	if (Index == INDEX_NONE)
-	{
-		return false;
-	}
+	if (Index == INDEX_NONE) return false;
 
 	FEditablePlantPlacement& Plant = Draft.Plants[Index];
 
@@ -131,10 +129,7 @@ bool UGardenSessionSubsystem::RemovePlantPlacement(const FGuid& LocalId)
 bool UGardenSessionSubsystem::SetPlantNotes(const FGuid& LocalId, const FString& Notes)
 {
 	const int32 Index = FindPlantIndexByLocalId(LocalId);
-	if (Index == INDEX_NONE)
-	{
-		return false;
-	}
+	if (Index == INDEX_NONE) return false;
 
 	FEditablePlantPlacement& Plant = Draft.Plants[Index];
 	Plant.Notes = Notes;
@@ -159,4 +154,58 @@ int32 UGardenSessionSubsystem::FindPlantIndexByLocalId(const FGuid& LocalId) con
 	}
 
 	return INDEX_NONE;
+}
+
+void UGardenSessionSubsystem::RefreshDirtyState()
+{
+	if (!Draft.bIsInitialized)
+	{
+		Draft.bHasUnsavedChanges = false;
+		return;
+	}
+
+	const bool bGardenSaved = Draft.BackendGardenId > 0;
+	bool bAnyPendingPlantChanges = false;
+
+	for (const FEditablePlantPlacement& Plant : Draft.Plants)
+	{
+		if (Plant.bPendingCreate || Plant.bPendingUpdate || Plant.bPendingDelete)
+		{
+			bAnyPendingPlantChanges = true;
+			break;
+		}
+	}
+
+	Draft.bHasUnsavedChanges = !bGardenSaved || bAnyPendingPlantChanges;
+}
+
+bool UGardenSessionSubsystem::IsDirty() const
+{
+	return Draft.bIsInitialized && Draft.bHasUnsavedChanges;
+}
+
+FEditableGardenState UGardenSessionSubsystem::GetDraftCopy() const
+{
+	return Draft;
+}
+
+void UGardenSessionSubsystem::MarkGardenSaved(int32 InBackendGardenId)
+{
+	if (!Draft.bIsInitialized) return;
+
+	Draft.BackendGardenId = InBackendGardenId;
+	RefreshDirtyState();
+}
+
+void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId)
+{
+	const int32 Index = FindPlantIndexByLocalId(LocalId);
+	if (Index == INDEX_NONE) return;
+
+	FEditablePlantPlacement& Plant = Draft.Plants[Index];
+	Plant.BackendPlantInstanceId = InBackendPlantInstanceId;
+	Plant.bPendingCreate = false;
+	Plant.bPendingUpdate = false;
+	Plant.bPendingDelete = false;
+	RefreshDirtyState();
 }

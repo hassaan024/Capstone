@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
+#include "GardenSessionSubsystem.h"
 #include "GardenExit.generated.h"
 
-/**
- * 
- */
+class UBackendApiSubsystem;
+
 UCLASS()
 class LEAFYLEDGER_API UGardenExit : public UUserWidget
 {
@@ -29,4 +29,7 @@ public:
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_Exit;
+
+private:
+    void SavePendingPlants(int32 GardenId, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
 };

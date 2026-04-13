@@ -9,6 +9,7 @@
 #include "BackendApiSubsystem.generated.h"
 
 DECLARE_DELEGATE_TwoParams(FBackendOperationResponse, bool /*bSuccess*/, const FString& /*Message*/)
+DECLARE_DELEGATE_ThreeParams(FBackendSoilIdResponse, bool /*bSuccess*/, const FString& /*Message*/, int32 /*SoilId*/)
 DECLARE_DELEGATE_ThreeParams(FBackendPlantsResponse, bool /*bSuccess*/, const FString& /*Message*/, const TArray<FBackendPlantDto>& /*Plants*/)
 DECLARE_DELEGATE_ThreeParams(FBackendCurrentUserResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserDto& /*User*/)
 DECLARE_DELEGATE_ThreeParams(FBackendUserLocationResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserLocationDto& /*Location*/)
@@ -32,6 +33,7 @@ public:
 	void GetUserLocation(const FBackendUserLocationResponse& Callback);
 	void GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback);
 	void CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
+	void EnsureGenericSoil(const FBackendSoilIdResponse& Callback);
 	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
 
 private:

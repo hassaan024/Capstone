@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "BackendApiTypes.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "CreateGardenPopup.generated.h"
@@ -21,6 +22,9 @@ public:
 
 	UFUNCTION()
 	void OnPressCreate();
+
+	UFUNCTION()
+	void HandleGardenLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_Create;
