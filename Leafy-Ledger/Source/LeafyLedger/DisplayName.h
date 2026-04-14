@@ -31,7 +31,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_SubmitName;
 
-	UPROPERTY(meta = (BindWidgetOptional))
+	UPROPERTY(meta = (BindWidget))
 	UEditableTextBox* ET_DisplayName;
 
 private:

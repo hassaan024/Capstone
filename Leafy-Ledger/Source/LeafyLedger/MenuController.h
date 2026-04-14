@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "OAuthGISubsystem.h"
 #include "MenuController.generated.h"
 
 UCLASS()
@@ -49,9 +50,8 @@ public:
     UPROPERTY(Transient)
     UUserWidget* CurrentWidget = nullptr;
 
+    UOAuthGISubsystem* Auth;
 
 private:
     void SetRootWidget(TSubclassOf<UUserWidget> WidgetClass);
-
-    bool OpenWebsite = true;
 };

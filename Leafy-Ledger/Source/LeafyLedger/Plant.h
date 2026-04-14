@@ -59,6 +59,33 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		FString PlantName;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	int32 PerenualId = -1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	int32 SpeciesId = -1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	float HeightCm = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	int32 AgeDays = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	FString HealthStatus;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	FString LastWateredIso8601;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+	FString Notes;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
+	FGuid LocalPlantId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
+	bool bIsTrackedInGardenDraft = false;
+
 	UFUNCTION()
 		void HandleDayChanged(int32 NewDayIndex);
 

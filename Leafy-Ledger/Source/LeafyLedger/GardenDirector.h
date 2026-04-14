@@ -6,6 +6,10 @@
 #include "GameFramework/Actor.h"
 #include "GardenDirector.generated.h"
 
+class UPlantSelect;
+class UGardenExit;
+struct FEditablePlantPlacement;
+
 UCLASS()
 class LEAFYLEDGER_API AGardenDirector : public AActor
 {
@@ -24,9 +28,21 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 public:
-	UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION()
 	void MakePlantList();
+
+	UFUNCTION()
+	void AddButtons();
+
+	UFUNCTION()
+	void SpawnLoadedPlants();
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void GrabPlants();
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UPlantSelect> PlantSelectClass;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UGardenExit> GardenExitClass;
 };

@@ -61,6 +61,8 @@ public:
 	UPROPERTY()
 	FAuthSession Session;
 
+	bool OpenWebsite = true;
+
 private:
 	UPROPERTY()
 	bool bLoggedIn = false;

@@ -26,6 +26,9 @@ public:
 	int32 PerenualId = -1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
+	int32 SpeciesId = -1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
 	int32 DaysToBloom = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
@@ -42,4 +45,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	FString SelectedMeshId;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float SliderValue = 0.0f;
 };

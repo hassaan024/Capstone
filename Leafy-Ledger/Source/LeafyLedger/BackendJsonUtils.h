@@ -20,4 +20,6 @@ struct FBackendJsonUtils
 	static bool ParseCurrentUser(const FString& JsonString, FBackendUserDto& OutUser);
 	static bool ParseUserLocation(const FString& JsonString, FBackendUserLocationDto& OutLocation);
 	static bool ParseWeather(const FString& JsonString, FBackendWeatherDto& OutWeather);
+	static bool ParseGardenSummaryArray(const FString& JsonString, TArray<FBackendGardenSummaryDto>& OutGardens);
+	static bool ParseGardenDetail(const FString& JsonString, FBackendGardenDetailDto& OutGarden);
 };
