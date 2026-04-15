@@ -227,7 +227,7 @@ App Guide — How LeafyLedger Works:
 
 2. DASHBOARD (/dashboard):
    - The main hub after logging in. Shows a welcome message, quick actions, and stats (gardens, plants, species counts).
-   - Quick Actions: "View my gardens" → /gardens, "View Saved Plants" → /saved-species, "Browse Species" → /browse.
+   - Quick Actions: "Gardens" → /gardens, "View Saved Plants" → /saved-species, "Browse Species" → /browse.
    - Weather Widget: Shows live weather based on the user's location (temperature, humidity, forecast, plant stress metrics).
    - Location Setup: Users can enter a zip/postal code or use browser geolocation — saved to their profile.
 
@@ -258,7 +258,7 @@ ${userContext}`;
     message: string,
     chatHistory: ChatMessage[],
   ): Promise<string> {
-    const model = this.genAI!.getGenerativeModel({
+    const model = this.genAI.getGenerativeModel({
       model: modelName,
       systemInstruction: systemPrompt,
     });

@@ -8,7 +8,8 @@ import GardenPlantCard, {
 } from '../components/GardenPlantCard';
 import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark } from 'react-icons/fa';
+import CreateGardenModal from '../components/CreateGardenModal';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus } from 'react-icons/fa';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
 
 interface GardenSummary {
@@ -65,6 +66,7 @@ const MyGardens: React.FC = () => {
   const [gardenSavedPlants, setGardenSavedPlants] = useState<SavedPlant[]>([]);
   const [savedLoading, setSavedLoading] = useState(false);
   const [selectedSavedPlantId, setSelectedSavedPlantId] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const analytics = useMemo(() => {
     if (!detail) return null;
@@ -254,6 +256,13 @@ const MyGardens: React.FC = () => {
             My Gardens
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              className="browse-back-btn"
+              onClick={() => setShowCreateModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: 'rgba(74, 222, 128, 0.5)', color: '#86efac' }}
+            >
+              <FaPlus /> Create Garden
+            </button>
             <button className="browse-back-btn" onClick={() => navigate('/dashboard')}>
               Back to Dashboard
             </button>
@@ -278,16 +287,24 @@ const MyGardens: React.FC = () => {
             <FaSeedling style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }} />
             <p style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>No gardens yet</p>
             <p style={{ lineHeight: 1.6 }}>
-              Gardens are created in <strong>Unreal Engine</strong>. When you build a garden and sync
-              it to your account, it will show up here with every plant you have placed.
+              Create a garden to start organizing and saving plants. You can also create gardens in <strong>Unreal Engine</strong> and sync them to your account.
             </p>
-            <button 
-              className="browse-back-btn" 
-              onClick={() => navigate('/demo-garden')}
-              style={{ marginTop: '1.5rem', borderColor: 'rgba(74, 222, 128, 0.5)', color: '#86efac', padding: '0.75rem 1.5rem' }}
-            >
-              View Demo Garden Visualization
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+              <button 
+                className="browse-back-btn" 
+                onClick={() => setShowCreateModal(true)}
+                style={{ borderColor: 'rgba(74, 222, 128, 0.5)', color: '#86efac', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <FaPlus /> Create Garden
+              </button>
+              <button 
+                className="browse-back-btn" 
+                onClick={() => navigate('/demo-garden')}
+                style={{ padding: '0.75rem 1.5rem' }}
+              >
+                View Demo Garden
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -593,6 +610,16 @@ const MyGardens: React.FC = () => {
         isSaved={true}
         onToggleSave={() => selectedSavedPlantId && handleUnsaveFromGarden(selectedSavedPlantId)}
       />
+
+      {/* Create Garden Modal */}
+      {user && (
+        <CreateGardenModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          userId={user.id}
+          onCreated={loadList}
+        />
+      )}
     </div>
   );
 };

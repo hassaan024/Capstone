@@ -303,7 +303,7 @@ export const Dashboard: React.FC = () => {
                 onClick={() => navigate("/gardens")}
               >
                 <span className="dashboard-action-icon"><FaSeedling /></span>
-                View my gardens
+                Gardens
               </button>
               <button 
                 className="ll-btn ll-btn-ghost dashboard-action-btn"
