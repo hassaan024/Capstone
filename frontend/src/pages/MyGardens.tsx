@@ -67,6 +67,8 @@ const MyGardens: React.FC = () => {
   const [savedLoading, setSavedLoading] = useState(false);
   const [selectedSavedPlantId, setSelectedSavedPlantId] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [globalSavedIds, setGlobalSavedIds] = useState<Set<number>>(new Set());
+  const [savedPlantGardenStates, setSavedPlantGardenStates] = useState<Record<number, boolean>>({});
 
   const analytics = useMemo(() => {
     if (!detail) return null;
@@ -216,6 +218,76 @@ const MyGardens: React.FC = () => {
     detail != null
       ? `https://www.google.com/maps?q=${detail.latitude},${detail.longitude}`
       : '#';
+
+  // Fetch global saved IDs for the modal's global checkbox
+  useEffect(() => {
+    if (user) {
+      api.get(`/species/saved?userId=${user.id}`)
+        .then((res: { data: { perenualId: number }[] }) => {
+          setGlobalSavedIds(new Set(res.data.map(s => s.perenualId)));
+        })
+        .catch(err => console.error('Failed to fetch global saved IDs', err));
+    }
+  }, [user]);
+
+  // Fetch per-garden save states when a saved plant is selected
+  useEffect(() => {
+    if (!user || !selectedSavedPlantId || gardens.length === 0) {
+      setSavedPlantGardenStates({});
+      return;
+    }
+    const fetchStates = async () => {
+      const states: Record<number, boolean> = {};
+      await Promise.all(
+        gardens.map(async (garden) => {
+          try {
+            const res = await api.get(`/species/saved?userId=${user.id}&gardenId=${garden.id}`);
+            const ids: number[] = res.data.map((s: { perenualId: number }) => s.perenualId);
+            states[garden.id] = ids.includes(selectedSavedPlantId);
+          } catch {
+            states[garden.id] = false;
+          }
+        })
+      );
+      setSavedPlantGardenStates(states);
+    };
+    fetchStates();
+  }, [user, selectedSavedPlantId, gardens]);
+
+  const handleSaveToDestinations = async (plantId: number, saveGlobal: boolean, gardenIds: number[]) => {
+    if (!user) return;
+    try {
+      const wasGlobal = globalSavedIds.has(plantId);
+      if (saveGlobal && !wasGlobal) {
+        await api.post(`/species/save/${plantId}?userId=${user.id}`, {});
+        setGlobalSavedIds(prev => { const next = new Set(prev); next.add(plantId); return next; });
+      } else if (!saveGlobal && wasGlobal) {
+        await api.del(`/species/save/${plantId}?userId=${user.id}`);
+        setGlobalSavedIds(prev => { const next = new Set(prev); next.delete(plantId); return next; });
+      }
+      for (const garden of gardens) {
+        const wasSaved = savedPlantGardenStates[garden.id] || false;
+        const shouldSave = gardenIds.includes(garden.id);
+        if (shouldSave && !wasSaved) {
+          await api.post(`/species/save/${plantId}?userId=${user.id}&gardenId=${garden.id}`, {});
+        } else if (!shouldSave && wasSaved) {
+          await api.del(`/species/save/${plantId}?userId=${user.id}&gardenId=${garden.id}`);
+        }
+      }
+      const newStates: Record<number, boolean> = {};
+      gardens.forEach(g => { newStates[g.id] = gardenIds.includes(g.id); });
+      setSavedPlantGardenStates(newStates);
+
+      // Refresh saved plants for current garden tab
+      if (selectedId != null) {
+        api.get(`/species/saved?userId=${user.id}&gardenId=${selectedId}`)
+          .then((res: { data: SavedPlant[] }) => setGardenSavedPlants(res.data))
+          .catch(() => {});
+      }
+    } catch (err) {
+      console.error('Failed to save to destinations', err);
+    }
+  };
 
   const handleUnsaveFromGarden = async (perenualId: number) => {
     if (!user || selectedId == null) return;
@@ -602,13 +674,18 @@ const MyGardens: React.FC = () => {
         )}
       </div>
 
-      {/* Details Modal for garden saved plants */}
+      {/* Details Modal for garden saved plants — with manage saves */}
       <PlantDetailsModal
         isOpen={!!selectedSavedPlantId}
         plantId={selectedSavedPlantId!}
         onClose={() => setSelectedSavedPlantId(null)}
-        isSaved={true}
+        isSaved={selectedSavedPlantId ? globalSavedIds.has(selectedSavedPlantId) : false}
         onToggleSave={() => selectedSavedPlantId && handleUnsaveFromGarden(selectedSavedPlantId)}
+        gardens={gardens}
+        gardenSaveStates={savedPlantGardenStates}
+        onSaveToDestinations={(saveGlobal, gardenIds) =>
+          selectedSavedPlantId && handleSaveToDestinations(selectedSavedPlantId, saveGlobal, gardenIds)
+        }
       />
 
       {/* Create Garden Modal */}
