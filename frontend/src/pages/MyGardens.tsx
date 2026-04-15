@@ -6,7 +6,9 @@ import { useAuth } from '../context/AuthContext';
 import GardenPlantCard, {
   type GardenPlantCardSpecies,
 } from '../components/GardenPlantCard';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint } from 'react-icons/fa';
+import PlantCard from '../components/PlantCard';
+import PlantDetailsModal from '../components/PlantDetailsModal';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark } from 'react-icons/fa';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
 
 interface GardenSummary {
@@ -37,6 +39,18 @@ interface GardenDetail extends GardenSummary {
   plants: GardenDetailPlant[];
 }
 
+interface SavedPlant {
+  id: number;
+  perenualId: number;
+  commonName: string;
+  scientificName: string;
+  imgSrcUrls: { regular: string | null };
+  family?: string;
+  modelCategory?: string;
+}
+
+type GardenSubTab = 'plants' | 'saved';
+
 const MyGardens: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -47,6 +61,10 @@ const MyGardens: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [subTab, setSubTab] = useState<GardenSubTab>('plants');
+  const [gardenSavedPlants, setGardenSavedPlants] = useState<SavedPlant[]>([]);
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [selectedSavedPlantId, setSelectedSavedPlantId] = useState<number | null>(null);
 
   const analytics = useMemo(() => {
     if (!detail) return null;
@@ -129,6 +147,7 @@ const MyGardens: React.FC = () => {
     }
     let cancelled = false;
     setDetailLoading(true);
+    setSubTab('plants'); // Reset sub-tab when switching gardens
     api
       .get(`/garden/${selectedId}?userId=${user.id}`)
       .then((res: { data: GardenDetail }) => {
@@ -145,6 +164,31 @@ const MyGardens: React.FC = () => {
       cancelled = true;
     };
   }, [user?.id, selectedId]);
+
+  // Fetch saved plants for the current garden when "saved" sub-tab is active
+  useEffect(() => {
+    if (!user?.id || selectedId == null || subTab !== 'saved') {
+      setGardenSavedPlants([]);
+      return;
+    }
+    let cancelled = false;
+    setSavedLoading(true);
+    api
+      .get(`/species/saved?userId=${user.id}&gardenId=${selectedId}`)
+      .then((res: { data: SavedPlant[] }) => {
+        if (!cancelled) setGardenSavedPlants(res.data);
+      })
+      .catch((e) => {
+        console.error('Failed to load garden saved plants', e);
+        if (!cancelled) setGardenSavedPlants([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSavedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, selectedId, subTab]);
 
   useEffect(() => {
     if (!localStorage.getItem('hasSeenGardensPopup')) {
@@ -170,6 +214,26 @@ const MyGardens: React.FC = () => {
     detail != null
       ? `https://www.google.com/maps?q=${detail.latitude},${detail.longitude}`
       : '#';
+
+  const handleUnsaveFromGarden = async (perenualId: number) => {
+    if (!user || selectedId == null) return;
+    try {
+      await api.del(`/species/save/${perenualId}?userId=${user.id}&gardenId=${selectedId}`);
+      setGardenSavedPlants(prev => prev.filter(p => p.perenualId !== perenualId));
+      setSelectedSavedPlantId(null);
+    } catch (err) {
+      console.error("Failed to unsave from garden", err);
+    }
+  };
+
+  const mapSavedToCardProps = (plant: SavedPlant) => ({
+    id: plant.perenualId,
+    common_name: plant.commonName,
+    scientific_name: plant.scientificName,
+    image_url: plant.imgSrcUrls?.regular || '',
+    family_common_name: plant.family,
+    modelCategory: plant.modelCategory
+  });
 
   return (
     <div className="browse-root">
@@ -414,41 +478,102 @@ const MyGardens: React.FC = () => {
                   </section>
                 )}
 
-                {detail.plants.length === 0 ? (
-                  <p style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    No plants in this garden yet. Add them from Unreal.
-                  </p>
-                ) : (
+                {/* Sub-tab bar: Plants | Saved Plants */}
+                <div className="sub-tab-bar">
+                  <button
+                    className={`sub-tab ${subTab === 'plants' ? 'active' : ''}`}
+                    onClick={() => setSubTab('plants')}
+                  >
+                    <FaSeedling /> Plants
+                    <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>({detail.plants.length})</span>
+                  </button>
+                  <button
+                    className={`sub-tab ${subTab === 'saved' ? 'active' : ''}`}
+                    onClick={() => setSubTab('saved')}
+                  >
+                    <FaBookmark /> Saved Plants
+                    {subTab === 'saved' && gardenSavedPlants.length > 0 && (
+                      <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>({gardenSavedPlants.length})</span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Plants sub-tab content */}
+                {subTab === 'plants' && (
                   <>
-                    <div className="browse-search-bar" style={{ maxWidth: '100%', marginBottom: '1rem' }}>
-                      <FaSearch className="browse-search-icon" />
-                      <input
-                        type="text"
-                        className="browse-search-input"
-                        placeholder="Search plants in your garden..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
+                    {detail.plants.length === 0 ? (
+                      <p style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        No plants in this garden yet. Add them from Unreal.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="browse-search-bar" style={{ maxWidth: '100%', marginBottom: '1rem' }}>
+                          <FaSearch className="browse-search-icon" />
+                          <input
+                            type="text"
+                            className="browse-search-input"
+                            placeholder="Search plants in your garden..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                          />
+                        </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h3 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.2rem', margin: 0 }}>
-                        Plants
-                      </h3>
-                      <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)' }}>
-                        Showing {filteredPlants.length} of {detail.plants.length}
-                      </span>
-                    </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <h3 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.2rem', margin: 0 }}>
+                            Plants
+                          </h3>
+                          <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)' }}>
+                            Showing {filteredPlants.length} of {detail.plants.length}
+                          </span>
+                        </div>
 
-                    {filteredPlants.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(255,255,255,0.4)' }}>
-                        <FaSearch style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
-                        <p>No plants match your search "{searchTerm}"</p>
+                        {filteredPlants.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(255,255,255,0.4)' }}>
+                            <FaSearch style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
+                            <p>No plants match your search "{searchTerm}"</p>
+                          </div>
+                        ) : (
+                          <div className="browse-grid">
+                            {filteredPlants.map((p) => (
+                              <GardenPlantCard key={p.id} plant={{ ...p, plantedDate: p.creationTimestamp } as any} />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* Saved Plants sub-tab content */}
+                {subTab === 'saved' && (
+                  <>
+                    {savedLoading ? (
+                      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)', padding: '2rem' }}>
+                        Loading saved plants for {detail.name}…
+                      </div>
+                    ) : gardenSavedPlants.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '3rem' }}>
+                        <FaBookmark style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }} />
+                        <p>No plants saved to <strong>{detail.name}</strong> yet.</p>
+                        <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
+                          Browse species and save them to this garden so they're ready when you open Unreal.
+                        </p>
+                        <button 
+                          className="browse-chip active"
+                          style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                          onClick={() => navigate('/browse')}
+                        >
+                          <FaSearch /> Browse Species
+                        </button>
                       </div>
                     ) : (
                       <div className="browse-grid">
-                        {filteredPlants.map((p) => (
-                          <GardenPlantCard key={p.id} plant={{ ...p, plantedDate: p.creationTimestamp } as any} />
+                        {gardenSavedPlants.map((plant) => (
+                          <PlantCard
+                            key={plant.id}
+                            plant={mapSavedToCardProps(plant)}
+                            onClick={() => setSelectedSavedPlantId(plant.perenualId)}
+                          />
                         ))}
                       </div>
                     )}
@@ -459,6 +584,15 @@ const MyGardens: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Details Modal for garden saved plants */}
+      <PlantDetailsModal
+        isOpen={!!selectedSavedPlantId}
+        plantId={selectedSavedPlantId!}
+        onClose={() => setSelectedSavedPlantId(null)}
+        isSaved={true}
+        onToggleSave={() => selectedSavedPlantId && handleUnsaveFromGarden(selectedSavedPlantId)}
+      />
     </div>
   );
 };
