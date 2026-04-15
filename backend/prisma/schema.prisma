@@ -47,6 +47,7 @@ model Garden {
   lastUpdated       DateTime        @updatedAt
   owner             User            @relation(fields: [ownerId], references: [id])
   plants            PlantInstance[]
+  savedSpecies      Species[]       @relation("GardenSavedSpecies")
 }
 
 model PlantInstance {
@@ -217,6 +218,9 @@ model Species {
 
   savedBy         User[]   @relation("UserSavedSpecies")  
   // Users who saved this species
+
+  savedByGardens  Garden[] @relation("GardenSavedSpecies")
+  // Gardens that have this species saved
 
   @@index([commonName])
   // Index for fast search by common name

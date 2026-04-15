@@ -376,3 +376,276 @@
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* ──── Save Destination Modal ──── */
+.save-dest-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.save-dest-modal {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.97), rgba(15, 23, 42, 0.99));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.7);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.save-dest-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem 0;
+}
+
+.save-dest-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.save-dest-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-dest-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.save-dest-subtitle {
+  padding: 0.5rem 1.5rem 0;
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+}
+
+.save-dest-options {
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.save-dest-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.save-dest-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.save-dest-option.checked {
+  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.save-dest-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid rgba(148, 163, 184, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.save-dest-option.checked .save-dest-checkbox {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.save-dest-option-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.save-dest-option-icon.global {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.save-dest-option-icon.garden {
+  background: rgba(74, 222, 128, 0.15);
+  color: #86efac;
+}
+
+.save-dest-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.save-dest-option-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.save-dest-option-desc {
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.save-dest-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  margin-top: 0.25rem;
+}
+
+.save-dest-divider span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.5);
+  white-space: nowrap;
+}
+
+.save-dest-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.save-dest-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.save-dest-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0 1.5rem 1.25rem;
+  justify-content: flex-end;
+}
+
+.save-dest-cancel {
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.save-dest-cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.save-dest-confirm {
+  padding: 0.65rem 1.5rem;
+  border-radius: 10px;
+  border: none;
+  background: #10b981;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.save-dest-confirm:hover {
+  background: #059669;
+}
+
+.save-dest-confirm:disabled {
+  background: rgba(148, 163, 184, 0.15);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ──── Sub-tab bar (used in MyGardens) ──── */
+.sub-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  margin-bottom: 1.25rem;
+}
+
+.sub-tab {
+  padding: 0.75rem 1.25rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sub-tab:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sub-tab.active {
+  color: #86efac;
+  border-bottom-color: #4ade80;
+}
+
