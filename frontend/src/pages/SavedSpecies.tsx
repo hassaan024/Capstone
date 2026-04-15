@@ -33,6 +33,8 @@ const SavedSpecies: React.FC = () => {
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
   const [gardens, setGardens] = useState<GardenSummary[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('global');
+  const [globalSavedIds, setGlobalSavedIds] = useState<Set<number>>(new Set());
+  const [gardenSaveStates, setGardenSaveStates] = useState<Record<number, boolean>>({});
 
   // Suggest Chatbot interaction
   useEffect(() => {
@@ -61,6 +63,17 @@ const SavedSpecies: React.FC = () => {
     }
   }, [user, activeTab]);
 
+  // Fetch global saved IDs (always needed for the modal's global checkbox)
+  useEffect(() => {
+    if (user) {
+      api.get(`/species/saved?userId=${user.id}`)
+        .then((res: { data: { perenualId: number }[] }) => {
+          setGlobalSavedIds(new Set(res.data.map(s => s.perenualId)));
+        })
+        .catch(err => console.error("Failed to fetch global saved IDs", err));
+    }
+  }, [user]);
+
   const fetchSavedPlants = async () => {
     setLoading(true);
     try {
@@ -76,17 +89,69 @@ const SavedSpecies: React.FC = () => {
     }
   };
 
-  const handleUnsave = async (perenualId: number) => {
+  // When a plant is selected, fetch per-garden save states for the modal
+  useEffect(() => {
+    if (!user || !selectedPlantId || gardens.length === 0) {
+      setGardenSaveStates({});
+      return;
+    }
+
+    const fetchGardenStates = async () => {
+      const states: Record<number, boolean> = {};
+      await Promise.all(
+        gardens.map(async (garden) => {
+          try {
+            const res = await api.get(`/species/saved?userId=${user.id}&gardenId=${garden.id}`);
+            const ids: number[] = res.data.map((s: { perenualId: number }) => s.perenualId);
+            states[garden.id] = ids.includes(selectedPlantId);
+          } catch {
+            states[garden.id] = false;
+          }
+        })
+      );
+      setGardenSaveStates(states);
+    };
+
+    fetchGardenStates();
+  }, [user, selectedPlantId, gardens]);
+
+  const handleSaveToDestinations = async (plantId: number, saveGlobal: boolean, gardenIds: number[]) => {
     if (!user) return;
+
     try {
-      const url = activeTab === 'global'
-        ? `/species/save/${perenualId}?userId=${user.id}`
-        : `/species/save/${perenualId}?userId=${user.id}&gardenId=${activeTab}`;
-      await api.del(url);
-      setSavedPlants(prev => prev.filter(p => p.perenualId !== perenualId));
-      setSelectedPlantId(null); // Close modal if open
+      // Handle global save/unsave
+      const wasGlobal = globalSavedIds.has(plantId);
+      if (saveGlobal && !wasGlobal) {
+        await api.post(`/species/save/${plantId}?userId=${user.id}`, {});
+        setGlobalSavedIds(prev => { const next = new Set(prev); next.add(plantId); return next; });
+      } else if (!saveGlobal && wasGlobal) {
+        await api.del(`/species/save/${plantId}?userId=${user.id}`);
+        setGlobalSavedIds(prev => { const next = new Set(prev); next.delete(plantId); return next; });
+      }
+
+      // Handle per-garden save/unsave
+      for (const garden of gardens) {
+        const wasSaved = gardenSaveStates[garden.id] || false;
+        const shouldSave = gardenIds.includes(garden.id);
+
+        if (shouldSave && !wasSaved) {
+          await api.post(`/species/save/${plantId}?userId=${user.id}&gardenId=${garden.id}`, {});
+        } else if (!shouldSave && wasSaved) {
+          await api.del(`/species/save/${plantId}?userId=${user.id}&gardenId=${garden.id}`);
+        }
+      }
+
+      // Update garden save states locally
+      const newStates: Record<number, boolean> = {};
+      gardens.forEach(g => {
+        newStates[g.id] = gardenIds.includes(g.id);
+      });
+      setGardenSaveStates(newStates);
+
+      // Refresh the current tab's list to reflect changes
+      fetchSavedPlants();
     } catch (err) {
-        console.error("Failed to unsave plant", err);
+      console.error("Failed to save to destinations", err);
     }
   };
 
@@ -202,13 +267,37 @@ const SavedSpecies: React.FC = () => {
         )}
       </div>
 
-      {/* Details Modal */}
+      {/* Details Modal — with full garden-aware save management */}
       <PlantDetailsModal 
         isOpen={!!selectedPlantId} 
         plantId={selectedPlantId!} 
         onClose={() => setSelectedPlantId(null)}
-        isSaved={true} // Always true on this page
-        onToggleSave={() => selectedPlantId && handleUnsave(selectedPlantId)}
+        isSaved={selectedPlantId ? globalSavedIds.has(selectedPlantId) : false}
+        onToggleSave={() => {
+          if (!selectedPlantId || !user) return;
+          const isGlobal = globalSavedIds.has(selectedPlantId);
+          if (isGlobal) {
+            api.del(`/species/save/${selectedPlantId}?userId=${user.id}`)
+              .then(() => {
+                setGlobalSavedIds(prev => { const next = new Set(prev); next.delete(selectedPlantId); return next; });
+                fetchSavedPlants();
+                setSelectedPlantId(null);
+              })
+              .catch(err => console.error("Failed to unsave", err));
+          } else {
+            api.post(`/species/save/${selectedPlantId}?userId=${user.id}`, {})
+              .then(() => {
+                setGlobalSavedIds(prev => { const next = new Set(prev); next.add(selectedPlantId); return next; });
+                fetchSavedPlants();
+              })
+              .catch(err => console.error("Failed to save", err));
+          }
+        }}
+        gardens={gardens}
+        gardenSaveStates={gardenSaveStates}
+        onSaveToDestinations={(saveGlobal, gardenIds) =>
+          selectedPlantId && handleSaveToDestinations(selectedPlantId, saveGlobal, gardenIds)
+        }
       />
     </div>
   );
