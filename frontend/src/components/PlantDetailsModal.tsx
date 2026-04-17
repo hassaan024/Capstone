@@ -73,7 +73,8 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
           // Suggest a question to the chatbot, honoring user preferences
           if (user?.plantRecommendations !== false) {
             setTimeout(() => {
-              const event = new CustomEvent('suggestChat', { detail: `Tell me some fun facts about ${res.data.common_name}!` });
+              const sciName = Array.isArray(res.data.scientific_name) ? res.data.scientific_name[0] : res.data.scientific_name;
+              const event = new CustomEvent('suggestChat', { detail: `Tell me some fun facts about ${sciName} (${res.data.common_name})!` });
               window.dispatchEvent(event);
             }, 1000);
           }
