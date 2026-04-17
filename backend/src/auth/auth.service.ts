@@ -263,28 +263,22 @@ async handleGoogleOAuth(
       },
     });
 
-    // Map to DTO
-    const userDto: UpdateUserDto = {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      passwordHash: user.passwordHash ?? undefined,
-      googleId: user.googleId,
-      verifiedEmail: user.verifiedEmail,
-      googleDisplayName: user.googleDisplayName,
-      givenName: user.givenName,
-      familyName: user.familyName,
-      picture: user.picture,
+    // Map to result object excluding passwordHash but including DB stamps
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    
+    // Any is used here to bridge strictly generated types with dynamic auth objects
+    const result: any = {
+      ...userWithoutPassword,
       sid: sid,
     };
 
     if (origin === 'unreal') {
       this.logger.log('trying to send info to unreal');
-      await sendGoogleAuthInfoToUnrealTCP(userDto);
+      await sendGoogleAuthInfoToUnrealTCP(result);
     }
 
-    this.logger.log(`userDto: ${userDto}`)
+    this.logger.log(`Auth result constructed for ${user.email}`);
 
-    return userDto;
+    return result;
   }
 }

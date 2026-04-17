@@ -83,7 +83,7 @@ export const WeatherInfo: React.FC<WeatherInfoProps> = ({ latitude, longitude, o
   };
 
   useEffect(() => {
-    if (latitude === undefined || longitude === undefined) {
+    if (latitude == null || longitude == null) {
       setLoading(false);
       return;
     }
@@ -175,7 +175,7 @@ export const WeatherInfo: React.FC<WeatherInfoProps> = ({ latitude, longitude, o
     fetchWeather();
   }, [latitude, longitude]);
 
-  if (latitude === undefined || longitude === undefined) {
+  if (latitude == null || longitude == null) {
     return (
       <div className="weather-card-container empty-state">
         <div className="empty-state-content">
