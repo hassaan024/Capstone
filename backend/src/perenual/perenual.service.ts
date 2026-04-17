@@ -94,7 +94,7 @@ export class PerenualService {
 
     const speciesData = {
       commonName: data.common_name || 'Unknown',
-      scientificName: data.scientific_name?.[0] || null,
+      scientificName: data.scientific_name?.[0] || 'Unknown',
       otherNames: data.other_name || [],
       family: data.family || null,
       genus: data.genus || null,
@@ -102,7 +102,7 @@ export class PerenualService {
       origin: data.origin || [],
       type: data.type || null,
       cycle: data.cycle || null,
-      growthRate: this.mapGrowthRate(data.growth_rate),
+      growthRate: this.mapGrowthRate(data.growth_rate) ?? 2,
 
       wateringFreq: data.watering || null,
       wateringMinDays,
