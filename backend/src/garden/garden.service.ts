@@ -14,11 +14,13 @@ export class GardenService {
 
   async create(createGardenDto: CreateGardenDto) {
     try {
+      const { bloomDate, ...restDto } = createGardenDto;
       return await this.db.garden.create({
         data: {
-          description: createGardenDto.description ?? '',
-          timezone: createGardenDto.timezone ?? undefined,
-          ...createGardenDto,
+          description: restDto.description ?? '',
+          timezone: restDto.timezone ?? undefined,
+          ...restDto,
+          bloomDate: bloomDate ? new Date(bloomDate) : undefined,
         },
       });
     } catch (err: unknown) {

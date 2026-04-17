@@ -43,6 +43,7 @@ model Garden {
   latitude          Float
   longitude         Float
   timezone          String?
+  bloomDate         DateTime?
   creationTimestamp DateTime        @default(now())
   lastUpdated       DateTime        @updatedAt
   owner             User            @relation(fields: [ownerId], references: [id])
