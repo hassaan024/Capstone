@@ -44,6 +44,8 @@ interface PlantDetails {
   edible_fruit?: boolean;
   edible_leaf?: boolean;
   invasive?: boolean;
+  modelCategory?: string;
+  daysToBloom?: number;
 }
 
 import { FaSun, FaTint, FaThermometerHalf, FaFlask, FaInfoCircle, FaCheck, FaBookmark, FaRegBookmark, FaTimes } from 'react-icons/fa';
@@ -162,6 +164,12 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                       <div className="modal-stat-box">
                         <div className="modal-stat-label"><FaCheck /> Type</div>
                         <div className="modal-stat-value">{details.type}</div>
+                      </div>
+                    )}
+                    {details.daysToBloom && (
+                      <div className="modal-stat-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
+                        <div className="modal-stat-label" style={{ color: '#38bdf8' }}><FaInfoCircle /> Est. Days to Bloom</div>
+                        <div className="modal-stat-value" style={{ color: '#38bdf8' }}>{details.daysToBloom} Days</div>
                       </div>
                     )}
                     {details.cycle && (

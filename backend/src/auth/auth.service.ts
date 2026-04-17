@@ -174,7 +174,7 @@ export class AuthService {
     };
   }
 
-async handleGoogleOAuth(
+  async handleGoogleOAuth(
     origin: Origin,
     auth_code: string,
     sid: string | undefined = undefined,
@@ -187,8 +187,8 @@ async handleGoogleOAuth(
       ORIGIN: ${origin}
     `);
 
-      this.logger.log(`
-        redirect_uri: ${client_info.REDIRECT_URI}`)
+    this.logger.log(`
+        redirect_uri: ${client_info.REDIRECT_URI}`);
 
     // auth code for access token
     const token_response = await fetch(client_info.TOKEN_URI, {
@@ -265,7 +265,7 @@ async handleGoogleOAuth(
 
     // Map to result object excluding passwordHash but including DB stamps
     const { passwordHash: _, ...userWithoutPassword } = user;
-    
+
     // Any is used here to bridge strictly generated types with dynamic auth objects
     const result: any = {
       ...userWithoutPassword,
