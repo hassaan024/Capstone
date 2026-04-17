@@ -149,7 +149,9 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                     <div className="modal-stat-box">
                       <div className="modal-stat-label"><FaThermometerHalf /> Hardiness Zones</div>
                       <div className="modal-stat-value">
-                        {details.hardiness?.min ?? '?'} - {details.hardiness?.max ?? '?'}
+                        {details.hardiness?.min === details.hardiness?.max 
+                          ? (details.hardiness?.min ?? '?') 
+                          : `${details.hardiness?.min ?? '?'} - ${details.hardiness?.max ?? '?'}`}
                       </div>
                     </div>
                     <div className="modal-stat-box">
