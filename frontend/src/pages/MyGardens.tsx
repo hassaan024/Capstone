@@ -19,6 +19,7 @@ interface GardenSummary {
   latitude: number;
   longitude: number;
   timezone: string | null;
+  bloomDate: string | null;
   creationTimestamp: string;
   lastUpdated: string;
   _count: { plants: number };
@@ -423,6 +424,23 @@ const MyGardens: React.FC = () => {
                           {detail.description}
                         </p>
                       ) : null}
+                      {detail.bloomDate && (
+                        <div style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '0.5rem', 
+                          color: '#fcd34d',
+                          background: 'rgba(251, 191, 36, 0.1)',
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(251, 191, 36, 0.2)',
+                          fontWeight: 500,
+                          width: 'fit-content',
+                          marginBottom: '1rem'
+                        }}>
+                          <FaSeedling /> Target Bloom: {new Date(detail.bloomDate).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      )}
                     </div>
                     {detail.plants.length > 0 && (
                       <button 
@@ -471,7 +489,7 @@ const MyGardens: React.FC = () => {
                         <FaTint /> All plants recently watered
                       </div>
                     )}
-                    <div style={{ opacity: 0.85 }}>Created {formatDt(detail.creationTimestamp)}</div>
+                    <div style={{ opacity: 0.85, marginTop: '0.25rem' }}>Created {formatDt(detail.creationTimestamp)}</div>
                     <div style={{ fontWeight: 600, marginTop: '0.25rem' }}>
                       {detail.plants.length} plant{detail.plants.length === 1 ? '' : 's'} in this garden
                     </div>

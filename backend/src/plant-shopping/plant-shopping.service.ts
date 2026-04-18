@@ -32,20 +32,6 @@ export class PlantShoppingService {
         tagline: 'Fast shipping & reviews',
       },
       {
-        retailer: 'Etsy',
-        url: `https://www.etsy.com/search?q=${encoded}`,
-        icon: '🎨',
-        color: '#F1641E',
-        tagline: 'Unique & handpicked sellers',
-      },
-      {
-        retailer: 'Home Depot',
-        url: `https://www.homedepot.com/s/${encoded}`,
-        icon: '🏠',
-        color: '#F96302',
-        tagline: 'Garden center & supplies',
-      },
-      {
         retailer: 'Walmart',
         url: `https://www.walmart.com/search?q=${encoded}`,
         icon: '🛒',

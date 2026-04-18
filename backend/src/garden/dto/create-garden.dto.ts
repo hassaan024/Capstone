@@ -20,4 +20,8 @@ export class CreateGardenDto {
   @IsOptional()
   @IsString()
   timezone: string;
+
+  @IsOptional()
+  @IsString()
+  bloomDate?: string;
 }

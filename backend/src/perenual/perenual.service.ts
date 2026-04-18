@@ -25,6 +25,43 @@ export class PerenualService {
 
   constructor(private readonly db: DatabaseService) {}
 
+  private enrichWithModelCategory(data: any) {
+    if (!data) return data;
+    
+    const enrichPlant = (p: any) => {
+      let modelCategory = 'flower';
+      const typeStr = (p.type || p.cycle || '').toLowerCase();
+      
+      if (
+        typeStr.includes('vegetable') ||
+        p.edible_fruit ||
+        p.edible_leaf ||
+        p.cuisine || 
+        typeStr.includes('herb') ||
+        typeStr.includes('fruit') ||
+        p.common_name?.toLowerCase().includes('tomato')
+      ) {
+        modelCategory = 'vegetable';
+      } else if (typeStr.includes('tree') || typeStr.includes('shrub') || p.scientific_name?.[0]?.includes('Malus')) {
+        modelCategory = 'tree';
+      }
+
+      let daysToBloom = 0;
+      if (modelCategory === 'flower') daysToBloom = 20;
+      else if (modelCategory === 'vegetable') daysToBloom = 30;
+      else if (modelCategory === 'tree') daysToBloom = 50;
+
+      return { ...p, modelCategory, daysToBloom };
+    };
+
+    if (data.data && Array.isArray(data.data)) {
+      data.data = data.data.map(enrichPlant);
+    } else {
+      return enrichPlant(data);
+    }
+    return data;
+  }
+
   async searchPlants(queryDto: SearchPlantsQueryDto) {
     try {
       const url = `${BASE_PERENUAL_URL}species-list?key=${this.API_KEY}&q=${encodeURIComponent(
@@ -35,7 +72,8 @@ export class PerenualService {
       if (!response.ok)
         throw new Error(`Failed to search plants: ${response.statusText}`);
 
-      return response.json();
+      const data = await response.json();
+      return this.enrichWithModelCategory(data);
     } catch (err: any) {
       this.logger.error(err.message);
       throw err;
@@ -51,7 +89,8 @@ export class PerenualService {
       if (!response.ok)
         throw new Error(`Failed to get plant details: ${response.statusText}`);
 
-      return response.json();
+      const data = await response.json();
+      return this.enrichWithModelCategory(data);
     } catch (err: any) {
       this.logger.error(err.message);
       throw err;
@@ -94,7 +133,7 @@ export class PerenualService {
 
     const speciesData = {
       commonName: data.common_name || 'Unknown',
-      scientificName: data.scientific_name?.[0] || null,
+      scientificName: data.scientific_name?.[0] || 'Unknown',
       otherNames: data.other_name || [],
       family: data.family || null,
       genus: data.genus || null,
@@ -102,7 +141,7 @@ export class PerenualService {
       origin: data.origin || [],
       type: data.type || null,
       cycle: data.cycle || null,
-      growthRate: this.mapGrowthRate(data.growth_rate),
+      growthRate: this.mapGrowthRate(data.growth_rate) ?? 2,
 
       wateringFreq: data.watering || null,
       wateringMinDays,

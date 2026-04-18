@@ -169,11 +169,22 @@ const BrowseSpecies: React.FC = () => {
       const { data } = await api.get(`/perenual/search?query=${encodeURIComponent(q)}`);
       // Perenual returns { data: [...] } structure
       if (Array.isArray(data.data)) {
-        const mappedResults = data.data.map((p: any) => ({
+        // Filter out poor quality data or missing required fields
+        const validPlants = data.data.filter((p: any) => 
+          p.common_name && 
+          p.scientific_name && 
+          p.scientific_name.length > 0 && 
+          p.default_image && 
+          (p.default_image.regular_url || p.default_image.original_url)
+        );
+
+        const mappedResults = validPlants.map((p: any) => ({
           id: p.id,
           common_name: p.common_name,
           scientific_name: Array.isArray(p.scientific_name) ? p.scientific_name[0] : p.scientific_name,
-          image_url: p.default_image?.regular_url || p.default_image?.original_url
+          image_url: p.default_image?.regular_url || p.default_image?.original_url,
+          modelCategory: p.modelCategory,
+          daysToBloom: p.daysToBloom
         }));
         setResults(mappedResults);
       } else {

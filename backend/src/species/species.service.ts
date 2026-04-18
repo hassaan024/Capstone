@@ -50,7 +50,11 @@ export class SpeciesService {
   }
 
   // Compute 'modelCategory' dynamically for Unreal Engine and React clients
-  private computeModelCategory(species: { type?: string | null; edibleFruit?: boolean | null; edibleLeaf?: boolean | null }) {
+  private computeModelCategory(species: {
+    type?: string | null;
+    edibleFruit?: boolean | null;
+    edibleLeaf?: boolean | null;
+  }) {
     const typeStr = (species.type || '').toLowerCase();
     if (
       typeStr.includes('vegetable') ||
@@ -65,10 +69,19 @@ export class SpeciesService {
   }
 
   private mapSpeciesWithCategory(speciesList: any[]) {
-    return speciesList.map((species) => ({
-      ...species,
-      modelCategory: this.computeModelCategory(species),
-    }));
+    return speciesList.map((species) => {
+      const modelCategory = this.computeModelCategory(species);
+      let daysToBloom = 0;
+      if (modelCategory === 'flower') daysToBloom = 20;
+      else if (modelCategory === 'vegetable') daysToBloom = 30;
+      else if (modelCategory === 'tree') daysToBloom = 50;
+
+      return {
+        ...species,
+        modelCategory,
+        daysToBloom,
+      };
+    });
   }
 
   // Get all species saved by a user (globally)
@@ -98,7 +111,11 @@ export class SpeciesService {
   }
 
   /** Save a species to a specific garden */
-  async saveSpeciesToGarden(userId: number, perenualId: number, gardenId: number) {
+  async saveSpeciesToGarden(
+    userId: number,
+    perenualId: number,
+    gardenId: number,
+  ) {
     await this.verifyGardenOwnership(gardenId, userId);
     const species = await this.getOrCreateSpecies(perenualId);
 
@@ -111,7 +128,11 @@ export class SpeciesService {
   }
 
   /** Remove a species from a garden's saved list */
-  async unsaveSpeciesFromGarden(userId: number, perenualId: number, gardenId: number) {
+  async unsaveSpeciesFromGarden(
+    userId: number,
+    perenualId: number,
+    gardenId: number,
+  ) {
     await this.verifyGardenOwnership(gardenId, userId);
     const species = await this.db.species.findUnique({ where: { perenualId } });
     if (!species) throw new NotFoundException('Species not found in database');

@@ -18,6 +18,7 @@ const CreateGardenModal: React.FC<CreateGardenModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [bloomDate, setBloomDate] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -122,6 +123,7 @@ const CreateGardenModal: React.FC<CreateGardenModalProps> = ({
         latitude: lat,
         longitude: lng,
         timezone: timezone || null,
+        bloomDate: bloomDate || undefined,
       });
 
       setStep('success');
@@ -144,6 +146,7 @@ const CreateGardenModal: React.FC<CreateGardenModalProps> = ({
   const handleClose = () => {
     setName('');
     setDescription('');
+    setBloomDate('');
     setZipCode('');
     setError('');
     setStep('form');
@@ -237,6 +240,24 @@ const CreateGardenModal: React.FC<CreateGardenModalProps> = ({
                   onFocus={(e) => (e.target.style.borderColor = 'rgba(74,222,128,0.5)')}
                   onBlur={(e) => (e.target.style.borderColor = 'rgba(148,163,184,0.2)')}
                 />
+              </div>
+
+              {/* Bloom Date */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+                  Target Bloom Date (optional)
+                </label>
+                <input
+                  type="date"
+                  value={bloomDate}
+                  onChange={(e) => setBloomDate(e.target.value)}
+                  style={{...inputStyle, cursor: 'text'}}
+                  onFocus={(e) => (e.target.style.borderColor = 'rgba(74,222,128,0.5)')}
+                  onBlur={(e) => (e.target.style.borderColor = 'rgba(148,163,184,0.2)')}
+                />
+                <p style={{ fontSize: '0.75rem', color: 'rgba(148,163,184,0.5)', marginTop: '0.35rem' }}>
+                  When do you want this garden fully bloomed? We'll calculate planting times.
+                </p>
               </div>
 
               {/* Location */}

@@ -43,9 +43,10 @@ model Garden {
   latitude          Float
   longitude         Float
   timezone          String?
+  bloomDate         DateTime?
   creationTimestamp DateTime        @default(now())
   lastUpdated       DateTime        @updatedAt
-  owner             User            @relation(fields: [ownerId], references: [id])
+  owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   plants            PlantInstance[]
   savedSpecies      Species[]       @relation("GardenSavedSpecies")
 }
@@ -71,7 +72,7 @@ model PlantInstance {
   notes             String?  // any notes
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
-  garden            Garden   @relation(fields: [gardenId], references: [id])
+  garden            Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
   soil              Soil     @relation(fields: [soilId], references: [id])
   species           Species  @relation(fields: [speciesId], references: [id])
   histories         PlantHistory[]
@@ -246,7 +247,7 @@ model PlantHistory {
   predictedValue Float?    // model prediction
   notes          String?
 
-  plant          PlantInstance @relation(fields: [plantId], references: [id])
+  plant          PlantInstance @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
   @@index([plantId, date]) // good for querying ranges
 }
