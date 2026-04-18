@@ -87,6 +87,11 @@ void AMenuController::ShowSavedPlants()
     SetRootWidget(SavedPlantsWidgetClass);
 }
 
+void AMenuController::ShowBrowseSpecies()
+{
+    SetRootWidget(BrowseSpeciesWidgetClass);
+}
+
 void AMenuController::HandleLoginFailed(const FString& Error)
 {
     UE_LOG(LogTemp, Error, TEXT("Login failed: %s"), *Error);

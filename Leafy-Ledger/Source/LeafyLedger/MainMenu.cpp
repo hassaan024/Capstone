@@ -40,6 +40,11 @@ bool UMainMenu::Initialize()
 		BTN_LoadGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressLoadGarden);
 	}
 
+	if (BTN_BrowseSpecies)
+	{
+		BTN_BrowseSpecies->OnClicked.AddDynamic(this, &UMainMenu::OnPressBrowseSpecies);
+	}
+
 	if (TXT_CurrentTemp)
 	{
 		TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
@@ -63,6 +68,11 @@ void UMainMenu::OnPressUpdateDisplayName()
 void UMainMenu::OnPressSavedPlants()
 {
 	MenuController->ShowSavedPlants();
+}
+
+void UMainMenu::OnPressBrowseSpecies()
+{
+	MenuController->ShowBrowseSpecies();
 }
 
 void UMainMenu::OnPressCreateGarden()

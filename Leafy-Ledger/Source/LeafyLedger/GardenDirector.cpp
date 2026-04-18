@@ -2,6 +2,7 @@
 
 
 #include "GardenDirector.h"
+#include "BackendApiSubsystem.h"
 #include "SavedPlantCacheSubsystem.h"
 #include "GardenSessionSubsystem.h"
 #include "PlantSelect.h"
@@ -124,34 +125,95 @@ void AGardenDirector::MakePlantList()
 {
 	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	UPlantSelect* PlantSelect = CreateWidget<UPlantSelect>(PlayerController, PlantSelectClass);
+	if (!PlantSelect)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MakePlantList: failed to create PlantSelect"));
+		return;
+	}
+
 	PlantSelect->AddToViewport();
 
 	UGameInstance* GI = GetGameInstance();
-	USavedPlantCacheSubsystem* PlantCache = GI->GetSubsystem<USavedPlantCacheSubsystem>();
-
-	// Use cached plants
-	if (PlantCache->HasCachedPlants())
+	if (!GI)
 	{
-		const TArray<FBackendPlantDto>& CachedPlants = PlantCache->GetCachedPlants();
+		return;
+	}
 
-		for (const FBackendPlantDto& Plant : CachedPlants)
+	auto PopulateShelf = [PlantSelect](const TArray<FBackendPlantDto>& Plants)
+	{
+		if (!PlantSelect || !PlantSelect->PlantShelf)
+		{
+			return;
+		}
+
+		PlantSelect->PlantShelf->ClearListItems();
+		for (const FBackendPlantDto& Plant : Plants)
 		{
 			PlantSelect->AddPlantToShelf(
 				Plant.PerenualId,
 				Plant.Id,
 				Plant.CommonName,
-				4, //Plant.DaysToBloom,
-				6, //Plant.DaysToWither,
+				4,
+				6,
 				Plant.ModelCategory
 			);
 		}
+	};
+
+	UGardenSessionSubsystem* GardenSession = GI->GetSubsystem<UGardenSessionSubsystem>();
+	const int32 ActiveGardenId = (GardenSession && GardenSession->HasActiveDraft()) ? GardenSession->GetDraft().BackendGardenId : 0;
+
+	if (ActiveGardenId > 0)
+	{
+		UBackendApiSubsystem* BackendApi = GI->GetSubsystem<UBackendApiSubsystem>();
+		if (!BackendApi)
+		{
+			UE_LOG(LogTemp, Error, TEXT("MakePlantList: BackendApiSubsystem missing"));
+			return;
+		}
+
+		BackendApi->GetSavedSpeciesForGarden(
+			ActiveGardenId,
+			FBackendPlantsResponse::CreateWeakLambda(
+				PlantSelect,
+				[PlantSelect, PopulateShelf, ActiveGardenId](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+				{
+					if (!PlantSelect)
+					{
+						return;
+					}
+
+					if (!bSuccess)
+					{
+						UE_LOG(LogTemp, Error, TEXT("MakePlantList garden refresh failed for garden %d: %s"), ActiveGardenId, *Message);
+						return;
+					}
+
+					PopulateShelf(Plants);
+				}
+			)
+		);
+		return;
+	}
+
+	USavedPlantCacheSubsystem* PlantCache = GI->GetSubsystem<USavedPlantCacheSubsystem>();
+	if (!PlantCache)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MakePlantList: SavedPlantCacheSubsystem missing"));
+		return;
+	}
+
+	// Use cached plants
+	if (PlantCache->HasCachedPlants())
+	{
+		PopulateShelf(PlantCache->GetCachedPlants());
 	}
 
 	// Check for non-cached plants and refresh if any
 	PlantCache->RefreshSavedPlants(
 		FOnSavedPlantsRefreshed::CreateWeakLambda(
 			PlantSelect,
-			[PlantSelect](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+			[PlantSelect, PopulateShelf](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
 			{
 				if (!PlantSelect) return;
 
@@ -161,18 +223,7 @@ void AGardenDirector::MakePlantList()
 					return;
 				}
 
-				PlantSelect->PlantShelf->ClearListItems();
-				for (const FBackendPlantDto& Plant : Plants)
-				{
-					PlantSelect->AddPlantToShelf(
-						Plant.PerenualId,
-						Plant.Id,
-						Plant.CommonName,
-						4, //Plant.DaysToBloom,
-						6, //Plant.DaysToWither,
-						Plant.ModelCategory
-					);
-				}
+				PopulateShelf(Plants);
 			}
 		)
 	);

@@ -32,6 +32,9 @@ protected:
 	void OnPressSavedPlants();
 
 	UFUNCTION()
+	void OnPressBrowseSpecies();
+
+	UFUNCTION()
 	void OnPressCreateGarden();
 
 	UFUNCTION()
@@ -69,6 +72,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_LoadGarden;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_BrowseSpecies;
 
 	// weather stuff
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))

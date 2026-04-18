@@ -7,6 +7,7 @@
 #include "Http.h"
 #include "Components/Button.h"
 #include "Blueprint/IUserObjectListEntry.h"
+#include "ManageSave.h"
 #include "PlantCardPopup.generated.h"
 
 class UTextBlock;
@@ -18,20 +19,29 @@ class LEAFYLEDGER_API UPlantCardPopup : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRemoveClicked, int32, PerenualId);
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGlobalSaveRemoved, int32, PerenualId);
 
     UPROPERTY(BlueprintAssignable, Category = "Plants")
-    FOnRemoveClicked OnRemoveClicked;
+    FOnGlobalSaveRemoved OnGlobalSaveRemoved;
 
     virtual bool Initialize() override;
 
     virtual void PopulateInfo(UObject* ListItemObject);
 
     UFUNCTION()
-    void OnPressUnsavePlant();
+    void OnPressManageSave();
+
+    UFUNCTION()
+    void HandleManageSaveApplied(int32 PerenualId, bool bIsGloballySaved);
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_UnsavePlant;
+    UButton* BTN_ManageSave;
+
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UManageSave> ManageSaveClass;
+
+    UPROPERTY()
+    UManageSave* ManageSaveInstance = nullptr;
 
 protected:
     UPROPERTY(meta = (BindWidget))
@@ -43,4 +53,7 @@ protected:
 private:
     UPROPERTY()
     UPlantObject* PlantCard = nullptr;
+
+    //UPROPERTY()
+    //UManageSave* ManageSaveInstance = nullptr;
 };

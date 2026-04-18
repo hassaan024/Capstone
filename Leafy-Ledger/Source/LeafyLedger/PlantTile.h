@@ -8,7 +8,8 @@
 #include "Components/Button.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "PlantCardPopup.h"
-#include "SavedPlantTile.generated.h"
+#include "ManageSave.h"
+#include "PlantTile.generated.h"
 
 /**
  * 
@@ -18,7 +19,7 @@ class UTextBlock;
 class UPlantObject;
 
 UCLASS()
-class LEAFYLEDGER_API USavedPlantTile : public UUserWidget, public IUserObjectListEntry
+class LEAFYLEDGER_API UPlantTile : public UUserWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
 	
@@ -33,7 +34,7 @@ public:
     virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 
     UFUNCTION()
-    void OnPressUnsavePlant();
+    void OnPressManageSave();
 
     UFUNCTION()
     void OnPressOpenPlantCard();
@@ -41,8 +42,11 @@ public:
     UFUNCTION()
     void HandlePopupRemoveClicked(int32 PerenualId);
 
+    UFUNCTION()
+    void HandleManageSaveApplied(int32 PerenualId, bool bIsGloballySaved);
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_UnsavePlant;
+    UButton* BTN_ManageSave;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_OpenPlantCard;
@@ -52,6 +56,12 @@ public:
 
     UPROPERTY()
     UPlantCardPopup* CardPopupInstance = nullptr;
+
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UManageSave> ManageSaveClass;
+
+    UPROPERTY()
+    UManageSave* ManageSaveInstance = nullptr;
 
 protected:
     UPROPERTY(meta = (BindWidget))

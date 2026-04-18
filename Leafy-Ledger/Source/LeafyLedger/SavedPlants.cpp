@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "SavedPlants.h"
-#include "SavedPlantTile.h"
+#include "PlantTile.h"
 #include "PlantCardPopup.h"
 #include "PlantObject.h"
 #include "BackendApiSubsystem.h"
@@ -35,7 +35,7 @@ void USavedPlants::NativeConstruct()
 
 void USavedPlants::HandleEntryGenerated(UUserWidget& EntryWidget)
 {
-	if (USavedPlantTile* Tile = Cast<USavedPlantTile>(&EntryWidget))
+	if (UPlantTile* Tile = Cast<UPlantTile>(&EntryWidget))
 	{
 		Tile->OnRemoveClicked.AddUniqueDynamic(this, &USavedPlants::HandleRemoveClicked);
 	}

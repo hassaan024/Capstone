@@ -18,6 +18,7 @@ DECLARE_DELEGATE_ThreeParams(FBackendGardenResponse, bool /*bSuccess*/, const FS
 DECLARE_DELEGATE_ThreeParams(FBackendPlantInstanceResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendPlantInstanceDto& /*PlantInstance*/)
 DECLARE_DELEGATE_ThreeParams(FBackendGardenSummariesResponse, bool /*bSuccess*/, const FString& /*Message*/, const TArray<FBackendGardenSummaryDto>& /*Gardens*/)
 DECLARE_DELEGATE_ThreeParams(FBackendGardenDetailResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendGardenDetailDto& /*Garden*/)
+DECLARE_DELEGATE_ThreeParams(FBackendPlantSearchResponse, bool /*bSuccess*/, const FString& /*Message*/, const TArray<FBackendPlantSearchResultDto>& /*Plants*/)
 
 UCLASS()
 class LEAFYLEDGER_API UBackendApiSubsystem : public UGameInstanceSubsystem
@@ -28,8 +29,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Backend")
 	FString BaseUrl = TEXT("http://localhost:4000/backend");
 
+	void SearchPerenualPlants(const FString& Query, const FBackendPlantSearchResponse& Callback);
 	void GetSavedSpecies(const FBackendPlantsResponse& Callback);
+	void GetSavedSpeciesForGarden(int32 GardenId, const FBackendPlantsResponse& Callback);
+	void SavePlant(int32 PerenualId, const FBackendOperationResponse& Callback);
+	void SavePlantToGarden(int32 PerenualId, int32 GardenId, const FBackendOperationResponse& Callback);
 	void DeleteSavedPlant(int32 PerenualId, const FBackendOperationResponse& Callback);
+	void DeleteSavedPlantFromGarden(int32 PerenualId, int32 GardenId, const FBackendOperationResponse& Callback);
 	void UpdateDisplayName(const FString& NewDisplayName, const FBackendOperationResponse& Callback);
 	void GetCurrentUser(const FBackendCurrentUserResponse& Callback);
 	void GetUserLocation(const FBackendUserLocationResponse& Callback);
