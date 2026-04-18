@@ -12,6 +12,7 @@ const MOCK_GARDEN = {
   latitude: 34.0522,
   longitude: -118.2437,
   timezone: "America/Los_Angeles",
+  bloomDate: "2026-08-30T00:00:00Z",
   creationTimestamp: new Date().toISOString(),
   lastUpdated: new Date().toISOString(),
   _count: { plants: 5 },
@@ -239,6 +240,24 @@ const DummyGarden: React.FC = () => {
               <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 1rem', lineHeight: 1.5, maxWidth: '800px' }}>
                 {MOCK_GARDEN.description}
               </p>
+              {MOCK_GARDEN.bloomDate && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(252, 211, 77, 0.15)',
+                  color: '#fcd34d',
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  marginBottom: '1rem',
+                  border: '1px solid rgba(252, 211, 77, 0.25)'
+                }}>
+                  <FaClock />
+                  Target Bloom: {new Date(MOCK_GARDEN.bloomDate).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}
+                </div>
+              )}
             </div>
             <button 
               className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 

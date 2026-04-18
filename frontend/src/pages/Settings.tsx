@@ -170,9 +170,21 @@ const Settings: React.FC = () => {
 
         <div className="settings-content">
 
-          {/* Account Info - Read Only */}
-          <div className="settings-card">
+          {/* Account Info */}
+          <form className="settings-card" onSubmit={handleUpdateName}>
             <h2 className="settings-card-title">Account Information</h2>
+            
+            <div className="settings-field">
+              <label className="settings-label">Display Name</label>
+              <input
+                type="text"
+                className="settings-input"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+              />
+            </div>
+
             <div className="settings-field">
               <label className="settings-label">Email (cannot be changed)</label>
               <input 
@@ -182,16 +194,32 @@ const Settings: React.FC = () => {
                 disabled 
               />
             </div>
+            
             <div className="settings-field">
               <label className="settings-label">Account Created</label>
               <input 
                 type="text" 
                 className="settings-input" 
-                value={new Date(user.creationTimestamp).toLocaleDateString()} 
+                value={user.creationTimestamp ? new Date(user.creationTimestamp).toLocaleDateString() : 'Unknown'} 
                 disabled 
               />
             </div>
-          </div>
+
+            {/* Name section message */}
+            {nameMessage && (
+              <div className={`settings-message settings-message--${nameMessage.type}`}>
+                {nameMessage.text}
+              </div>
+            )}
+            
+            <button 
+              type="submit" 
+              className="ll-btn ll-btn-primary settings-btn"
+              disabled={isLoading || displayName === user.displayName}
+            >
+              {isLoading ? 'Updating...' : 'Update Settings'}
+            </button>
+          </form>
 
           {/* Chatbot Preferences */}
           <div className="settings-card">
@@ -234,35 +262,7 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
-          {/* Update Name */}
-          <form className="settings-card" onSubmit={handleUpdateName}>
-            <h2 className="settings-card-title">Update Name</h2>
-            <div className="settings-field">
-              <label className="settings-label">Display Name</label>
-              <input
-                type="text"
-                className="settings-input"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-              />
-            </div>
-            
-            {/* Name section message */}
-            {nameMessage && (
-              <div className={`settings-message settings-message--${nameMessage.type}`}>
-                {nameMessage.text}
-              </div>
-            )}
-            
-            <button 
-              type="submit" 
-              className="ll-btn ll-btn-primary settings-btn"
-              disabled={isLoading || displayName === user.displayName}
-            >
-              {isLoading ? 'Updating...' : 'Update Name'}
-            </button>
-          </form>
+
 
           {/* Change Password */}
           {/* Change Password Commented Out
