@@ -20,9 +20,13 @@ class LEAFYLEDGER_API UPlantCardPopup : public UUserWidget
 	
 public:
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGlobalSaveRemoved, int32, PerenualId);
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSaveStateChanged);
 
     UPROPERTY(BlueprintAssignable, Category = "Plants")
     FOnGlobalSaveRemoved OnGlobalSaveRemoved;
+
+    UPROPERTY(BlueprintAssignable, Category = "Plants")
+    FOnSaveStateChanged OnSaveStateChanged;
 
     virtual bool Initialize() override;
 
@@ -37,7 +41,7 @@ public:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_ManageSave;
 
-    UPROPERTY(EditAnywhere, Category = "UI")
+    UPROPERTY()
     TSubclassOf<UManageSave> ManageSaveClass;
 
     UPROPERTY()

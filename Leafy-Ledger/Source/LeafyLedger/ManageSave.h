@@ -8,8 +8,12 @@
 #include "ManageSave.generated.h"
 
 class UButton;
+class UOverlay;
 class UScrollBox;
+class USizeBox;
+class USpacer;
 class UTextBlock;
+class UVerticalBox;
 class USaveDestinationEntry;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnManageSaveApplied, int32, PerenualId, bool, bIsGloballySaved);
@@ -50,10 +54,13 @@ protected:
 
 private:
 	void ResolveWidgetReferences();
+	void ConfigureModalLayout();
+	void RebuildOverlayLayout();
 	void UpdatePlantNameText() const;
 	void RefreshDestinationList();
 	void PopulateDestinationList();
 	void AddMessageRow(const FString& Message);
+	void AddBottomScrollSpacer();
 	void HandleGlobalStateResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants);
 	void HandleGardenListResponse(bool bSuccess, const FString& Message, const TArray<FBackendGardenSummaryDto>& Gardens);
 	void RequestGardenStateAtIndex(int32 GardenIndex);
@@ -64,6 +71,15 @@ private:
 
 	UPROPERTY()
 	UScrollBox* SaveOptionsScrollBox = nullptr;
+
+	UPROPERTY()
+	USizeBox* RootSizeBox = nullptr;
+
+	UPROPERTY()
+	UOverlay* RootOverlay = nullptr;
+
+	UPROPERTY()
+	UVerticalBox* HeaderBox = nullptr;
 
 	UPROPERTY()
 	UTextBlock* CommonNameText = nullptr;

@@ -30,8 +30,12 @@ void UPlantTile::OnPressManageSave()
 {
     if (!ManageSaveClass)
     {
-        UE_LOG(LogTemp, Error, TEXT("ManageSaveClass is null"));
-        return;
+        ManageSaveClass = LoadClass<UManageSave>(nullptr, TEXT("/Game/UI/WB_ManageSave.WB_ManageSave_C"));
+        if (!ManageSaveClass)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to load /Game/UI/WB_ManageSave.WB_ManageSave_C"));
+            return;
+        }
     }
 
     if (!PlantCard)
@@ -104,6 +108,8 @@ void UPlantTile::HandlePopupRemoveClicked(int32 PerenualId)
 
 void UPlantTile::HandleManageSaveApplied(int32 PerenualId, bool bIsGloballySaved)
 {
+    OnSaveStateChanged.Broadcast();
+
     if (!bIsGloballySaved)
     {
         OnRemoveClicked.Broadcast(PerenualId);

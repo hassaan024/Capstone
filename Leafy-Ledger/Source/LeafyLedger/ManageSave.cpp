@@ -4,8 +4,15 @@
 #include "BackendApiSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
+#include "Components/SizeBox.h"
+#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "SaveDestinationEntry.h"
 
 bool UManageSave::Initialize()
@@ -30,6 +37,8 @@ void UManageSave::NativeConstruct()
 	Super::NativeConstruct();
 
 	ResolveWidgetReferences();
+	ConfigureModalLayout();
+	RebuildOverlayLayout();
 	UpdatePlantNameText();
 	UpdateChangesText();
 	RefreshDestinationList();
@@ -173,6 +182,16 @@ void UManageSave::ResolveWidgetReferences()
 
 	WidgetTree->ForEachWidget([this](UWidget* Widget)
 	{
+		if (!RootSizeBox)
+		{
+			RootSizeBox = Cast<USizeBox>(Widget);
+		}
+
+		if (!RootOverlay)
+		{
+			RootOverlay = Cast<UOverlay>(Widget);
+		}
+
 		if (!SaveOptionsScrollBox)
 		{
 			SaveOptionsScrollBox = Cast<UScrollBox>(Widget);
@@ -186,10 +205,102 @@ void UManageSave::ResolveWidgetReferences()
 				if (CurrentText.Contains(TEXT("common_name")) || CurrentText.StartsWith(TEXT("<")))
 				{
 					CommonNameText = TextBlock;
+					HeaderBox = Cast<UVerticalBox>(TextBlock->GetParent());
 				}
 			}
 		}
 	});
+}
+
+void UManageSave::ConfigureModalLayout()
+{
+	if (RootSizeBox)
+	{
+		RootSizeBox->SetWidthOverride(430.0f);
+		RootSizeBox->SetHeightOverride(560.0f);
+	}
+
+	if (SaveOptionsScrollBox)
+	{
+		SaveOptionsScrollBox->SetAnimateWheelScrolling(true);
+		SaveOptionsScrollBox->SetConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
+		SaveOptionsScrollBox->SetScrollBarVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void UManageSave::RebuildOverlayLayout()
+{
+	if (!WidgetTree || !RootOverlay || !HeaderBox || !SaveOptionsScrollBox || !BTN_Changes)
+	{
+		return;
+	}
+
+	if (SaveOptionsScrollBox->GetParent() == BTN_Changes->GetParent() && BTN_Changes->GetParent() != RootOverlay)
+	{
+		return;
+	}
+
+	UVerticalBox* ModalLayout = nullptr;
+	for (int32 ChildIndex = 0; ChildIndex < RootOverlay->GetChildrenCount(); ++ChildIndex)
+	{
+		if (UWidget* Widget = RootOverlay->GetChildAt(ChildIndex))
+		{
+			ModalLayout = Cast<UVerticalBox>(Widget);
+			if (ModalLayout)
+			{
+				break;
+			}
+		}
+	}
+
+	if (!ModalLayout || ModalLayout == HeaderBox)
+	{
+		ModalLayout = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ModalLayout"));
+		if (!ModalLayout)
+		{
+			return;
+		}
+
+		if (UOverlaySlot* LayoutSlot = RootOverlay->AddChildToOverlay(ModalLayout))
+		{
+			LayoutSlot->SetHorizontalAlignment(HAlign_Fill);
+			LayoutSlot->SetVerticalAlignment(VAlign_Fill);
+			LayoutSlot->SetPadding(FMargin(24.0f, 24.0f, 24.0f, 24.0f));
+		}
+	}
+
+	auto MoveToModalLayout = [ModalLayout](UWidget* Widget, const FMargin& SlotPadding, EHorizontalAlignment HorizontalAlignment, EVerticalAlignment VerticalAlignment, float FillHeight)
+	{
+		if (!Widget || !ModalLayout)
+		{
+			return;
+		}
+
+		if (UPanelWidget* CurrentParent = Widget->GetParent())
+		{
+			CurrentParent->RemoveChild(Widget);
+		}
+
+		if (UVerticalBoxSlot* Slot = ModalLayout->AddChildToVerticalBox(Widget))
+		{
+			Slot->SetPadding(SlotPadding);
+			Slot->SetHorizontalAlignment(HorizontalAlignment);
+			Slot->SetVerticalAlignment(VerticalAlignment);
+			if (FillHeight > 0.0f)
+			{
+				Slot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				Slot->Size.Value = FillHeight;
+			}
+			else
+			{
+				Slot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			}
+		}
+	};
+
+	MoveToModalLayout(HeaderBox, FMargin(0.0f, 0.0f, 0.0f, 16.0f), HAlign_Fill, VAlign_Top, 0.0f);
+	MoveToModalLayout(SaveOptionsScrollBox, FMargin(0.0f, 0.0f, 0.0f, 16.0f), HAlign_Fill, VAlign_Fill, 1.0f);
+	MoveToModalLayout(BTN_Changes, FMargin(0.0f), HAlign_Right, VAlign_Bottom, 0.0f);
 }
 
 void UManageSave::UpdatePlantNameText() const
@@ -248,12 +359,14 @@ void UManageSave::PopulateDestinationList()
 	if (!bHasLoadedGardens)
 	{
 		AddMessageRow(TEXT("Loading your gardens..."));
+		AddBottomScrollSpacer();
 		return;
 	}
 
 	if (Gardens.Num() == 0)
 	{
 		AddMessageRow(TEXT("No gardens yet. Create one in Unreal to save plants to a specific garden."));
+		AddBottomScrollSpacer();
 		return;
 	}
 
@@ -269,6 +382,8 @@ void UManageSave::PopulateDestinationList()
 		SaveOptionsScrollBox->AddChild(GardenRow);
 		GardenRows.Add(Garden.Id, GardenRow);
 	}
+
+	AddBottomScrollSpacer();
 }
 
 void UManageSave::AddMessageRow(const FString& Message)
@@ -281,6 +396,23 @@ void UManageSave::AddMessageRow(const FString& Message)
 	TextBlock->SetText(FText::FromString(Message));
 	TextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.76f, 0.84f, 1.0f)));
 	SaveOptionsScrollBox->AddChild(TextBlock);
+}
+
+void UManageSave::AddBottomScrollSpacer()
+{
+	if (!SaveOptionsScrollBox || !WidgetTree)
+	{
+		return;
+	}
+
+	USpacer* Spacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
+	if (!Spacer)
+	{
+		return;
+	}
+
+	Spacer->SetSize(FVector2D(1.0f, 96.0f));
+	SaveOptionsScrollBox->AddChild(Spacer);
 }
 
 void UManageSave::HandleGlobalStateResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
