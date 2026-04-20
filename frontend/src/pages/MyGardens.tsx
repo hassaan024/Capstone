@@ -9,7 +9,7 @@ import GardenPlantCard, {
 import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
 import CreateGardenModal from '../components/CreateGardenModal';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus } from 'react-icons/fa';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus, FaTimes, FaEllipsisV } from 'react-icons/fa';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
 
 interface GardenSummary {
@@ -70,6 +70,8 @@ const MyGardens: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [globalSavedIds, setGlobalSavedIds] = useState<Set<number>>(new Set());
   const [savedPlantGardenStates, setSavedPlantGardenStates] = useState<Record<number, boolean>>({});
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const analytics = useMemo(() => {
     if (!detail) return null;
@@ -115,6 +117,20 @@ const MyGardens: React.FC = () => {
       p.species.scientificName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [detail, searchTerm]);
+
+  const handleDeleteGarden = async (gardenId: number) => {
+    try {
+      await api.del(`/garden/${gardenId}`);
+      setGardens(prev => prev.filter(g => g.id !== gardenId));
+      if (selectedId === gardenId) {
+        setSelectedId(null);
+        setDetail(null);
+      }
+    } catch (e) {
+      console.error("Failed to delete garden", e);
+      alert("Failed to delete garden.");
+    }
+  };
 
   const loadList = useCallback(async () => {
     if (!user?.id) return;
@@ -442,15 +458,66 @@ const MyGardens: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    {detail.plants.length > 0 && (
-                      <button 
-                        className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 
-                        onClick={() => setShowAnalytics(!showAnalytics)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: showAnalytics ? '#86efac' : undefined, borderColor: showAnalytics ? '#86efac' : undefined, backgroundColor: 'rgba(15, 23, 42, 0.4)' }}
-                      >
-                        <FaChartBar /> {showAnalytics ? 'Hide Analytics' : 'Garden Analytics'}
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {detail.plants.length > 0 && (
+                        <button 
+                          className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 
+                          onClick={() => setShowAnalytics(!showAnalytics)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: showAnalytics ? '#86efac' : undefined, borderColor: showAnalytics ? '#86efac' : undefined, backgroundColor: 'rgba(15, 23, 42, 0.4)' }}
+                        >
+                          <FaChartBar /> {showAnalytics ? 'Hide Analytics' : 'Garden Analytics'}
+                        </button>
+                      )}
+                      
+                      <div style={{ position: 'relative' }}>
+                        <button 
+                          className="browse-back-btn" 
+                          onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                          style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderColor: 'transparent' }}
+                        >
+                          <FaEllipsisV />
+                        </button>
+                        {showSettingsMenu && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: '0',
+                            marginTop: '0.5rem',
+                            background: '#1e293b',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                            minWidth: '160px',
+                            zIndex: 50,
+                            overflow: 'hidden'
+                          }}>
+                            <button 
+                              onClick={() => {
+                                 setShowSettingsMenu(false);
+                                 setShowDeleteModal(true);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '0.75rem 1rem',
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#f87171',
+                                textAlign: 'left',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <FaTimes /> Delete Garden
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div
                     style={{
@@ -714,6 +781,34 @@ const MyGardens: React.FC = () => {
           userId={user.id}
           onCreated={loadList}
         />
+      )}
+      {showDeleteModal && detail && (
+        <div className="save-dest-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="save-dest-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem 1.5rem' }}>
+            <FaExclamationTriangle style={{ fontSize: '3rem', color: '#f87171', marginBottom: '1rem' }} />
+            <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.25rem' }}>Delete {detail.name}?</h3>
+            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: 1.5 }}>
+              Are you absolutely sure? This action cannot be undone and will permanently remove all plants and layouts inside this garden.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', fontWeight: 600, flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  handleDeleteGarden(detail.id);
+                  setShowDeleteModal(false);
+                }}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600, flex: 1 }}
+              >
+                Delete Garden
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

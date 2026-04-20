@@ -27,16 +27,6 @@ export class UserService {
       type UserWithLocation = User & { latitude?: number | null; longitude?: number | null };
       const typedUser = user as UserWithLocation;
 
-      if (
-        typedUser.latitude === null ||
-        typedUser.latitude === undefined ||
-        typedUser.longitude === null ||
-        typedUser.longitude === undefined
-      ) {
-        throw new NotFoundException(
-          `Latitude or Longitude is undefined. | lat: ${typedUser.latitude} | long: ${typedUser.longitude}`,
-        );
-      }
 
       const user_location: UserLocationDto = {
         longitude: Number(typedUser.longitude),
