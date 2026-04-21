@@ -49,22 +49,43 @@ export class SpeciesService {
     return { message: 'Species unsaved successfully' };
   }
 
-  // Compute 'modelCategory' dynamically for Unreal Engine and React clients
+  // Compute 'modelCategory' dynamically for Unreal Engine and React clients.
+  // Rules are intentionally kept in sync with enrichWithModelCategory() in
+  // perenual.service.ts so browse-plants and saved-plants always agree.
+  //
+  // NOTE: The browse search-list API does NOT return a `type` field, so plants
+  // without explicit edible/vegetable signals naturally fall through to 'flower'.
+  // We replicate that behavior here by NOT using species.type for tree detection
+  // — only scientific-name hints identify trees, everything else defaults to flower.
   private computeModelCategory(species: {
     type?: string | null;
+    cycle?: string | null;
     edibleFruit?: boolean | null;
     edibleLeaf?: boolean | null;
+    cuisine?: boolean | null;
+    commonName?: string | null;
+    scientificName?: string | null;
   }) {
-    const typeStr = (species.type || '').toLowerCase();
+    const typeStr = (species.type || species.cycle || '').toLowerCase();
+
+    // Vegetable: edible signals or explicit vegetable/herb/fruit type
     if (
       typeStr.includes('vegetable') ||
       species.edibleFruit ||
-      species.edibleLeaf
+      species.edibleLeaf ||
+      species.cuisine ||
+      typeStr.includes('herb') ||
+      typeStr.includes('fruit') ||
+      species.commonName?.toLowerCase().includes('tomato')
     ) {
       return 'vegetable';
-    } else if (typeStr.includes('tree') || typeStr.includes('shrub')) {
+    }
+
+    // Tree: only via scientific-name hints (mirrors browse list which has no type field)
+    if (species.scientificName?.includes('Malus')) {
       return 'tree';
     }
+
     return 'flower';
   }
 
