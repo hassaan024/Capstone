@@ -27,22 +27,30 @@ export class PerenualService {
 
   private enrichWithModelCategory(data: any) {
     if (!data) return data;
-    
+
+    // NOTE: The search-list endpoint does NOT return a `type` field, so plants
+    // without explicit edible/vegetable signals fall through to 'flower' by default.
+    // We keep the same rule for the detail endpoint for consistency with saved plants.
     const enrichPlant = (p: any) => {
-      let modelCategory = 'flower';
       const typeStr = (p.type || p.cycle || '').toLowerCase();
-      
-      if (
+      let modelCategory = 'flower';
+
+      // If Perenual explicitly tagged it as a flower, trust that over edible flags
+      if (typeStr.includes('flower')) {
+        modelCategory = 'flower';
+      } else if (
+        // Vegetable: edible signals or explicit vegetable/herb/fruit type
         typeStr.includes('vegetable') ||
         p.edible_fruit ||
         p.edible_leaf ||
-        p.cuisine || 
+        p.cuisine ||
         typeStr.includes('herb') ||
         typeStr.includes('fruit') ||
         p.common_name?.toLowerCase().includes('tomato')
       ) {
         modelCategory = 'vegetable';
-      } else if (typeStr.includes('tree') || typeStr.includes('shrub') || p.scientific_name?.[0]?.includes('Malus')) {
+      } else if (p.scientific_name?.[0]?.includes('Malus')) {
+        // Tree: only via scientific-name hints so behavior matches the list endpoint
         modelCategory = 'tree';
       }
 
