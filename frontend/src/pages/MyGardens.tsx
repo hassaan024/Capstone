@@ -9,8 +9,9 @@ import GardenPlantCard, {
 import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
 import CreateGardenModal from '../components/CreateGardenModal';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus, FaTimes, FaEllipsisV } from 'react-icons/fa';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus, FaTimes, FaEllipsisV, FaProjectDiagram } from 'react-icons/fa';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
+import PlantStageTrackerCard from '../components/PlantStageTrackerCard';
 
 interface GardenSummary {
   id: number;
@@ -51,7 +52,7 @@ interface SavedPlant {
   modelCategory?: string;
 }
 
-type GardenSubTab = 'plants' | 'saved';
+type GardenSubTab = 'plants' | 'saved' | 'track';
 
 const MyGardens: React.FC = () => {
   const navigate = useNavigate();
@@ -117,6 +118,27 @@ const MyGardens: React.FC = () => {
       p.species.scientificName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [detail, searchTerm]);
+
+  // Timeline dates for Track tab
+  const timelineDates = useMemo(() => {
+    if (!detail) return { start: Date.now(), end: Date.now() };
+    let earliest = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
+    for (const p of detail.plants) {
+      if (p.creationTimestamp) {
+        const d = new Date(p.creationTimestamp).getTime();
+        if (d < earliest) earliest = d;
+      }
+    }
+    const end = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
+    return { start: earliest, end };
+  }, [detail]);
+
+  const [sliderValue, setSliderValue] = useState(100); // 0 to 100
+  const currentTimestamp = useMemo(() => {
+    if (timelineDates.start === timelineDates.end) return timelineDates.end;
+    const diff = timelineDates.end - timelineDates.start;
+    return timelineDates.start + (diff * (sliderValue / 100));
+  }, [sliderValue, timelineDates]);
 
   const handleDeleteGarden = async (gardenId: number) => {
     try {
@@ -652,14 +674,14 @@ const MyGardens: React.FC = () => {
                   </section>
                 )}
 
-                {/* Sub-tab bar: Plants | Saved Plants */}
+                {/* Sub-tab bar: Plants | Saved Plants | Track */}
                 <div className="sub-tab-bar">
                   <button
                     className={`sub-tab ${subTab === 'plants' ? 'active' : ''}`}
                     onClick={() => setSubTab('plants')}
                   >
                     <FaSeedling /> Plants
-                    <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>({detail.plants.length})</span>
+                    <span style={{ opacity: 0.6, fontSize: '0.85rem', marginLeft: '4px' }}>({detail.plants.length})</span>
                   </button>
                   <button
                     className={`sub-tab ${subTab === 'saved' ? 'active' : ''}`}
@@ -667,8 +689,14 @@ const MyGardens: React.FC = () => {
                   >
                     <FaBookmark /> Saved Plants
                     {subTab === 'saved' && gardenSavedPlants.length > 0 && (
-                      <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>({gardenSavedPlants.length})</span>
+                      <span style={{ opacity: 0.6, fontSize: '0.85rem', marginLeft: '4px' }}>({gardenSavedPlants.length})</span>
                     )}
+                  </button>
+                  <button
+                    className={`sub-tab ${subTab === 'track' ? 'active' : ''}`}
+                    onClick={() => setSubTab('track')}
+                  >
+                    <FaProjectDiagram /> Track Growth Stages
                   </button>
                 </div>
 
@@ -747,6 +775,68 @@ const MyGardens: React.FC = () => {
                             key={plant.id}
                             plant={mapSavedToCardProps(plant)}
                             onClick={() => setSelectedSavedPlantId(plant.perenualId)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Track sub-tab content */}
+                {subTab === 'track' && (
+                  <>
+                    <div style={{
+                      background: 'rgba(15, 23, 42, 0.8)',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '12px',
+                      padding: '1.5rem',
+                      marginBottom: '1.5rem'
+                    }}>
+                      <h3 style={{ margin: '0 0 1rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FaClock /> Timeline Tracker
+                      </h3>
+                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                        Drag the timeline to see what stages your plants will be in at different dates based on when they were planted. Models automatically transition.
+                      </p>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem' }}>
+                        <span>{new Date(timelineDates.start).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} (First Plant)</span>
+                        <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>
+                          Viewing: {new Date(currentTimestamp).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}
+                        </span>
+                        <span>{new Date(timelineDates.end).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} (Bloom Target)</span>
+                      </div>
+                      
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="100" 
+                        value={sliderValue} 
+                        onChange={(e) => setSliderValue(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          appearance: 'none',
+                          height: '8px',
+                          background: 'rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </div>
+                    
+                    {detail.plants.length === 0 ? (
+                      <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
+                        No plants to track. Add plants from Unreal first.
+                      </p>
+                    ) : (
+                      <div className="browse-grid">
+                        {detail.plants.map(p => (
+                          <PlantStageTrackerCard
+                            key={p.id}
+                            plant={{...p, plantedDate: p.creationTimestamp}}
+                            currentTimestamp={currentTimestamp}
+                            bloomTimestamp={timelineDates.end}
                           />
                         ))}
                       </div>
