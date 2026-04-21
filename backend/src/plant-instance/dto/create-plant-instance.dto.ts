@@ -66,6 +66,11 @@ export class CreatePlantInstanceDto {
   lastWatered?: Date;
 
   @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  plantedDate?: Date;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }

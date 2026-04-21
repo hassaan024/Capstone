@@ -34,7 +34,12 @@ interface GardenDetailPlant {
   lastWatered: string | null;
   notes: string | null;
   creationTimestamp: string;
-  species: GardenPlantCardSpecies;
+  plantedDate?: string | null;   // may come from Unreal later; currently absent in schema
+  species: GardenPlantCardSpecies & {
+    commonName: string;
+    scientificName: string;
+    cycle?: string | null;
+  };
   soil: { type: string };
 }
 
@@ -81,7 +86,9 @@ const MyGardens: React.FC = () => {
     const categories = plants.reduce((acc: any, p) => {
       const cat = mapPlantToVisualCategory({
         type: p.species.type,
-        flowers: p.species.flowers,
+        cycle: p.species.cycle,
+        scientificName: p.species.scientificName,
+        commonName: p.species.commonName,
         cuisine: p.species.cuisine,
         edibleFruit: p.species.edibleFruit,
         edibleLeaf: p.species.edibleLeaf,
@@ -119,18 +126,52 @@ const MyGardens: React.FC = () => {
     );
   }, [detail, searchTerm]);
 
+  // ---------------------------------------------------------------------------
+  // Planted-date helper
+  // If Unreal has set plantedDate, use it. Otherwise derive it as:
+  //   plantedDate = bloomDate - daysToBloom(category)
+  // where daysToBloom is: flower=20, vegetable=30, tree=50 days.
+  // ---------------------------------------------------------------------------
+  const DAYS_TO_BLOOM: Record<string, number> = { flower: 20, vegetable: 30, tree: 50 };
+
+  const computePlantedDate = (p: GardenDetailPlant): string | null => {
+    // 1. Unreal explicitly set it
+    if (p.plantedDate) return p.plantedDate;
+
+    // 2. Derive from bloomDate - daysToBloom
+    if (detail?.bloomDate) {
+      const category = mapPlantToVisualCategory({
+        type: p.species.type,
+        cycle: p.species.cycle,
+        scientificName: p.species.scientificName,
+        commonName: p.species.commonName,
+        cuisine: p.species.cuisine,
+        edibleFruit: p.species.edibleFruit,
+        edibleLeaf: p.species.edibleLeaf,
+      });
+      const days = DAYS_TO_BLOOM[category] ?? 20;
+      const bloomMs = new Date(detail.bloomDate).getTime();
+      return new Date(bloomMs - days * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    return null;
+  };
+
   // Timeline dates for Track tab
+  // Start = earliest computed planted date; End = bloomDate
   const timelineDates = useMemo(() => {
     if (!detail) return { start: Date.now(), end: Date.now() };
-    let earliest = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
+    const end = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
+    let earliest = end;
     for (const p of detail.plants) {
-      if (p.creationTimestamp) {
-        const d = new Date(p.creationTimestamp).getTime();
+      const dateStr = computePlantedDate(p);
+      if (dateStr) {
+        const d = new Date(dateStr).getTime();
         if (d < earliest) earliest = d;
       }
     }
-    const end = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
     return { start: earliest, end };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
 
   const [sliderValue, setSliderValue] = useState(100); // 0 to 100
@@ -834,7 +875,11 @@ const MyGardens: React.FC = () => {
                         {detail.plants.map(p => (
                           <PlantStageTrackerCard
                             key={p.id}
-                            plant={{...p, plantedDate: p.creationTimestamp}}
+                            plant={{
+                              ...p,
+                              // Use Unreal's plantedDate if set; otherwise derive from bloomDate - daysToBloom
+                              plantedDate: computePlantedDate(p),
+                            }}
                             currentTimestamp={currentTimestamp}
                             bloomTimestamp={timelineDates.end}
                           />

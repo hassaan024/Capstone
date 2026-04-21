@@ -33,7 +33,9 @@ const PlantStageTrackerCard: React.FC<PlantStageTrackerCardProps> = ({ plant, cu
   
   const category = mapPlantToVisualCategory({
     type: species.type,
-    flowers: species.flowers,
+    cycle: species.cycle,
+    scientificName: species.scientificName,
+    commonName: species.commonName,
     cuisine: species.cuisine,
     edibleFruit: species.edibleFruit,
     edibleLeaf: species.edibleLeaf,

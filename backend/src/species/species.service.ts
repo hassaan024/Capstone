@@ -68,6 +68,10 @@ export class SpeciesService {
   }) {
     const typeStr = (species.type || species.cycle || '').toLowerCase();
 
+    // If Perenual explicitly tagged it as a flower, trust that over edible flags
+    // (e.g. sunflowers are edible but are flower models, not vegetable models)
+    if (typeStr.includes('flower')) return 'flower';
+
     // Vegetable: edible signals or explicit vegetable/herb/fruit type
     if (
       typeStr.includes('vegetable') ||
