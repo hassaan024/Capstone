@@ -48,4 +48,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	float SliderValue = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
+	bool bIsDropdownToggle = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
+	bool bIsGlobalPlant = false;
 };

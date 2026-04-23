@@ -4,6 +4,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Slider.h"
 #include "PlantObject.h"
+#include "PlantSelect.h"
 #include "UserDrone.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -51,6 +52,15 @@ FReply UPlantWrapper::NativeOnMouseButtonDown(
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
+		if (PlantData && PlantData->bIsDropdownToggle)
+		{
+			if (UPlantSelect* PlantSelect = Cast<UPlantSelect>(PlantData->GetOuter()))
+			{
+				PlantSelect->HandlePlantItemClicked(PlantData);
+				return FReply::Handled();
+			}
+		}
+
 		if (!UserDrone)
 		{
 			APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);

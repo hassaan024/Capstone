@@ -58,16 +58,10 @@ void AGardenDirector::AddButtons()
 
 void AGardenDirector::SpawnLoadedPlants()
 {
-	if (!GetGameInstance() || !GetWorld())
-	{
-		return;
-	}
+	if (!GetGameInstance() || !GetWorld()) return;
 
 	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
-	if (!GardenSession || !GardenSession->HasActiveDraft())
-	{
-		return;
-	}
+	if (!GardenSession || !GardenSession->HasActiveDraft()) return;
 
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
 	AUserDrone* UserDrone = PlayerController ? Cast<AUserDrone>(PlayerController->GetPawn()) : nullptr;
@@ -76,10 +70,7 @@ void AGardenDirector::SpawnLoadedPlants()
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
 	for (const FEditablePlantPlacement& PlantPlacement : Draft.Plants)
 	{
-		if (PlantPlacement.BackendPlantInstanceId <= 0)
-		{
-			continue;
-		}
+		if (PlantPlacement.BackendPlantInstanceId <= 0) continue;
 
 		FActorSpawnParameters SpawnParams;
 		APlant* PlantActor = GetWorld()->SpawnActor<APlant>(
@@ -89,10 +80,7 @@ void AGardenDirector::SpawnLoadedPlants()
 			SpawnParams
 		);
 
-		if (!PlantActor)
-		{
-			continue;
-		}
+		if (!PlantActor) continue;
 
 		UPlantObject* PlantData = NewObject<UPlantObject>(this);
 		if (PlantData)
@@ -134,34 +122,11 @@ void AGardenDirector::MakePlantList()
 	PlantSelect->AddToViewport();
 
 	UGameInstance* GI = GetGameInstance();
-	if (!GI)
-	{
-		return;
-	}
-
-	auto PopulateShelf = [PlantSelect](const TArray<FBackendPlantDto>& Plants)
-	{
-		if (!PlantSelect || !PlantSelect->PlantShelf)
-		{
-			return;
-		}
-
-		PlantSelect->PlantShelf->ClearListItems();
-		for (const FBackendPlantDto& Plant : Plants)
-		{
-			PlantSelect->AddPlantToShelf(
-				Plant.PerenualId,
-				Plant.Id,
-				Plant.CommonName,
-				4,
-				6,
-				Plant.ModelCategory
-			);
-		}
-	};
+	if (!GI) return;
 
 	UGardenSessionSubsystem* GardenSession = GI->GetSubsystem<UGardenSessionSubsystem>();
 	const int32 ActiveGardenId = (GardenSession && GardenSession->HasActiveDraft()) ? GardenSession->GetDraft().BackendGardenId : 0;
+	USavedPlantCacheSubsystem* PlantCache = GI->GetSubsystem<USavedPlantCacheSubsystem>();
 
 	if (ActiveGardenId > 0)
 	{
@@ -172,16 +137,39 @@ void AGardenDirector::MakePlantList()
 			return;
 		}
 
+		if (PlantCache && PlantCache->HasCachedPlants())
+		{
+			PlantSelect->SetGlobalPlants(PlantCache->GetCachedPlants());
+		}
+
+		if (PlantCache)
+		{
+			PlantCache->RefreshSavedPlants(
+				FOnSavedPlantsRefreshed::CreateWeakLambda(
+					PlantSelect,
+					[PlantSelect](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+					{
+						if (!PlantSelect) return;
+
+						if (!bSuccess)
+						{
+							UE_LOG(LogTemp, Error, TEXT("MakePlantList global refresh failed: %s"), *Message);
+							return;
+						}
+
+						PlantSelect->SetGlobalPlants(Plants);
+					}
+				)
+			);
+		}
+
 		BackendApi->GetSavedSpeciesForGarden(
 			ActiveGardenId,
 			FBackendPlantsResponse::CreateWeakLambda(
 				PlantSelect,
-				[PlantSelect, PopulateShelf, ActiveGardenId](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+				[PlantSelect, ActiveGardenId](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
 				{
-					if (!PlantSelect)
-					{
-						return;
-					}
+					if (!PlantSelect) return;
 
 					if (!bSuccess)
 					{
@@ -189,14 +177,13 @@ void AGardenDirector::MakePlantList()
 						return;
 					}
 
-					PopulateShelf(Plants);
+					PlantSelect->SetGardenPlants(Plants);
 				}
 			)
 		);
 		return;
 	}
 
-	USavedPlantCacheSubsystem* PlantCache = GI->GetSubsystem<USavedPlantCacheSubsystem>();
 	if (!PlantCache)
 	{
 		UE_LOG(LogTemp, Error, TEXT("MakePlantList: SavedPlantCacheSubsystem missing"));
@@ -206,14 +193,14 @@ void AGardenDirector::MakePlantList()
 	// Use cached plants
 	if (PlantCache->HasCachedPlants())
 	{
-		PopulateShelf(PlantCache->GetCachedPlants());
+		PlantSelect->SetGardenPlants(PlantCache->GetCachedPlants());
 	}
 
 	// Check for non-cached plants and refresh if any
 	PlantCache->RefreshSavedPlants(
 		FOnSavedPlantsRefreshed::CreateWeakLambda(
 			PlantSelect,
-			[PlantSelect, PopulateShelf](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+			[PlantSelect](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
 			{
 				if (!PlantSelect) return;
 
@@ -223,7 +210,7 @@ void AGardenDirector::MakePlantList()
 					return;
 				}
 
-				PopulateShelf(Plants);
+				PlantSelect->SetGardenPlants(Plants);
 			}
 		)
 	);
