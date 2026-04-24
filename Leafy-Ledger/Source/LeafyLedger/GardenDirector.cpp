@@ -2,6 +2,7 @@
 
 
 #include "GardenDirector.h"
+#include "BackendApiSubsystem.h"
 #include "SavedPlantCacheSubsystem.h"
 #include "GardenSessionSubsystem.h"
 #include "PlantSelect.h"
@@ -57,16 +58,10 @@ void AGardenDirector::AddButtons()
 
 void AGardenDirector::SpawnLoadedPlants()
 {
-	if (!GetGameInstance() || !GetWorld())
-	{
-		return;
-	}
+	if (!GetGameInstance() || !GetWorld()) return;
 
 	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
-	if (!GardenSession || !GardenSession->HasActiveDraft())
-	{
-		return;
-	}
+	if (!GardenSession || !GardenSession->HasActiveDraft()) return;
 
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
 	AUserDrone* UserDrone = PlayerController ? Cast<AUserDrone>(PlayerController->GetPawn()) : nullptr;
@@ -75,10 +70,7 @@ void AGardenDirector::SpawnLoadedPlants()
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
 	for (const FEditablePlantPlacement& PlantPlacement : Draft.Plants)
 	{
-		if (PlantPlacement.BackendPlantInstanceId <= 0)
-		{
-			continue;
-		}
+		if (PlantPlacement.BackendPlantInstanceId <= 0) continue;
 
 		FActorSpawnParameters SpawnParams;
 		APlant* PlantActor = GetWorld()->SpawnActor<APlant>(
@@ -88,10 +80,7 @@ void AGardenDirector::SpawnLoadedPlants()
 			SpawnParams
 		);
 
-		if (!PlantActor)
-		{
-			continue;
-		}
+		if (!PlantActor) continue;
 
 		UPlantObject* PlantData = NewObject<UPlantObject>(this);
 		if (PlantData)
@@ -124,27 +113,87 @@ void AGardenDirector::MakePlantList()
 {
 	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	UPlantSelect* PlantSelect = CreateWidget<UPlantSelect>(PlayerController, PlantSelectClass);
+	if (!PlantSelect)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MakePlantList: failed to create PlantSelect"));
+		return;
+	}
+
 	PlantSelect->AddToViewport();
 
 	UGameInstance* GI = GetGameInstance();
+	if (!GI) return;
+
+	UGardenSessionSubsystem* GardenSession = GI->GetSubsystem<UGardenSessionSubsystem>();
+	const int32 ActiveGardenId = (GardenSession && GardenSession->HasActiveDraft()) ? GardenSession->GetDraft().BackendGardenId : 0;
 	USavedPlantCacheSubsystem* PlantCache = GI->GetSubsystem<USavedPlantCacheSubsystem>();
+
+	if (ActiveGardenId > 0)
+	{
+		UBackendApiSubsystem* BackendApi = GI->GetSubsystem<UBackendApiSubsystem>();
+		if (!BackendApi)
+		{
+			UE_LOG(LogTemp, Error, TEXT("MakePlantList: BackendApiSubsystem missing"));
+			return;
+		}
+
+		if (PlantCache && PlantCache->HasCachedPlants())
+		{
+			PlantSelect->SetGlobalPlants(PlantCache->GetCachedPlants());
+		}
+
+		if (PlantCache)
+		{
+			PlantCache->RefreshSavedPlants(
+				FOnSavedPlantsRefreshed::CreateWeakLambda(
+					PlantSelect,
+					[PlantSelect](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+					{
+						if (!PlantSelect) return;
+
+						if (!bSuccess)
+						{
+							UE_LOG(LogTemp, Error, TEXT("MakePlantList global refresh failed: %s"), *Message);
+							return;
+						}
+
+						PlantSelect->SetGlobalPlants(Plants);
+					}
+				)
+			);
+		}
+
+		BackendApi->GetSavedSpeciesForGarden(
+			ActiveGardenId,
+			FBackendPlantsResponse::CreateWeakLambda(
+				PlantSelect,
+				[PlantSelect, ActiveGardenId](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
+				{
+					if (!PlantSelect) return;
+
+					if (!bSuccess)
+					{
+						UE_LOG(LogTemp, Error, TEXT("MakePlantList garden refresh failed for garden %d: %s"), ActiveGardenId, *Message);
+						return;
+					}
+
+					PlantSelect->SetGardenPlants(Plants);
+				}
+			)
+		);
+		return;
+	}
+
+	if (!PlantCache)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MakePlantList: SavedPlantCacheSubsystem missing"));
+		return;
+	}
 
 	// Use cached plants
 	if (PlantCache->HasCachedPlants())
 	{
-		const TArray<FBackendPlantDto>& CachedPlants = PlantCache->GetCachedPlants();
-
-		for (const FBackendPlantDto& Plant : CachedPlants)
-		{
-			PlantSelect->AddPlantToShelf(
-				Plant.PerenualId,
-				Plant.Id,
-				Plant.CommonName,
-				4, //Plant.DaysToBloom,
-				6, //Plant.DaysToWither,
-				Plant.ModelCategory
-			);
-		}
+		PlantSelect->SetGardenPlants(PlantCache->GetCachedPlants());
 	}
 
 	// Check for non-cached plants and refresh if any
@@ -161,18 +210,7 @@ void AGardenDirector::MakePlantList()
 					return;
 				}
 
-				PlantSelect->PlantShelf->ClearListItems();
-				for (const FBackendPlantDto& Plant : Plants)
-				{
-					PlantSelect->AddPlantToShelf(
-						Plant.PerenualId,
-						Plant.Id,
-						Plant.CommonName,
-						4, //Plant.DaysToBloom,
-						6, //Plant.DaysToWither,
-						Plant.ModelCategory
-					);
-				}
+				PlantSelect->SetGardenPlants(Plants);
 			}
 		)
 	);

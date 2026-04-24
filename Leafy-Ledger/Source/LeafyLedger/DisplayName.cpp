@@ -4,7 +4,6 @@
 #include "BackendApiSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/EditableTextBox.h"
-#include "MenuController.h"
 
 bool UDisplayName::Initialize()
 {
@@ -21,6 +20,11 @@ bool UDisplayName::Initialize()
 	if (BTN_SubmitName)
 	{
 		BTN_SubmitName->OnClicked.AddDynamic(this, &UDisplayName::OnPressSubmit);
+	}
+
+	if (BTN_Back)
+	{
+		BTN_Back->OnClicked.AddDynamic(this, &UDisplayName::OnPressBack);
 	}
 
 	return true;
@@ -43,9 +47,7 @@ void UDisplayName::NativeConstruct()
 		return;
 	}
 
-	Api->GetCurrentUser(
-		FBackendCurrentUserResponse::CreateUObject(this, &UDisplayName::HandleGetCurrentUserResponse)
-	);
+	Api->GetCurrentUser(FBackendCurrentUserResponse::CreateUObject(this, &UDisplayName::HandleGetCurrentUserResponse));
 }
 
 void UDisplayName::HandleGetCurrentUserResponse(bool bSuccess, const FString& Message, const FBackendUserDto& User)
@@ -128,7 +130,16 @@ void UDisplayName::HandleUpdateDisplayNameResponse(bool bSuccess, const FString&
 		return;
 	}
 
-	AMenuController* MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+	MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
+	if (MenuController)
+	{
+		MenuController->ShowMainMenu();
+	}
+}
+
+void UDisplayName::OnPressBack()
+{
+	MenuController = Cast<AMenuController>(UGameplayStatics::GetPlayerController(this, 0));
 	if (MenuController)
 	{
 		MenuController->ShowMainMenu();

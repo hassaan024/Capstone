@@ -6,6 +6,10 @@
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 
 TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UBackendApiSubsystem::CreateRequest(
 	const FString& Route,
@@ -119,6 +123,119 @@ FString UBackendApiSubsystem::BuildErrorMessage(FHttpResponsePtr Response, const
 	return FString::Printf(TEXT("%s (HTTP %d)"), *Fallback, Response->GetResponseCode());
 }
 
+void UBackendApiSubsystem::SearchPerenualPlants(const FString& Query, const FBackendPlantSearchResponse& Callback)
+{
+	const FString TrimmedQuery = Query.TrimStartAndEnd();
+	if (TrimmedQuery.IsEmpty())
+	{
+		const TArray<FBackendPlantSearchResultDto> EmptyPlants;
+		Callback.ExecuteIfBound(false, TEXT("Search query is empty"), EmptyPlants);
+		return;
+	}
+
+	const FString Route = FString::Printf(
+		TEXT("/perenual/search?query=%s"),
+		*FGenericPlatformHttp::UrlEncode(TrimmedQuery)
+	);
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			TArray<FBackendPlantSearchResultDto> Plants;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Plants);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to search plants")),
+					Plants
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> RootObject;
+			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+			if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid search response"), Plants);
+				return;
+			}
+
+			const TArray<TSharedPtr<FJsonValue>>* Data = nullptr;
+			if (!RootObject->TryGetArrayField(TEXT("data"), Data) || !Data)
+			{
+				Callback.ExecuteIfBound(true, TEXT("OK"), Plants);
+				return;
+			}
+
+			for (const TSharedPtr<FJsonValue>& ItemValue : *Data)
+			{
+				if (!ItemValue.IsValid() || ItemValue->Type != EJson::Object)
+				{
+					continue;
+				}
+
+				const TSharedPtr<FJsonObject> Item = ItemValue->AsObject();
+				if (!Item.IsValid())
+				{
+					continue;
+				}
+
+				FBackendPlantSearchResultDto Plant;
+				double NumberValue = 0.0;
+
+				if (Item->TryGetNumberField(TEXT("id"), NumberValue))
+				{
+					Plant.PerenualId = static_cast<int32>(NumberValue);
+				}
+
+				Item->TryGetStringField(TEXT("common_name"), Plant.CommonName);
+
+				const TArray<TSharedPtr<FJsonValue>>* ScientificNames = nullptr;
+				if (Item->TryGetArrayField(TEXT("scientific_name"), ScientificNames) && ScientificNames && ScientificNames->Num() > 0)
+				{
+					const TSharedPtr<FJsonValue>& FirstName = (*ScientificNames)[0];
+					if (FirstName.IsValid())
+					{
+						Plant.ScientificName = FirstName->AsString();
+					}
+				}
+				else
+				{
+					Item->TryGetStringField(TEXT("scientific_name"), Plant.ScientificName);
+				}
+
+				const TSharedPtr<FJsonObject>* DefaultImage = nullptr;
+				if (Item->TryGetObjectField(TEXT("default_image"), DefaultImage) && DefaultImage && DefaultImage->IsValid())
+				{
+					if (!(*DefaultImage)->TryGetStringField(TEXT("regular_url"), Plant.ImageUrl))
+					{
+						(*DefaultImage)->TryGetStringField(TEXT("original_url"), Plant.ImageUrl);
+					}
+				}
+
+				Plants.Add(Plant);
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Plants);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		const TArray<FBackendPlantSearchResultDto> EmptyPlants;
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), EmptyPlants);
+	}
+}
+
 void UBackendApiSubsystem::GetSavedSpecies(const FBackendPlantsResponse& Callback)
 {
 	int32 UserId = 0;
@@ -172,6 +289,153 @@ void UBackendApiSubsystem::GetSavedSpecies(const FBackendPlantsResponse& Callbac
 	}
 }
 
+void UBackendApiSubsystem::GetSavedSpeciesForGarden(int32 GardenId, const FBackendPlantsResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		const TArray<FBackendPlantDto> EmptyPlants;
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"), EmptyPlants);
+		return;
+	}
+
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		const TArray<FBackendPlantDto> EmptyPlants;
+		Callback.ExecuteIfBound(false, Error, EmptyPlants);
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/species/saved?userId=%d&gardenId=%d"), UserId, GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			TArray<FBackendPlantDto> Plants;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Plants);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch garden saved species")),
+					Plants
+				);
+				return;
+			}
+
+			if (!FBackendJsonUtils::ParsePlantArray(Response->GetContentAsString(), Plants))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid saved species JSON"), Plants);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Plants);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		const TArray<FBackendPlantDto> EmptyPlants;
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), EmptyPlants);
+	}
+}
+
+void UBackendApiSubsystem::SavePlant(int32 PerenualId, const FBackendOperationResponse& Callback)
+{
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		Callback.ExecuteIfBound(false, Error);
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/species/save/%d?userId=%d"), PerenualId, UserId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("POST"), TEXT("{}"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"));
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to save plant"))
+				);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Plant saved"));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"));
+	}
+}
+
+void UBackendApiSubsystem::SavePlantToGarden(int32 PerenualId, int32 GardenId, const FBackendOperationResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"));
+		return;
+	}
+
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		Callback.ExecuteIfBound(false, Error);
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/species/save/%d?userId=%d&gardenId=%d"), PerenualId, UserId, GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("POST"), TEXT("{}"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"));
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to save plant to garden"))
+				);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Plant saved to garden"));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"));
+	}
+}
+
 void UBackendApiSubsystem::DeleteSavedPlant(int32 PerenualId, const FBackendOperationResponse& Callback)
 {
 	int32 UserId = 0;
@@ -204,6 +468,53 @@ void UBackendApiSubsystem::DeleteSavedPlant(int32 PerenualId, const FBackendOper
 			}
 
 			Callback.ExecuteIfBound(true, TEXT("Saved plant deleted"));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"));
+	}
+}
+
+void UBackendApiSubsystem::DeleteSavedPlantFromGarden(int32 PerenualId, int32 GardenId, const FBackendOperationResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"));
+		return;
+	}
+
+	int32 UserId = 0;
+	FString Error;
+	if (!TryGetUserId(UserId, Error))
+	{
+		Callback.ExecuteIfBound(false, Error);
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/species/save/%d?userId=%d&gardenId=%d"), PerenualId, UserId, GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("DELETE"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"));
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to delete garden saved plant"))
+				);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Garden saved plant deleted"));
 		}
 	);
 

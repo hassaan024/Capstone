@@ -15,12 +15,23 @@ export class GardenService {
   async create(createGardenDto: CreateGardenDto) {
     try {
       const { bloomDate, ...restDto } = createGardenDto;
+      let parsedBloomDate: Date | undefined;
+
+      if (bloomDate) {
+        parsedBloomDate = new Date(bloomDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedBloomDate < today) {
+          throw new BadRequestException('Target bloom date cannot be in the past');
+        }
+      }
+
       return await this.db.garden.create({
         data: {
           description: restDto.description ?? '',
           timezone: restDto.timezone ?? undefined,
           ...restDto,
-          bloomDate: bloomDate ? new Date(bloomDate) : undefined,
+          bloomDate: parsedBloomDate,
         },
       });
     } catch (err: unknown) {
@@ -80,9 +91,24 @@ export class GardenService {
 
   async update(id: number, updateGardenDto: UpdateGardenDto) {
     try {
+      const { bloomDate, ...restDto } = updateGardenDto as any;
+      let parsedBloomDate: Date | undefined;
+
+      if (bloomDate) {
+        parsedBloomDate = new Date(bloomDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedBloomDate < today) {
+          throw new BadRequestException('Target bloom date cannot be in the past');
+        }
+      }
+
       return await this.db.garden.update({
         where: { id },
-        data: updateGardenDto,
+        data: {
+          ...restDto,
+          ...(parsedBloomDate !== undefined && { bloomDate: parsedBloomDate }),
+        },
       });
     } catch (err: unknown) {
       if (

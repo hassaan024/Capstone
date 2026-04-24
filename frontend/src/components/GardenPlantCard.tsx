@@ -75,7 +75,8 @@ const GardenPlantCard: React.FC<GardenPlantCardProps> = ({ plant }) => {
   const { species } = plant;
   const category = mapPlantToVisualCategory({
     type: species.type,
-    flowers: species.flowers,
+    scientificName: species.scientificName,
+    commonName: species.commonName,
     cuisine: species.cuisine,
     edibleFruit: species.edibleFruit,
     edibleLeaf: species.edibleLeaf,

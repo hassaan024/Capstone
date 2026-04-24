@@ -1,30 +1,56 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "PlantCardPopup.h"
 #include "PlantObject.h"
 #include "Components/TextBlock.h"
+#include "UObject/UObjectGlobals.h"
 
 bool UPlantCardPopup::Initialize()
 {
     if (!Super::Initialize()) return false;
 
-    if (BTN_UnsavePlant)
+    if (BTN_ManageSave)
     {
-        BTN_UnsavePlant->OnClicked.AddDynamic(this, &UPlantCardPopup::OnPressUnsavePlant);
+        BTN_ManageSave->OnClicked.AddDynamic(this, &UPlantCardPopup::OnPressManageSave);
     }
 
     return true;
 }
 
-void UPlantCardPopup::OnPressUnsavePlant()
+void UPlantCardPopup::OnPressManageSave()
 {
+    if (!ManageSaveClass)
+    {
+        ManageSaveClass = LoadClass<UManageSave>(nullptr, TEXT("/Game/UI/WB_ManageSave.WB_ManageSave_C"));
+        if (!ManageSaveClass)
+        {
+            UE_LOG(LogTemp, Error, TEXT("Failed to load /Game/UI/WB_ManageSave.WB_ManageSave_C"));
+            return;
+        }
+    }
+
     if (!PlantCard)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Unsave clicked but PlantCard is null"));
+        UE_LOG(LogTemp, Warning, TEXT("Manage save clicked but PlantCard is null"));
         return;
     }
-    OnRemoveClicked.Broadcast(PlantCard->PerenualId);
+    
+    if (ManageSaveInstance)
+    {
+        ManageSaveInstance->RemoveFromParent();
+        ManageSaveInstance = nullptr;
+    }
+
+    ManageSaveInstance = CreateWidget<UManageSave>(GetOwningPlayer(), ManageSaveClass);
+    if (!ManageSaveInstance)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to create ManageSave widget"));
+        return;
+    }
+
+    ManageSaveInstance->ConfigureForPlant(PlantCard->PerenualId, PlantCard->CommonName);
+    ManageSaveInstance->OnSaveApplied.AddUniqueDynamic(this, &UPlantCardPopup::HandleManageSaveApplied);
+    ManageSaveInstance->AddToViewport(30);
 }
 
 void UPlantCardPopup::PopulateInfo(UObject* ListItemObject)
@@ -37,4 +63,15 @@ void UPlantCardPopup::PopulateInfo(UObject* ListItemObject)
 
     if (TXT_ScientificName)
         TXT_ScientificName->SetText(FText::FromString(PlantCard->ScientificName));
+}
+
+void UPlantCardPopup::HandleManageSaveApplied(int32 PerenualId, bool bIsGloballySaved)
+{
+    OnSaveStateChanged.Broadcast();
+
+    if (!bIsGloballySaved)
+    {
+        OnGlobalSaveRemoved.Broadcast(PerenualId);
+        RemoveFromParent();
+    }
 }

@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Plant.generated.h"
 
+class UStaticMesh;
 class UStaticMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
@@ -60,31 +61,43 @@ public:
 		FString PlantName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	int32 PerenualId = -1;
+		int32 PerenualId = -1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	int32 SpeciesId = -1;
+		int32 SpeciesId = -1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	float HeightCm = 0.f;
+		float HeightCm = 0.f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	int32 AgeDays = 0;
+		int32 AgeDays = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	FString HealthStatus;
+		FString HealthStatus;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	FString LastWateredIso8601;
+		FString LastWateredIso8601;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
-	FString Notes;
+		FString Notes;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
-	FGuid LocalPlantId;
+		FGuid LocalPlantId;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
-	bool bIsTrackedInGardenDraft = false;
+		bool bIsTrackedInGardenDraft = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+		UStaticMesh* SeedMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+		UStaticMesh* SaplingMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+		UStaticMesh* BloomedMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+		UStaticMesh* WitherMesh = nullptr;
 
 	UFUNCTION()
 		void HandleDayChanged(int32 NewDayIndex);
@@ -93,6 +106,7 @@ public:
 		void InitializeFromPlantData(UPlantObject* PlantData);
 
 	void UpdateForDay(int32 DayIndex);
+
 	UFUNCTION(BlueprintImplementableEvent)
 		void BlueprintDayUpdate(int32 DayIndex);
 

@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
 #include "BackendApiTypes.h"
+#include "MenuController.h"
 #include "DisplayName.generated.h"
 
 class UEditableTextBox;
@@ -25,14 +26,22 @@ public:
 	UFUNCTION()
 	void OnPressSubmit();
 
+	UFUNCTION()
+	void OnPressBack();
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_GoogleName;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_SubmitName;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_Back;
+
 	UPROPERTY(meta = (BindWidget))
 	UEditableTextBox* ET_DisplayName;
+
+	AMenuController* MenuController;
 
 private:
 	void SubmitDisplayName(const FString& NewName);

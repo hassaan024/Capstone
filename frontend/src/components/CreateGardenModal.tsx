@@ -251,6 +251,7 @@ const CreateGardenModal: React.FC<CreateGardenModalProps> = ({
                   type="date"
                   value={bloomDate}
                   onChange={(e) => setBloomDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
                   style={{...inputStyle, cursor: 'text'}}
                   onFocus={(e) => (e.target.style.borderColor = 'rgba(74,222,128,0.5)')}
                   onBlur={(e) => (e.target.style.borderColor = 'rgba(148,163,184,0.2)')}

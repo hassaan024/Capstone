@@ -124,6 +124,24 @@ struct FBackendPlantDto
 };
 
 USTRUCT(BlueprintType)
+struct FBackendPlantSearchResultDto
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 PerenualId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString CommonName;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString ScientificName;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString ImageUrl;
+};
+
+USTRUCT(BlueprintType)
 struct FBackendUserDto
 {
 	GENERATED_BODY()

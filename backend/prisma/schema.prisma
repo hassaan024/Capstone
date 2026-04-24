@@ -69,6 +69,7 @@ model PlantInstance {
   ageDays           Int?     // age of plant in days, optional
   healthStatus      HealthStatus?  
   lastWatered       DateTime? 
+  plantedDate       DateTime? // when the plant was physically placed (set by Unreal)
   notes             String?  // any notes
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt

@@ -9,8 +9,9 @@ import GardenPlantCard, {
 import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
 import CreateGardenModal from '../components/CreateGardenModal';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus } from 'react-icons/fa';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaBookmark, FaPlus, FaTimes, FaEllipsisV, FaProjectDiagram } from 'react-icons/fa';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
+import PlantStageTrackerCard from '../components/PlantStageTrackerCard';
 
 interface GardenSummary {
   id: number;
@@ -33,7 +34,12 @@ interface GardenDetailPlant {
   lastWatered: string | null;
   notes: string | null;
   creationTimestamp: string;
-  species: GardenPlantCardSpecies;
+  plantedDate?: string | null;   // may come from Unreal later; currently absent in schema
+  species: GardenPlantCardSpecies & {
+    commonName: string;
+    scientificName: string;
+    cycle?: string | null;
+  };
   soil: { type: string };
 }
 
@@ -51,7 +57,7 @@ interface SavedPlant {
   modelCategory?: string;
 }
 
-type GardenSubTab = 'plants' | 'saved';
+type GardenSubTab = 'plants' | 'saved' | 'track';
 
 const MyGardens: React.FC = () => {
   const navigate = useNavigate();
@@ -70,6 +76,8 @@ const MyGardens: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [globalSavedIds, setGlobalSavedIds] = useState<Set<number>>(new Set());
   const [savedPlantGardenStates, setSavedPlantGardenStates] = useState<Record<number, boolean>>({});
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const analytics = useMemo(() => {
     if (!detail) return null;
@@ -78,7 +86,9 @@ const MyGardens: React.FC = () => {
     const categories = plants.reduce((acc: any, p) => {
       const cat = mapPlantToVisualCategory({
         type: p.species.type,
-        flowers: p.species.flowers,
+        cycle: p.species.cycle,
+        scientificName: p.species.scientificName,
+        commonName: p.species.commonName,
         cuisine: p.species.cuisine,
         edibleFruit: p.species.edibleFruit,
         edibleLeaf: p.species.edibleLeaf,
@@ -115,6 +125,75 @@ const MyGardens: React.FC = () => {
       p.species.scientificName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [detail, searchTerm]);
+
+  // ---------------------------------------------------------------------------
+  // Planted-date helper
+  // If Unreal has set plantedDate, use it. Otherwise derive it as:
+  //   plantedDate = bloomDate - daysToBloom(category)
+  // where daysToBloom is: flower=20, vegetable=30, tree=50 days.
+  // ---------------------------------------------------------------------------
+  const DAYS_TO_BLOOM: Record<string, number> = { flower: 20, vegetable: 30, tree: 50 };
+
+  const computePlantedDate = (p: GardenDetailPlant): string | null => {
+    // 1. Unreal explicitly set it
+    if (p.plantedDate) return p.plantedDate;
+
+    // 2. Derive from bloomDate - daysToBloom
+    if (detail?.bloomDate) {
+      const category = mapPlantToVisualCategory({
+        type: p.species.type,
+        cycle: p.species.cycle,
+        scientificName: p.species.scientificName,
+        commonName: p.species.commonName,
+        cuisine: p.species.cuisine,
+        edibleFruit: p.species.edibleFruit,
+        edibleLeaf: p.species.edibleLeaf,
+      });
+      const days = DAYS_TO_BLOOM[category] ?? 20;
+      const bloomMs = new Date(detail.bloomDate).getTime();
+      return new Date(bloomMs - days * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    return null;
+  };
+
+  // Timeline dates for Track tab
+  // Start = earliest computed planted date; End = bloomDate
+  const timelineDates = useMemo(() => {
+    if (!detail) return { start: Date.now(), end: Date.now() };
+    const end = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
+    let earliest = end;
+    for (const p of detail.plants) {
+      const dateStr = computePlantedDate(p);
+      if (dateStr) {
+        const d = new Date(dateStr).getTime();
+        if (d < earliest) earliest = d;
+      }
+    }
+    return { start: earliest, end };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail]);
+
+  const [sliderValue, setSliderValue] = useState(100); // 0 to 100
+  const currentTimestamp = useMemo(() => {
+    if (timelineDates.start === timelineDates.end) return timelineDates.end;
+    const diff = timelineDates.end - timelineDates.start;
+    return timelineDates.start + (diff * (sliderValue / 100));
+  }, [sliderValue, timelineDates]);
+
+  const handleDeleteGarden = async (gardenId: number) => {
+    try {
+      await api.del(`/garden/${gardenId}`);
+      setGardens(prev => prev.filter(g => g.id !== gardenId));
+      if (selectedId === gardenId) {
+        setSelectedId(null);
+        setDetail(null);
+      }
+    } catch (e) {
+      console.error("Failed to delete garden", e);
+      alert("Failed to delete garden.");
+    }
+  };
 
   const loadList = useCallback(async () => {
     if (!user?.id) return;
@@ -442,15 +521,66 @@ const MyGardens: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    {detail.plants.length > 0 && (
-                      <button 
-                        className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 
-                        onClick={() => setShowAnalytics(!showAnalytics)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: showAnalytics ? '#86efac' : undefined, borderColor: showAnalytics ? '#86efac' : undefined, backgroundColor: 'rgba(15, 23, 42, 0.4)' }}
-                      >
-                        <FaChartBar /> {showAnalytics ? 'Hide Analytics' : 'Garden Analytics'}
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {detail.plants.length > 0 && (
+                        <button 
+                          className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 
+                          onClick={() => setShowAnalytics(!showAnalytics)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: showAnalytics ? '#86efac' : undefined, borderColor: showAnalytics ? '#86efac' : undefined, backgroundColor: 'rgba(15, 23, 42, 0.4)' }}
+                        >
+                          <FaChartBar /> {showAnalytics ? 'Hide Analytics' : 'Garden Analytics'}
+                        </button>
+                      )}
+                      
+                      <div style={{ position: 'relative' }}>
+                        <button 
+                          className="browse-back-btn" 
+                          onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                          style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderColor: 'transparent' }}
+                        >
+                          <FaEllipsisV />
+                        </button>
+                        {showSettingsMenu && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: '0',
+                            marginTop: '0.5rem',
+                            background: '#1e293b',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                            minWidth: '160px',
+                            zIndex: 50,
+                            overflow: 'hidden'
+                          }}>
+                            <button 
+                              onClick={() => {
+                                 setShowSettingsMenu(false);
+                                 setShowDeleteModal(true);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '0.75rem 1rem',
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#f87171',
+                                textAlign: 'left',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <FaTimes /> Delete Garden
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div
                     style={{
@@ -585,14 +715,14 @@ const MyGardens: React.FC = () => {
                   </section>
                 )}
 
-                {/* Sub-tab bar: Plants | Saved Plants */}
+                {/* Sub-tab bar: Plants | Saved Plants | Track */}
                 <div className="sub-tab-bar">
                   <button
                     className={`sub-tab ${subTab === 'plants' ? 'active' : ''}`}
                     onClick={() => setSubTab('plants')}
                   >
                     <FaSeedling /> Plants
-                    <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>({detail.plants.length})</span>
+                    <span style={{ opacity: 0.6, fontSize: '0.85rem', marginLeft: '4px' }}>({detail.plants.length})</span>
                   </button>
                   <button
                     className={`sub-tab ${subTab === 'saved' ? 'active' : ''}`}
@@ -600,8 +730,14 @@ const MyGardens: React.FC = () => {
                   >
                     <FaBookmark /> Saved Plants
                     {subTab === 'saved' && gardenSavedPlants.length > 0 && (
-                      <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>({gardenSavedPlants.length})</span>
+                      <span style={{ opacity: 0.6, fontSize: '0.85rem', marginLeft: '4px' }}>({gardenSavedPlants.length})</span>
                     )}
+                  </button>
+                  <button
+                    className={`sub-tab ${subTab === 'track' ? 'active' : ''}`}
+                    onClick={() => setSubTab('track')}
+                  >
+                    <FaProjectDiagram /> Track Growth Stages
                   </button>
                 </div>
 
@@ -686,6 +822,72 @@ const MyGardens: React.FC = () => {
                     )}
                   </>
                 )}
+
+                {/* Track sub-tab content */}
+                {subTab === 'track' && (
+                  <>
+                    <div style={{
+                      background: 'rgba(15, 23, 42, 0.8)',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '12px',
+                      padding: '1.5rem',
+                      marginBottom: '1.5rem'
+                    }}>
+                      <h3 style={{ margin: '0 0 1rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FaClock /> Timeline Tracker
+                      </h3>
+                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                        Drag the timeline to see what stages your plants will be in at different dates based on when they were planted. Models automatically transition.
+                      </p>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem' }}>
+                        <span>{new Date(timelineDates.start).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} (First Plant)</span>
+                        <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>
+                          Viewing: {new Date(currentTimestamp).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}
+                        </span>
+                        <span>{new Date(timelineDates.end).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} (Bloom Target)</span>
+                      </div>
+                      
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="100" 
+                        value={sliderValue} 
+                        onChange={(e) => setSliderValue(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          appearance: 'none',
+                          height: '8px',
+                          background: 'rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </div>
+                    
+                    {detail.plants.length === 0 ? (
+                      <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
+                        No plants to track. Add plants from Unreal first.
+                      </p>
+                    ) : (
+                      <div className="browse-grid">
+                        {detail.plants.map(p => (
+                          <PlantStageTrackerCard
+                            key={p.id}
+                            plant={{
+                              ...p,
+                              // Use Unreal's plantedDate if set; otherwise derive from bloomDate - daysToBloom
+                              plantedDate: computePlantedDate(p),
+                            }}
+                            currentTimestamp={currentTimestamp}
+                            bloomTimestamp={timelineDates.end}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
           </>
@@ -714,6 +916,34 @@ const MyGardens: React.FC = () => {
           userId={user.id}
           onCreated={loadList}
         />
+      )}
+      {showDeleteModal && detail && (
+        <div className="save-dest-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="save-dest-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem 1.5rem' }}>
+            <FaExclamationTriangle style={{ fontSize: '3rem', color: '#f87171', marginBottom: '1rem' }} />
+            <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.25rem' }}>Delete {detail.name}?</h3>
+            <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: 1.5 }}>
+              Are you absolutely sure? This action cannot be undone and will permanently remove all plants and layouts inside this garden.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', fontWeight: 600, flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  handleDeleteGarden(detail.id);
+                  setShowDeleteModal(false);
+                }}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600, flex: 1 }}
+              >
+                Delete Garden
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

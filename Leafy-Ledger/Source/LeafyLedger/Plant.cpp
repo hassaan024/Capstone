@@ -62,49 +62,67 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	DaysToBloom = PlantData->DaysToBloom;
 	DaysToWither = PlantData->DaysToWither;
 
-	//UE_LOG(LogTemp, Log, TEXT("InitializeFromPlantData: %s SpeciesId=%d PerenualId=%d"), *PlantName, SpeciesId, PerenualId);
-
-	if (PreviewMesh && PlantData->PlantMesh)
+	if (PreviewMesh && BloomedMesh)
 	{
-		PreviewMesh->SetStaticMesh(PlantData->PlantMesh);
+		PreviewMesh->SetStaticMesh(BloomedMesh);
 	}
 }
 
 void APlant::UpdateForDay(int32 DayIndex)
 {
 	BlueprintDayUpdate(DayIndex);
-	float Scale01 = 0.f;
+
+	if (!PreviewMesh)
+	{
+		return;
+	}
+
+	UStaticMesh* DesiredMesh = nullptr;
+	FVector DesiredScale = FVector(1.f);
 
 	if (DayIndex < PlantingDayIndex)
 	{
-		Scale01 = 0.f;
+		DesiredMesh = SeedMesh;
+		DesiredScale = FVector(1.f);
 	}
-	else if (DayIndex <= BloomDayIndex)
+	else if (DayIndex < BloomDayIndex)
 	{
-		if (DaysToBloom <= 0)
+		if (SeedMesh && SaplingMesh)
 		{
-			Scale01 = 1.f;
+			const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
+			const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
+
+			if (GrowthAlpha < 0.5f)
+			{
+				DesiredMesh = SeedMesh;
+			}
+			else
+			{
+				DesiredMesh = SaplingMesh;
+			}
+		}
+		else if (SaplingMesh)
+		{
+			DesiredMesh = SaplingMesh;
 		}
 		else
 		{
-			Scale01 = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(DaysToBloom), 0.f, 1.f);
+			DesiredMesh = SeedMesh;
 		}
 	}
-	else if (DayIndex <= WitherDayIndex)
+	else if (DayIndex < WitherDayIndex)
 	{
-		if (DaysToWither <= 0)
-		{
-			Scale01 = 0.f;
-		}
-		else
-		{
-			Scale01 = 1.f - FMath::Clamp(static_cast<float>(DayIndex - BloomDayIndex) / static_cast<float>(DaysToWither), 0.f, 1.f);
-		}
+		DesiredMesh = BloomedMesh;
 	}
 	else
 	{
-		Scale01 = 0.f;
+		DesiredMesh = WitherMesh ? WitherMesh : BloomedMesh;
 	}
 
-	SetActorScale3D(FVector(Scale01));
+	if (DesiredMesh)
+	{
+		PreviewMesh->SetStaticMesh(DesiredMesh);
+	}
+
+	SetActorScale3D(DesiredScale);
 }

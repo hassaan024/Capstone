@@ -30,6 +30,9 @@ public:
     void ShowSavedPlants();
 
     UFUNCTION()
+    void ShowBrowseSpecies();
+
+    UFUNCTION()
     void HandleLoginFailed(const FString& Error);
 
     UFUNCTION()
@@ -46,6 +49,9 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
     TSubclassOf<UUserWidget> SavedPlantsWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+    TSubclassOf<UUserWidget> BrowseSpeciesWidgetClass;
 
     UPROPERTY(Transient)
     UUserWidget* CurrentWidget = nullptr;
