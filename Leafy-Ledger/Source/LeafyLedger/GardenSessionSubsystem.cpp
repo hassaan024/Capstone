@@ -1,12 +1,15 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "GardenSessionSubsystem.h"
+#include "BloomDateUtils.h"
 
-void UGardenSessionSubsystem::StartNewGardenDraft(const FString& Name, const FString& Description)
+void UGardenSessionSubsystem::StartNewGardenDraft(const FString& Name, const FString& Description, const FString& BloomDate)
 {
 	Draft = FEditableGardenState{};
 	Draft.Name = Name;
 	Draft.Description = Description;
+	Draft.BloomDate = FBloomDateUtils::NormalizeBackendDateString(BloomDate);
+	Draft.bPendingGardenUpdate = true;
 	Draft.bHasUnsavedChanges = true;
 	Draft.bIsInitialized = true;
 }
@@ -17,9 +20,11 @@ void UGardenSessionSubsystem::LoadGardenDraft(const FBackendGardenDetailDto& Gar
 	Draft.BackendGardenId = Garden.Id;
 	Draft.Name = Garden.Name;
 	Draft.Description = Garden.Description;
+	Draft.BloomDate = FBloomDateUtils::NormalizeBackendDateString(Garden.BloomDate);
 	Draft.Latitude = Garden.Latitude;
 	Draft.Longitude = Garden.Longitude;
 	Draft.Timezone = Garden.Timezone;
+	Draft.bPendingGardenUpdate = false;
 	Draft.bIsInitialized = true;
 	Draft.bHasUnsavedChanges = false;
 
@@ -71,10 +76,36 @@ void UGardenSessionSubsystem::SetGardenLocation(float Latitude, float Longitude,
 {
 	if (!Draft.bIsInitialized) return;
 
+	if (FMath::IsNearlyEqual(Draft.Latitude, Latitude)
+		&& FMath::IsNearlyEqual(Draft.Longitude, Longitude)
+		&& Draft.Timezone == Timezone)
+	{
+		return;
+	}
+
 	Draft.Latitude = Latitude;
 	Draft.Longitude = Longitude;
 	Draft.Timezone = Timezone;
-	Draft.bHasUnsavedChanges = true;
+	Draft.bPendingGardenUpdate = true;
+	RefreshDirtyState();
+}
+
+void UGardenSessionSubsystem::SetBloomDate(const FString& BloomDate)
+{
+	if (!Draft.bIsInitialized)
+	{
+		return;
+	}
+
+	const FString NormalizedBloomDate = FBloomDateUtils::NormalizeBackendDateString(BloomDate);
+	if (Draft.BloomDate == NormalizedBloomDate)
+	{
+		return;
+	}
+
+	Draft.BloomDate = NormalizedBloomDate;
+	Draft.bPendingGardenUpdate = true;
+	RefreshDirtyState();
 }
 
 void UGardenSessionSubsystem::MarkDirty()
@@ -122,12 +153,7 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	return Plant.LocalId;
 }
 
-bool UGardenSessionSubsystem::UpdatePlantTransform(
-	const FGuid& LocalId,
-	const FVector& Location,
-	const FRotator& Rotation,
-	const FVector& Scale
-)
+bool UGardenSessionSubsystem::UpdatePlantTransform(const FGuid& LocalId, const FVector& Location, const FRotator& Rotation, const FVector& Scale)
 {
 	const int32 Index = FindPlantIndexByLocalId(LocalId);
 	if (Index == INDEX_NONE) return false;
@@ -217,7 +243,7 @@ void UGardenSessionSubsystem::RefreshDirtyState()
 		}
 	}
 
-	Draft.bHasUnsavedChanges = !bGardenSaved || bAnyPendingPlantChanges;
+	Draft.bHasUnsavedChanges = !bGardenSaved || Draft.bPendingGardenUpdate || bAnyPendingPlantChanges;
 }
 
 bool UGardenSessionSubsystem::IsDirty() const
@@ -235,6 +261,7 @@ void UGardenSessionSubsystem::MarkGardenSaved(int32 InBackendGardenId)
 	if (!Draft.bIsInitialized) return;
 
 	Draft.BackendGardenId = InBackendGardenId;
+	Draft.bPendingGardenUpdate = false;
 	RefreshDirtyState();
 }
 

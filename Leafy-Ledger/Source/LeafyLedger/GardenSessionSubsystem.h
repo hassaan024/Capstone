@@ -85,6 +85,9 @@ struct FEditableGardenState
 	FString Description;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	float Latitude = 0.f;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -92,6 +95,9 @@ struct FEditableGardenState
 
 	UPROPERTY(BlueprintReadWrite)
 	FString Timezone;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bPendingGardenUpdate = false;
 
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FEditablePlantPlacement> Plants;
@@ -110,7 +116,7 @@ class LEAFYLEDGER_API UGardenSessionSubsystem : public UGameInstanceSubsystem
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void StartNewGardenDraft(const FString& Name, const FString& Description);
+	void StartNewGardenDraft(const FString& Name, const FString& Description, const FString& BloomDate);
 
 	void LoadGardenDraft(const FBackendGardenDetailDto& Garden);
 
@@ -125,6 +131,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetGardenLocation(float Latitude, float Longitude, const FString& Timezone);
+
+	UFUNCTION(BlueprintCallable)
+	void SetBloomDate(const FString& BloomDate);
 
 	UFUNCTION(BlueprintCallable)
 	void MarkDirty();

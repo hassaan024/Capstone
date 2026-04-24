@@ -19,6 +19,7 @@ class LEAFYLEDGER_API UCreateGardenPopup : public UUserWidget
 
 public:
 	virtual bool Initialize() override;
+	virtual void NativeConstruct() override;
 
 	UFUNCTION()
 	void OnPressCreate();
@@ -34,4 +35,10 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	UEditableTextBox* ET_GardenDesc;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	UEditableTextBox* ET_BloomDate;
+
+private:
+	void EnsureBloomDateField();
 };

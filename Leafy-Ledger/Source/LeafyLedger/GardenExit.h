@@ -9,6 +9,7 @@
 #include "GardenExit.generated.h"
 
 class UBackendApiSubsystem;
+class UEditableTextBox;
 
 UCLASS()
 class LEAFYLEDGER_API UGardenExit : public UUserWidget
@@ -17,6 +18,7 @@ class LEAFYLEDGER_API UGardenExit : public UUserWidget
 	
 public:
     virtual bool Initialize() override;
+    virtual void NativeConstruct() override;
 
     UFUNCTION()
     void OnPressSave();
@@ -31,5 +33,26 @@ public:
     UButton* BTN_Exit;
 
 private:
-    void SavePendingPlants(int32 GardenId, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
+	void EnsureBloomDateInput();
+	void ApplyDraftBloomDate();
+	void ValidateBloomDateText(bool bBroadcastOnSuccess);
+	FString GetRawBloomDateText() const;
+
+	UFUNCTION()
+	void HandleBloomDateTextChanged(const FText& NewText);
+
+	UFUNCTION()
+	void HandleBloomDateTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod);
+
+	void SavePendingPlants(int32 GardenId, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
+
+	UPROPERTY(Transient, meta = (BindWidget))
+	UEditableTextBox* ET_BloomDate = nullptr;
+
+	FString LastValidBloomDateDisplay;
+	FString LastValidBloomDateBackend;
+	FString BloomDateValidationError;
+	bool bBloomDateTextEventsBound = false;
+	bool bSuppressBloomDateCallbacks = false;
+	bool bBloomDateWasEdited = false;
 };

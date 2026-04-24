@@ -835,7 +835,15 @@ void UBackendApiSubsystem::GetGardenDetail(int32 GardenId, const FBackendGardenD
 	}
 }
 
-void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback)
+void UBackendApiSubsystem::CreateGarden(
+	const FString& Name,
+	const FString& Description,
+	const FString& BloomDate,
+	float Latitude,
+	float Longitude,
+	const FString& Timezone,
+	const FBackendGardenResponse& Callback
+)
 {
 	const FString TrimmedName = Name.TrimStartAndEnd();
 	if (TrimmedName.IsEmpty())
@@ -862,6 +870,11 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 	if (!Timezone.IsEmpty())
 	{
 		BodyObj->SetStringField(TEXT("timezone"), Timezone);
+	}
+
+	if (!BloomDate.TrimStartAndEnd().IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("bloomDate"), BloomDate.TrimStartAndEnd());
 	}
 
 	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
@@ -909,6 +922,7 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 
 			Obj->TryGetStringField(TEXT("name"), Garden.Name);
 			Obj->TryGetStringField(TEXT("description"), Garden.Description);
+			Obj->TryGetStringField(TEXT("bloomDate"), Garden.BloomDate);
 
 			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
 			{
@@ -925,6 +939,118 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 			Obj->TryGetStringField(TEXT("lastUpdated"), Garden.LastUpdated);
 
 			Callback.ExecuteIfBound(true, TEXT("Garden created"), Garden);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendGardenDto{});
+	}
+}
+
+void UBackendApiSubsystem::UpdateGarden(
+	int32 GardenId,
+	const FString& Name,
+	const FString& Description,
+	const FString& BloomDate,
+	float Latitude,
+	float Longitude,
+	const FString& Timezone,
+	const FBackendGardenResponse& Callback
+)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"), FBackendGardenDto{});
+		return;
+	}
+
+	const FString TrimmedName = Name.TrimStartAndEnd();
+	if (TrimmedName.IsEmpty())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Garden name is empty"), FBackendGardenDto{});
+		return;
+	}
+
+	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+	BodyObj->SetStringField(TEXT("name"), TrimmedName);
+	BodyObj->SetStringField(TEXT("description"), Description);
+	BodyObj->SetNumberField(TEXT("latitude"), Latitude);
+	BodyObj->SetNumberField(TEXT("longitude"), Longitude);
+
+	if (!Timezone.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("timezone"), Timezone);
+	}
+
+	if (!BloomDate.TrimStartAndEnd().IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("bloomDate"), BloomDate.TrimStartAndEnd());
+	}
+
+	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+	const FString Route = FString::Printf(TEXT("/garden/%d"), GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("PATCH"), BodyStr);
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendGardenDto Garden;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Garden);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to update garden")),
+					Garden
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			if (!FBackendJsonUtils::ParseObject(Response->GetContentAsString(), Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid garden JSON"), Garden);
+				return;
+			}
+
+			double Num = 0.0;
+
+			if (Obj->TryGetNumberField(TEXT("id"), Num))
+			{
+				Garden.Id = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("ownerId"), Num))
+			{
+				Garden.OwnerId = static_cast<int32>(Num);
+			}
+
+			Obj->TryGetStringField(TEXT("name"), Garden.Name);
+			Obj->TryGetStringField(TEXT("description"), Garden.Description);
+			Obj->TryGetStringField(TEXT("bloomDate"), Garden.BloomDate);
+
+			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
+			{
+				Garden.Latitude = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("longitude"), Num))
+			{
+				Garden.Longitude = static_cast<float>(Num);
+			}
+
+			Obj->TryGetStringField(TEXT("timezone"), Garden.Timezone);
+			Obj->TryGetStringField(TEXT("creationTimestamp"), Garden.CreationTimestamp);
+			Obj->TryGetStringField(TEXT("lastUpdated"), Garden.LastUpdated);
+
+			Callback.ExecuteIfBound(true, TEXT("Garden updated"), Garden);
 		}
 	);
 
