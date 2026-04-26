@@ -231,17 +231,18 @@ model Soil {
 }
 
 model PlantHistory {
-  id             Int       @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   plantId        Int
-  date           DateTime  // timestamp for the measurement or prediction
+  date           DateTime     // game date for this snapshot
   heightCm       Float?
   healthStatus   HealthStatus?
-  predictedValue Float?    // model prediction
+  growthStage    GrowthStage? // stage at this point in the timeline
+  predictedValue Float?       // overall stress factor from the ML model
   notes          String?
 
   plant          PlantInstance @relation(fields: [plantId], references: [id])
 
-  @@index([plantId, date]) // good for querying ranges
+  @@index([plantId, date])
 }
 
 enum HealthStatus {

@@ -6,7 +6,47 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from 'database/database.service';
 import { WeatherService } from 'weather/weather.service';
+import { WeatherInfoDto } from 'weather/dto/weather-info.dto';
 import { estimateSoilMoisture } from 'utils/soil-moisture';
+import {
+  estimateDaysToMature,
+  rawDaysToMature,
+  growthStageFromRatio,
+  TIMELINE_INTERVAL_DAYS,
+} from 'utils/plant-growth';
+import { GrowthStage } from 'enums/table_enums';
+import { DEMO_SPECIES, getDemoSpecies } from 'utils/demo-species';
+
+interface TimelineEntry {
+  historyId: number;
+  date: string;
+  dayIndex: number;
+  heightCm: number;
+  growthStage: GrowthStage;
+  stressFactors: {
+    temperature: number;
+    sunlight: number;
+    water: number;
+    soil: number;
+    overall: number;
+  };
+  confidence: number;
+}
+
+// Shape that buildPayload expects for species — a flat set of ML-relevant fields
+interface SpeciesPayloadData {
+  growthRate: number;
+  minHeight: number | null;
+  maxHeight: number | null;
+  avgHoursSun: number | null;
+  minTemp: number | null;
+  maxTemp: number | null;
+  wateringMinDays: number | null;
+  wateringMaxDays: number | null;
+  droughtTolerant: boolean | null;
+  tropical: boolean | null;
+  cycle: string | null;
+}
 
 @Injectable()
 export class PredictionService {
@@ -18,26 +58,22 @@ export class PredictionService {
   ) {}
 
   async predict(plantInstanceId: number, daysAhead: number) {
-    // 1. Load plant + species + soil + garden
     const plant = await this.db.plantInstance.findUnique({
       where: { id: plantInstanceId },
-      include: {
-        species: true,
-        soil: true,
-        garden: true,
-      },
+      include: { species: true, soil: true, garden: true },
     });
 
     if (!plant) throw new NotFoundException(`Plant instance ${plantInstanceId} not found`);
 
-    const { species, soil, garden } = plant;
+    const { soil, garden } = plant;
 
-    // 2. Compute age from game dates
+    // Use accurate hardcoded data for demo species if available
+    const speciesData = this.resolveSpecies(plant.species);
+
     const ageDays = Math.floor(
-      (plant.currentGameDate.getTime() - plant.plantedDate.getTime()) / 86400000
+      (plant.currentGameDate.getTime() - plant.plantedDate.getTime()) / 86400000,
     );
 
-    // 3. Fetch weather anchored to the plant's current game date
     const weather = await this.weatherService.getWeatherForGameDate(
       garden.latitude,
       garden.longitude,
@@ -45,11 +81,277 @@ export class PredictionService {
       Math.min(daysAhead, 30),
     );
 
-    // 4. Estimate soil moisture from weather + soil type
     const soilMoisture = estimateSoilMoisture(weather, soil.type);
+    const payload = this.buildPayload(plant, speciesData, soil, weather, soilMoisture, ageDays, daysAhead);
 
-    // 5. Build payload for FastAPI
-    const payload = {
+    this.logger.log(`Prediction payload built for plant ${plantInstanceId}`);
+
+    return this.callMlService(payload);
+  }
+
+  async generateTimeline(gardenId: number, bloomDate: Date) {
+    const garden = await this.db.garden.findUnique({
+      where: { id: gardenId },
+      include: {
+        plants: { include: { species: true, soil: true } },
+      },
+    });
+
+    if (!garden) throw new NotFoundException(`Garden ${gardenId} not found`);
+    if (!garden.plants.length) throw new BadRequestException(`Garden ${gardenId} has no plants`);
+
+    const plantResults = await Promise.all(
+      garden.plants.map(async (plant) => {
+        // Use accurate hardcoded data for demo species if available
+        const speciesData = this.resolveSpecies(plant.species);
+
+        const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
+        const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
+        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm);
+        const daysToMature = Math.min(daysNeeded, 730);
+        const feasible = daysNeeded <= 730;
+        const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
+
+        // Persist the calculated planted date and reset game date to bloom date
+        await this.db.plantInstance.update({
+          where: { id: plant.id },
+          data: { plantedDate, currentGameDate: bloomDate },
+        });
+
+        // Fetch the full growth-period weather in a single API call.
+        // getWeatherForGameDate anchors to 1 year before the game date, so
+        // the returned array covers plantedDate-365 → bloomDate-365 (same
+        // seasonal window, different year), giving realistic conditions across
+        // the entire timeline.
+        const allWeather = await this.weatherService.getWeatherForGameDate(
+          garden.latitude,
+          garden.longitude,
+          plantedDate,
+          daysToMature + TIMELINE_INTERVAL_DAYS, // small buffer for the last window
+        );
+
+        // Clear any previously generated history before writing the new one
+        await this.db.plantHistory.deleteMany({ where: { plantId: plant.id } });
+
+        let currentHeight = 0;
+        const timeline: TimelineEntry[] = [];
+
+        for (let dayIndex = 0; dayIndex <= daysToMature; dayIndex += TIMELINE_INTERVAL_DAYS) {
+          const gameDate = new Date(plantedDate.getTime() + dayIndex * 86400000);
+          const heightRatio = maxHeightCm > 0 ? currentHeight / maxHeightCm : 0;
+          const growthStage = growthStageFromRatio(heightRatio);
+
+          const weatherSlice = allWeather.slice(dayIndex, dayIndex + TIMELINE_INTERVAL_DAYS);
+          if (!weatherSlice.length) break;
+
+          const soilMoisture = estimateSoilMoisture(weatherSlice, plant.soil.type);
+
+          const payload = this.buildPayload(
+            { ...plant, heightCm: currentHeight, growthStage, bloomState: heightRatio >= 0.9 },
+            speciesData,
+            plant.soil,
+            weatherSlice,
+            soilMoisture,
+            dayIndex,
+            TIMELINE_INTERVAL_DAYS,
+          );
+
+          const prediction = await this.callMlService(payload);
+          currentHeight = Math.min(prediction.predictedHeightCm as number, maxHeightCm);
+
+          const record = await this.db.plantHistory.create({
+            data: {
+              plantId: plant.id,
+              date: gameDate,
+              heightCm: currentHeight,
+              growthStage,
+              predictedValue: prediction.stressFactors.overall as number,
+            },
+          });
+
+          timeline.push({
+            historyId: record.id,
+            date: gameDate.toISOString().split('T')[0],
+            dayIndex,
+            heightCm: currentHeight,
+            growthStage,
+            stressFactors: prediction.stressFactors as TimelineEntry['stressFactors'],
+            confidence: prediction.confidence as number,
+          });
+        }
+
+        const earliestFeasibleBloomDate = !feasible
+          ? new Date(plantedDate.getTime() + daysNeeded * 86400000).toISOString().split('T')[0]
+          : null;
+
+        return {
+          plantInstanceId: plant.id,
+          speciesName: plant.species.commonName,
+          isDemo: !!getDemoSpecies(plant.species.commonName, plant.species.scientificName),
+          feasible,
+          feasibilityNote: !feasible
+            ? `${plant.species.commonName} needs ~${daysNeeded} days to reach full height but the timeline is capped at 730. ` +
+              `The slider will show partial growth (~${Math.round((730 / daysNeeded) * 100)}% of max height). ` +
+              `Earliest feasible bloom date: ${earliestFeasibleBloomDate}.`
+            : null,
+          plantedDate: plantedDate.toISOString().split('T')[0],
+          daysToMature,
+          maxHeightCm,
+          timeline,
+        };
+      }),
+    );
+
+    return {
+      gardenId,
+      bloomDate: bloomDate.toISOString().split('T')[0],
+      plants: plantResults,
+    };
+  }
+
+  /**
+   * Returns an estimated bloom date for a species given an optional planted date.
+   * No ML call — pure formula. Used by the frontend to show "~X months to full bloom."
+   */
+  async bloomEstimate(speciesId: number, plantedDate: Date) {
+    const species = await this.db.species.findUnique({ where: { id: speciesId } });
+    if (!species) throw new NotFoundException(`Species ${speciesId} not found`);
+
+    const speciesData = this.resolveSpecies(species);
+    const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
+    const demoData = getDemoSpecies(species.commonName, species.scientificName);
+    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm);
+    const daysToMature = Math.min(daysNeeded, 730);
+    const feasible = daysNeeded <= 730;
+
+    const estimatedBloomDate = new Date(plantedDate.getTime() + daysToMature * 86400000)
+      .toISOString().split('T')[0];
+
+    return {
+      speciesId,
+      speciesName: species.commonName,
+      plantedDate: plantedDate.toISOString().split('T')[0],
+      estimatedBloomDate,
+      daysToMature,
+      maxHeightCm: Math.round(maxHeightCm),
+      feasible,
+      feasibilityNote: !feasible
+        ? `${species.commonName} needs ~${daysNeeded} days to reach full height. ` +
+          `Showing estimate based on 730 days (~${Math.round((730 / daysNeeded) * 100)}% of max height).`
+        : null,
+    };
+  }
+
+  /**
+   * Upserts the three Louisiana demo species into the database.
+   * Safe to call multiple times — always brings the records up to date with
+   * the hardcoded values in demo-species.ts.
+   * Returns the DB record for each species including its assigned ID.
+   */
+  async seedDemoSpecies() {
+    const results: { action: string; id: number; commonName: string; type: string }[] = [];
+
+    for (const demo of DEMO_SPECIES) {
+      const existing = await this.db.species.findFirst({
+        where: { scientificName: demo.scientificName },
+      });
+
+      const data = {
+        commonName: demo.commonName,
+        scientificName: demo.scientificName,
+        growthRate: demo.growthRate,
+        minHeight: demo.minHeight,
+        maxHeight: demo.maxHeight,
+        avgHoursSun: demo.avgHoursSun,
+        minTemp: demo.minTemp,
+        maxTemp: demo.maxTemp,
+        wateringMinDays: demo.wateringMinDays,
+        wateringMaxDays: demo.wateringMaxDays,
+        droughtTolerant: demo.droughtTolerant,
+        tropical: demo.tropical,
+        cycle: demo.cycle,
+        type: demo.type,
+        careLevel: demo.careLevel,
+        family: demo.family,
+        genus: demo.genus,
+        speciesEpithet: demo.speciesEpithet,
+        origin: demo.origin,
+        flowers: demo.flowers,
+        floweringSeason: demo.floweringSeason,
+        fruits: demo.fruits,
+        edibleFruit: demo.edibleFruit,
+        notes: `${demo.notes}\n\nSowing info (North Louisiana, Zone 8a): ${demo.sowingInfo}`,
+      };
+
+      if (existing) {
+        await this.db.species.update({ where: { id: existing.id }, data });
+        results.push({ action: 'updated', id: existing.id, commonName: demo.commonName, type: demo.type });
+        this.logger.log(`Demo species updated: ${demo.commonName} (id=${existing.id})`);
+      } else {
+        const created = await this.db.species.create({ data });
+        results.push({ action: 'created', id: created.id, commonName: demo.commonName, type: demo.type });
+        this.logger.log(`Demo species created: ${demo.commonName} (id=${created.id})`);
+      }
+    }
+
+    return {
+      message: 'Demo species seeded successfully. Use these speciesIds when creating plant instances.',
+      species: results,
+    };
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /**
+   * Returns accurate hardcoded species data if this is a demo species,
+   * otherwise returns the DB species record unchanged.
+   */
+  private resolveSpecies(dbSpecies: {
+    commonName: string;
+    scientificName: string;
+    growthRate: number;
+    minHeight: number | null;
+    maxHeight: number | null;
+    avgHoursSun: number | null;
+    minTemp: number | null;
+    maxTemp: number | null;
+    wateringMinDays: number | null;
+    wateringMaxDays: number | null;
+    droughtTolerant: boolean | null;
+    tropical: boolean | null;
+    cycle: string | null;
+  }): SpeciesPayloadData {
+    const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
+    if (demo) {
+      this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
+      return demo; // demo has all fields fully populated
+    }
+    return dbSpecies;
+  }
+
+  private buildPayload(
+    plant: {
+      id: number;
+      heightCm: number | null;
+      growthStage: string | null; // accepts both local GrowthStage enum and Prisma's $Enums.GrowthStage
+      healthStatus: string | null;
+      bloomState: boolean;
+    },
+    species: SpeciesPayloadData,
+    soil: {
+      type: string;
+      pH: number;
+      nitrogen: number;
+      phosphorus: number;
+      potassium: number;
+      organicPercentage: number | null;
+    },
+    weather: WeatherInfoDto[],
+    soilMoisture: number,
+    ageDays: number,
+    daysAhead: number,
+  ) {
+    return {
       plant: {
         id: plant.id,
         heightCm: plant.heightCm ?? 0,
@@ -60,7 +362,7 @@ export class PredictionService {
         bloomState: plant.bloomState,
       },
       species: {
-        growthRate: species.growthRate,
+        growthRate: species.growthRate ?? 2,
         minHeightCm: (species.minHeight ?? 0) * 30.48,
         maxHeightCm: (species.maxHeight ?? 100) * 30.48,
         avgHoursSun: species.avgHoursSun ?? null,
@@ -92,11 +394,9 @@ export class PredictionService {
         windSpeedMph: day.wind_speed_10m,
       })),
     };
+  }
 
-    this.logger.log(`Prediction payload built for plant ${plantInstanceId}`);
-    this.logger.log(JSON.stringify(payload, null, 2));
-
-    // 6. POST to FastAPI
+  private async callMlService(payload: object) {
     const mlUrl = process.env.ML_SERVICE_URL;
     if (!mlUrl) throw new BadRequestException('ML_SERVICE_URL not configured');
 
@@ -111,6 +411,6 @@ export class PredictionService {
       throw new BadRequestException(`ML service error: ${err}`);
     }
 
-    return await res.json();
+    return res.json();
   }
 }

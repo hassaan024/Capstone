@@ -7,9 +7,9 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { PlantInstanceService } from './plant-instance.service.js';
-import { CreatePlantInstanceDto } from './dto/create-plant-instance.dto.js';
-import { UpdatePlantInstanceDto } from './dto/update-plant-instance.dto.js';
+import { PlantInstanceService } from './plant-instance.service';
+import { CreatePlantInstanceDto } from './dto/create-plant-instance.dto';
+import { UpdatePlantInstanceDto } from './dto/update-plant-instance.dto';
 
 @Controller('plant-instance')
 export class PlantInstanceController {
