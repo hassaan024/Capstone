@@ -305,6 +305,9 @@ struct FBackendPlantInstanceDto
 	FString LastWatered;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	FString Notes;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -324,6 +327,9 @@ struct FBackendPlantInstanceDto
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bHasLastWatered = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasPlantedDate = false;
 };
 
 USTRUCT(BlueprintType)
@@ -363,6 +369,9 @@ struct FBackendGardenPlantInstanceDto
 
 	UPROPERTY(BlueprintReadWrite)
 	FString LastWatered;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString PlantedDate;
 
 	UPROPERTY(BlueprintReadWrite)
 	FString Notes;

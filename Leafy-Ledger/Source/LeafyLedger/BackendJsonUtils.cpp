@@ -643,6 +643,7 @@ bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGar
 
 		PlantObj->TryGetStringField(TEXT("healthStatus"), PlantInstance.HealthStatus);
 		PlantObj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered);
+		PlantObj->TryGetStringField(TEXT("plantedDate"), PlantInstance.PlantedDate);
 		PlantObj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
 
 		const TSharedPtr<FJsonObject>* SpeciesObj = nullptr;

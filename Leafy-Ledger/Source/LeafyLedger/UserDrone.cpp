@@ -343,6 +343,10 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 		PlantActor->AgeDays,
 		PlantActor->HealthStatus,
 		PlantActor->LastWateredIso8601,
+		PlantActor->PerenualId,
+		PlantActor->PlantName,
+		TEXT(""),
+		PlantActor->Category,
 		PlantActor->Notes
 	);
 

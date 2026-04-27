@@ -125,6 +125,10 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	int32 AgeDays,
 	const FString& HealthStatus,
 	const FString& LastWateredIso8601,
+	int32 PerenualId,
+	const FString& SpeciesCommonName,
+	const FString& SpeciesScientificName,
+	const FString& SpeciesModelCategory,
 	const FString& Notes
 )
 {
@@ -137,6 +141,10 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	Plant.LocalId = FGuid::NewGuid();
 	Plant.SpeciesId = SpeciesId;
 	Plant.SoilId = SoilId;
+	Plant.PerenualId = PerenualId;
+	Plant.SpeciesCommonName = SpeciesCommonName;
+	Plant.SpeciesScientificName = SpeciesScientificName;
+	Plant.SpeciesModelCategory = SpeciesModelCategory;
 	Plant.Location = Location;
 	Plant.Rotation = Rotation;
 	Plant.Scale = Scale;

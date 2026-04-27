@@ -40,6 +40,32 @@ namespace
 		OutDate = FDateTime(Year, Month, Day);
 		return true;
 	}
+
+	int32 GetDaysToBloomForCategory(const FString& Category)
+	{
+		if (Category.Equals(TEXT("flower"), ESearchCase::IgnoreCase))
+		{
+			return 20;
+		}
+
+		if (Category.Equals(TEXT("tree"), ESearchCase::IgnoreCase))
+		{
+			return 50;
+		}
+
+		return 30;
+	}
+
+	FString CalculatePlantedDate(const FString& BloomDate, const FString& Category)
+	{
+		FDateTime ParsedBloomDate;
+		if (!TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(BloomDate), ParsedBloomDate))
+		{
+			return TEXT("");
+		}
+
+		return FBloomDateUtils::FormatForBackend(ParsedBloomDate - FTimespan::FromDays(GetDaysToBloomForCategory(Category)));
+	}
 }
 
 bool UGardenExit::Initialize()
@@ -161,7 +187,7 @@ void UGardenExit::OnPressSave()
 
 						if (WeakThis.IsValid())
 						{
-							WeakThis->SavePendingPlants(Garden.Id, Draft.Plants, 0);
+							WeakThis->SavePendingPlants(Garden.Id, Garden.BloomDate, Draft.bPendingGardenUpdate, Draft.Plants, 0);
 						}
 					}
 				)
@@ -170,7 +196,7 @@ void UGardenExit::OnPressSave()
 		}
 
 		UE_LOG(LogTemp, Log, TEXT("OnPressSave: reusing existing backend garden id %d"), Draft.BackendGardenId);
-		SavePendingPlants(Draft.BackendGardenId, Draft.Plants, 0);
+		SavePendingPlants(Draft.BackendGardenId, Draft.BloomDate, false, Draft.Plants, 0);
 		return;
 	}
 
@@ -196,14 +222,14 @@ void UGardenExit::OnPressSave()
 
 				if (WeakThis.IsValid())
 				{
-					WeakThis->SavePendingPlants(Garden.Id, Draft.Plants, 0);
+					WeakThis->SavePendingPlants(Garden.Id, Garden.BloomDate, true, Draft.Plants, 0);
 				}
 			}
 		)
 	);
 }
 
-void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex)
+void UGardenExit::SavePendingPlants(int32 GardenId, const FString& BloomDate, bool bRefreshPlantedDates, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex)
 {
 	if (!GetGameInstance())
 	{
@@ -239,15 +265,18 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 		}
 
 		TWeakObjectPtr<UGardenExit> WeakThis(this);
+		const FString PlantedDate = CalculatePlantedDate(BloomDate, Plant.SpeciesModelCategory);
+		const bool bShouldUpdateExistingPlant = Plant.bPendingUpdate || (bRefreshPlantedDates && Plant.BackendPlantInstanceId > 0);
 
-		if (Plant.bPendingUpdate && Plant.BackendPlantInstanceId > 0)
+		if (bShouldUpdateExistingPlant && Plant.BackendPlantInstanceId > 0)
 		{
 			UE_LOG(
 				LogTemp,
 				Log,
-				TEXT("Updating plant instance: LocalId=%s BackendPlantInstanceId=%d"),
+				TEXT("Updating plant instance: LocalId=%s BackendPlantInstanceId=%d PlantedDate=%s"),
 				*Plant.LocalId.ToString(),
-				Plant.BackendPlantInstanceId
+				Plant.BackendPlantInstanceId,
+				*PlantedDate
 			);
 
 			BackendApi->UpdatePlantInstance(
@@ -259,9 +288,10 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 				Plant.AgeDays,
 				Plant.HealthStatus,
 				Plant.LastWateredIso8601,
+				PlantedDate,
 				Plant.Notes,
 				FBackendPlantInstanceResponse::CreateLambda(
-					[WeakThis, GardenSession, Plants, GardenId, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
+					[WeakThis, GardenSession, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
 					{
 						if (!bSuccess)
 						{
@@ -281,7 +311,7 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 
 						if (WeakThis.IsValid())
 						{
-							WeakThis->SavePendingPlants(GardenId, Plants, i + 1);
+							WeakThis->SavePendingPlants(GardenId, BloomDate, bRefreshPlantedDates, Plants, i + 1);
 						}
 					}
 				)
@@ -297,7 +327,7 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 
 		BackendApi->EnsureGenericSoil(
 			FBackendSoilIdResponse::CreateLambda(
-				[WeakThis, GardenSession, BackendApi, Plants, GardenId, i, Plant](bool bSoilSuccess, const FString& SoilMessage, int32 SoilId)
+				[WeakThis, GardenSession, BackendApi, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSoilSuccess, const FString& SoilMessage, int32 SoilId)
 				{
 					if (!bSoilSuccess || SoilId <= 0)
 					{
@@ -311,10 +341,12 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 					const int32 AgeValue = Plant.AgeDays;
 					const FString HealthValue = Plant.HealthStatus;
 					const FString LastWateredValue = Plant.LastWateredIso8601;
+					const FString PlantedDateValue = CalculatePlantedDate(BloomDate, Plant.SpeciesModelCategory);
 					const float* HeightPtr = &HeightValue;
 					const int32* AgePtr = &AgeValue;
 					const FString* HealthPtr = &HealthValue;
 					const FString* LastWateredPtr = &LastWateredValue;
+					const FString* PlantedDatePtr = &PlantedDateValue;
 
 					BackendApi->CreatePlantInstance(
 						GardenId,
@@ -327,9 +359,10 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 						AgePtr,
 						HealthPtr,
 						LastWateredPtr,
+						PlantedDatePtr,
 						Plant.Notes,
 						FBackendPlantInstanceResponse::CreateLambda(
-							[WeakThis, GardenSession, Plants, GardenId, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
+							[WeakThis, GardenSession, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
 							{
 								if (!bSuccess)
 								{
@@ -345,7 +378,7 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const TArray<FEditablePlantP
 
 								if (WeakThis.IsValid())
 								{
-									WeakThis->SavePendingPlants(GardenId, Plants, i + 1);
+									WeakThis->SavePendingPlants(GardenId, BloomDate, bRefreshPlantedDates, Plants, i + 1);
 								}
 							}
 						)

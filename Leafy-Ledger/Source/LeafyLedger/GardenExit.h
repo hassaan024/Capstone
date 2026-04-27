@@ -44,7 +44,7 @@ private:
 	UFUNCTION()
 	void HandleBloomDateTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod);
 
-	void SavePendingPlants(int32 GardenId, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
+	void SavePendingPlants(int32 GardenId, const FString& BloomDate, bool bRefreshPlantedDates, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
 
 	UPROPERTY(Transient, meta = (BindWidget))
 	UEditableTextBox* ET_BloomDate = nullptr;
