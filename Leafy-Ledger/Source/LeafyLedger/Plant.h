@@ -60,6 +60,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		FString PlantName;
 
+	UPROPERTY(BlueprintReadOnly, EditAnywhere)
+		FString Category = "";
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
 		int32 PerenualId = -1;
 
@@ -87,16 +90,40 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
 		bool bIsTrackedInGardenDraft = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerSeedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerSaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerBloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerWitherMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeSeedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeSaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeBloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeWitherMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableSeedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableSaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableBloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableWitherMesh = nullptr;
+
+	UPROPERTY(BlueprintReadOnly)
 		UStaticMesh* SeedMesh = nullptr;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+	UPROPERTY(BlueprintReadOnly)
 		UStaticMesh* SaplingMesh = nullptr;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+	UPROPERTY(BlueprintReadOnly)
 		UStaticMesh* BloomedMesh = nullptr;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Meshes")
+	UPROPERTY(BlueprintReadOnly)
 		UStaticMesh* WitherMesh = nullptr;
 
 	UFUNCTION()

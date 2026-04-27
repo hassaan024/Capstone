@@ -18,6 +18,7 @@ void APlant::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogTemp, Warning, TEXT("Plant beginplay"));
 	PreviewMaterial = PreviewMesh->GetMaterial(0);
 	if (PreviewMaterial)
 	{
@@ -61,11 +62,34 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	PlantName = PlantData->CommonName;
 	DaysToBloom = PlantData->DaysToBloom;
 	DaysToWither = PlantData->DaysToWither;
+	Category = PlantData->ModelCategory;
+
+	// Set the meshes to correspond with their categories
+	if (Category == "Tree") {
+		SeedMesh = TreeSeedMesh;
+		SaplingMesh = TreeSaplingMesh;
+		BloomedMesh = TreeBloomedMesh;
+		WitherMesh = TreeWitherMesh;
+	}
+	else if (Category == "Flower") {
+		SeedMesh = FlowerSeedMesh;
+		SaplingMesh = FlowerSaplingMesh;
+		BloomedMesh = FlowerBloomedMesh;
+		WitherMesh = FlowerWitherMesh;
+	}
+	else {
+		SeedMesh = VegetableSeedMesh;
+		SaplingMesh = VegetableSaplingMesh;
+		BloomedMesh = VegetableBloomedMesh;
+		WitherMesh = VegetableWitherMesh;
+	}
 
 	if (PreviewMesh && BloomedMesh)
 	{
 		PreviewMesh->SetStaticMesh(BloomedMesh);
 	}
+
+	if (Category != "") UE_LOG(LogTemp, Warning, TEXT("%s"), *Category);
 }
 
 void APlant::UpdateForDay(int32 DayIndex)
