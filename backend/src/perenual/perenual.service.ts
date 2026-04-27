@@ -81,6 +81,16 @@ export class PerenualService {
         throw new Error(`Failed to search plants: ${response.statusText}`);
 
       const data = await response.json();
+      
+      if (data && data.data && Array.isArray(data.data)) {
+        data.data = data.data.map((p: any) => {
+          if (p.common_name) {
+            p.common_name = p.common_name.charAt(0).toUpperCase() + p.common_name.slice(1);
+          }
+          return p;
+        });
+      }
+      
       return data;
     } catch (err: any) {
       this.logger.error(err.message);
@@ -98,6 +108,11 @@ export class PerenualService {
         throw new Error(`Failed to get plant details: ${response.statusText}`);
 
       const data = await response.json();
+      
+      if (data && data.common_name) {
+        data.common_name = data.common_name.charAt(0).toUpperCase() + data.common_name.slice(1);
+      }
+      
       return this.enrichWithModelCategory(data);
     } catch (err: any) {
       this.logger.error(err.message);

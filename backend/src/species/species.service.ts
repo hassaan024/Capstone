@@ -103,6 +103,7 @@ export class SpeciesService {
 
       return {
         ...species,
+        commonName: species.commonName ? species.commonName.charAt(0).toUpperCase() + species.commonName.slice(1) : species.commonName,
         modelCategory,
         daysToBloom,
       };
