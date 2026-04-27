@@ -81,7 +81,7 @@ export class PerenualService {
         throw new Error(`Failed to search plants: ${response.statusText}`);
 
       const data = await response.json();
-      return this.enrichWithModelCategory(data);
+      return data;
     } catch (err: any) {
       this.logger.error(err.message);
       throw err;
