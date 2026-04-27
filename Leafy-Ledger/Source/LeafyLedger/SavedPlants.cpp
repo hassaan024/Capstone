@@ -198,10 +198,40 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 
 		PlantObject->CommonName = Plant.CommonName;
 		PlantObject->ScientificName = Plant.ScientificName;
-		PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
+		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
+		}
+		else if (!Plant.ImgSrcUrls.Medium.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Medium;
+		}
+		else if (!Plant.ImgSrcUrls.Small.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Small;
+		}
+		else if (!Plant.ImgSrcUrls.Thumbnail.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Thumbnail;
+		}
+		else
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Original;
+		}
 		PlantObject->SpeciesId = Plant.Id;
 		PlantObject->PerenualId = Plant.PerenualId;
 		PlantObject->ModelCategory = Plant.ModelCategory;
+		PlantObject->Watering = Plant.WateringFreq;
+		PlantObject->Maintenance = !Plant.Maintenance.IsEmpty() ? Plant.Maintenance : Plant.CareLevel;
+		PlantObject->Type = Plant.Type;
+		PlantObject->LifeCycle = Plant.Cycle;
+		PlantObject->GrowthRate = Plant.GrowthRate > 0 ? FString::FromInt(Plant.GrowthRate) : TEXT("");
+		PlantObject->DaysToBloom = Plant.DaysToBloom;
+
+		if (Plant.AvgHoursSun > 0)
+		{
+			PlantObject->Sunlight = FString::Printf(TEXT("%d hours"), Plant.AvgHoursSun);
+		}
 
 		//UE_LOG(LogTemp, Log, TEXT("PopulatePlants: %s Plant.Id=%d Plant.PerenualId=%d"), *Plant.CommonName, Plant.Id, Plant.PerenualId);
 

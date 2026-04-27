@@ -109,7 +109,27 @@ void USavedPlantCacheSubsystem::PrefetchPlantImages(const TArray<FBackendPlantDt
 
 FString USavedPlantCacheSubsystem::GetPreferredImageUrl(const FBackendPlantDto& Plant) const
 {
-	return Plant.ImgSrcUrls.Regular;
+	if (!Plant.ImgSrcUrls.Regular.IsEmpty())
+	{
+		return Plant.ImgSrcUrls.Regular;
+	}
+
+	if (!Plant.ImgSrcUrls.Medium.IsEmpty())
+	{
+		return Plant.ImgSrcUrls.Medium;
+	}
+
+	if (!Plant.ImgSrcUrls.Small.IsEmpty())
+	{
+		return Plant.ImgSrcUrls.Small;
+	}
+
+	if (!Plant.ImgSrcUrls.Thumbnail.IsEmpty())
+	{
+		return Plant.ImgSrcUrls.Thumbnail;
+	}
+
+	return Plant.ImgSrcUrls.Original;
 }
 
 void USavedPlantCacheSubsystem::RemoveCachedPlantByPerenualId(int32 PerenualId)

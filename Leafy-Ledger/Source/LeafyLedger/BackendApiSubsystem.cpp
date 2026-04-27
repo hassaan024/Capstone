@@ -222,6 +222,13 @@ void UBackendApiSubsystem::SearchPerenualPlants(const FString& Query, const FBac
 					}
 				}
 
+				if (Plant.CommonName.TrimStartAndEnd().IsEmpty()
+					|| Plant.ScientificName.TrimStartAndEnd().IsEmpty()
+					|| Plant.ImageUrl.TrimStartAndEnd().IsEmpty())
+				{
+					continue;
+				}
+
 				Plants.Add(Plant);
 			}
 
@@ -233,6 +240,54 @@ void UBackendApiSubsystem::SearchPerenualPlants(const FString& Query, const FBac
 	{
 		const TArray<FBackendPlantSearchResultDto> EmptyPlants;
 		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), EmptyPlants);
+	}
+}
+
+void UBackendApiSubsystem::GetPerenualPlantDetails(int32 PerenualId, const FBackendPlantDetailsResponse& Callback)
+{
+	if (PerenualId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("PerenualId must be > 0"), FBackendPlantDto{});
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/perenual/details/%d"), PerenualId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendPlantDto Plant;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Plant);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch plant details")),
+					Plant
+				);
+				return;
+			}
+
+			if (!FBackendJsonUtils::ParsePerenualPlantDetails(Response->GetContentAsString(), Plant))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid plant details JSON"), Plant);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Plant);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendPlantDto{});
 	}
 }
 

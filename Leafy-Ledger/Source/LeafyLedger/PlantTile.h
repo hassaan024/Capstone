@@ -7,6 +7,7 @@
 #include "Http.h"
 #include "Components/Button.h"
 #include "Blueprint/IUserObjectListEntry.h"
+#include "BackendApiTypes.h"
 #include "PlantCardPopup.h"
 #include "ManageSave.h"
 #include "PlantTile.generated.h"
@@ -49,6 +50,8 @@ public:
     UFUNCTION()
     void HandleManageSaveApplied(int32 PerenualId, bool bIsGloballySaved);
 
+    void HandlePlantDetailsLoaded(bool bSuccess, const FString& Message, const FBackendPlantDto& Plant);
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_ManageSave;
 
@@ -82,4 +85,7 @@ private:
     UPlantObject* PlantCard = nullptr;
 
     FString CurrentUrl;
+
+    void LoadPlantImage(const FString& ImageUrl);
+    static FString GetPreferredImageUrl(const FBackendPlantDto& Plant);
 };
