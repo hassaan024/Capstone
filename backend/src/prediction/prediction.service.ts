@@ -86,7 +86,16 @@ export class PredictionService {
 
     this.logger.log(`Prediction payload built for plant ${plantInstanceId}`);
 
-    return this.callMlService(payload);
+    const result = await this.callMlService(payload);
+    return {
+      plant: {
+        plantInstanceId,
+        commonName: plant.species.commonName,
+        scientificName: plant.species.scientificName,
+        type: plant.species.type,
+      },
+      ...result,
+    };
   }
 
   async generateTimeline(gardenId: number, bloomDate: Date) {
@@ -213,7 +222,7 @@ export class PredictionService {
    * Returns an estimated bloom date for a species given an optional planted date.
    * No ML call — pure formula. Used by the frontend to show "~X months to full bloom."
    */
-  async bloomEstimate(speciesId: number, plantedDate: Date) {
+  async bloomEstimate(speciesId: number, plantedDate: Date, gardenId?: number) {
     const species = await this.db.species.findUnique({ where: { id: speciesId } });
     if (!species) throw new NotFoundException(`Species ${speciesId} not found`);
 
@@ -227,6 +236,15 @@ export class PredictionService {
     const estimatedBloomDate = new Date(plantedDate.getTime() + daysToMature * 86400000)
       .toISOString().split('T')[0];
 
+    // If gardenId provided, fetch current weather and check if conditions suit this species
+    let suitability: { suitable: boolean; reasons: string[] } | null = null;
+    if (gardenId) {
+      const garden = await this.db.garden.findUnique({ where: { id: gardenId } });
+      if (!garden) throw new NotFoundException(`Garden ${gardenId} not found`);
+      const weather = await this.weatherService.getCurrentDaysWeather(garden.latitude, garden.longitude);
+      suitability = this.checkSuitability(speciesData, weather);
+    }
+
     return {
       speciesId,
       speciesName: species.commonName,
@@ -239,7 +257,55 @@ export class PredictionService {
         ? `${species.commonName} needs ~${daysNeeded} days to reach full height. ` +
           `Showing estimate based on 730 days (~${Math.round((730 / daysNeeded) * 100)}% of max height).`
         : null,
+      suitability,
     };
+  }
+
+  private checkSuitability(
+    species: {
+      minTemp: number | null;
+      maxTemp: number | null;
+      avgHoursSun: number | null;
+      droughtTolerant: boolean | null;
+    },
+    weather: WeatherInfoDto,
+  ): { suitable: boolean; reasons: string[] } {
+    const reasons: string[] = [];
+
+    // Temperature check (weather already in °F)
+    if (species.minTemp !== null && weather.temperature_2m !== undefined) {
+      if (weather.temperature_2m < species.minTemp) {
+        reasons.push(
+          `Current temp ${Math.round(weather.temperature_2m)}°F is below the minimum ${species.minTemp}°F this species needs`,
+        );
+      }
+    }
+    if (species.maxTemp !== null && weather.temperature_2m !== undefined) {
+      if (weather.temperature_2m > species.maxTemp) {
+        reasons.push(
+          `Current temp ${Math.round(weather.temperature_2m)}°F exceeds the maximum ${species.maxTemp}°F this species tolerates`,
+        );
+      }
+    }
+
+    // Sunlight check — shortwave_radiation_sum is MJ/m², ~3.6 MJ per peak sun hour
+    if (species.avgHoursSun !== null && weather.sunlight_intensity !== undefined) {
+      const estimatedHours = weather.sunlight_intensity / 3.6;
+      if (estimatedHours < species.avgHoursSun * 0.7) {
+        reasons.push(
+          `Estimated sunlight today (~${estimatedHours.toFixed(1)} hrs) is below the ${species.avgHoursSun} hrs/day this species needs`,
+        );
+      }
+    }
+
+    // Drought / moisture check
+    if (!species.droughtTolerant && weather.precipitation !== undefined && weather.precipitation < 1) {
+      reasons.push(
+        `Low precipitation today (${weather.precipitation}mm) — this species is not drought tolerant and needs consistent moisture`,
+      );
+    }
+
+    return { suitable: reasons.length === 0, reasons };
   }
 
   /**

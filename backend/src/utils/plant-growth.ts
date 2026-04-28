@@ -1,4 +1,5 @@
 import { GrowthStage } from 'enums/table_enums';
+import { getDemoSpecies } from './demo-species';
 
 // Matches the tier lookup in the ML model (PREDICTION_MODEL.md §1)
 const GROWTH_RATE_TIERS: Record<number, number> = { 1: 0.10, 2: 0.30, 3: 0.65 };
@@ -34,6 +35,22 @@ export function estimateDaysToMature(
   maxHeightCm: number,
 ): number {
   return Math.min(rawDaysToMature(growthRate, maxHeightCm), MAX_DAYS_TO_MATURE);
+}
+
+/**
+ * Computes bloom days for a species: uses hardcoded demo data when available,
+ * otherwise falls back to the formula-based estimate.
+ */
+export function computeBloomDays(species: {
+  commonName: string;
+  scientificName: string;
+  growthRate: number;
+  maxHeight: number | null;
+}): number {
+  const demo = getDemoSpecies(species.commonName, species.scientificName);
+  if (demo) return demo.daysToFirstBloom;
+  const maxHeightCm = (species.maxHeight ?? 1) * 30.48;
+  return estimateDaysToMature(species.growthRate, maxHeightCm);
 }
 
 /**

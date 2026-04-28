@@ -39,6 +39,7 @@ export class PlantInstanceService {
           currentGameDate: createPlantInstanceDto.currentGameDate ?? new Date(),
           notes: createPlantInstanceDto.notes ?? null,
         },
+        include: { species: { select: { commonName: true, scientificName: true, type: true } } },
       });
     } catch (err: unknown) {
       if (

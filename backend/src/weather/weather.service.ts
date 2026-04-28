@@ -93,10 +93,13 @@ export class WeatherService {
     days: number,
   ): Promise<WeatherInfoDto[]> {
 
-    // Anchor to 1 year before the game date for seasonal accuracy
+    // Anchor to 1 year before the game date for seasonal accuracy.
+    // Cap end_date to yesterday — the Open-Meteo archive API does not serve future dates.
     const gameDateStr = gameDate.toISOString().split('T')[0];
     const oneYearBeforeGame = goBackDays(gameDateStr, 365);
-    const end_date = goForwardDays(oneYearBeforeGame, days);
+    const yesterday = goBackDays(new Date().toISOString().split('T')[0], 1);
+    const rawEndDate = goForwardDays(oneYearBeforeGame, days);
+    const end_date = rawEndDate > yesterday ? yesterday : rawEndDate;
 
     const daily_args = [
       'temperature_2m_max',

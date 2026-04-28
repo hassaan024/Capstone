@@ -40,9 +40,10 @@ export class PredictionController {
   bloomEstimate(
     @Param('speciesId', ParseIntPipe) speciesId: number,
     @Query('plantedDate') plantedDate?: string,
+    @Query('gardenId') gardenId?: string,
   ) {
     const date = plantedDate ? new Date(plantedDate) : new Date();
-    return this.predictionService.bloomEstimate(speciesId, date);
+    return this.predictionService.bloomEstimate(speciesId, date, gardenId ? +gardenId : undefined);
   }
 
   /**

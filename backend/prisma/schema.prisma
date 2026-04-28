@@ -201,11 +201,15 @@ model Species {
   notes           String?  
   // Description or additional info
 
+  // ---------- Growth Timeline ----------
+  bloomDays       Int?
+  // Estimated days from planting to first bloom/harvest; stored when species is saved
+
   // ---------- External IDs ----------
-  perenualId      Int?     @unique  
+  perenualId      Int?     @unique
   // Unique ID from Perenual API
 
-  trefleId        Int?     @unique  
+  trefleId        Int?     @unique
   // Unique ID from Trefle API for cross-API reference
 
   // ---------- Relationships ----------

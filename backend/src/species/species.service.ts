@@ -9,6 +9,9 @@ import { UpdateSpeciesDto } from './dto/update-species.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
 import { PerenualService } from 'perenual/perenual.service';
+import { computeBloomDays } from 'utils/plant-growth';
+import { getSoilDefaults } from 'utils/soil-defaults';
+import { SoilType } from 'enums/table_enums';
 
 @Injectable()
 export class SpeciesService {
@@ -19,16 +22,65 @@ export class SpeciesService {
     private readonly perenualService: PerenualService,
   ) {}
 
-  // Save a species to a user's collection
+  // Save a species to a user's collection and persist bloom days
   async saveSpecies(userId: number, perenualId: number) {
     const species = await this.getOrCreateSpecies(perenualId);
+    const bloomDays = computeBloomDays(species);
 
-    await this.db.user.update({
-      where: { id: userId },
-      data: { savedSpecies: { connect: { id: species.id } } },
+    const [updatedSpecies] = await Promise.all([
+      this.db.species.update({
+        where: { id: species.id },
+        data: { bloomDays },
+      }),
+      this.db.user.update({
+        where: { id: userId },
+        data: { savedSpecies: { connect: { id: species.id } } },
+      }),
+    ]);
+
+    return { message: 'Species saved successfully', species: { ...updatedSpecies, bloomDays } };
+  }
+
+  // Save a species to a specific garden — imports species, stores bloom days,
+  // creates a PlantInstance with LOAM soil defaults
+  async saveSpeciesToGarden(userId: number, perenualId: number, gardenId: number) {
+    const garden = await this.db.garden.findFirst({
+      where: { id: gardenId, ownerId: userId },
+    });
+    if (!garden) throw new NotFoundException('Garden not found');
+
+    const species = await this.getOrCreateSpecies(perenualId);
+    const bloomDays = computeBloomDays(species);
+
+    if (species.bloomDays === null || species.bloomDays === undefined) {
+      await this.db.species.update({
+        where: { id: species.id },
+        data: { bloomDays },
+      });
+    }
+
+    const soilDefaults = getSoilDefaults(SoilType.LOAM);
+    const soil = await this.db.soil.create({
+      data: { type: SoilType.LOAM, ...soilDefaults },
     });
 
-    return { message: 'Species saved successfully', species };
+    const plantInstance = await this.db.plantInstance.create({
+      data: {
+        gardenId,
+        speciesId: species.id,
+        soilId: soil.id,
+        plantedDate: new Date(),
+        currentGameDate: new Date(),
+        bloomState: false,
+      },
+      include: { species: true, soil: true },
+    });
+
+    return {
+      message: 'Species added to garden',
+      plantInstance,
+      bloomDays,
+    };
   }
 
   // Fetch from DB or Perenual API, then create or upsert in DB
@@ -49,7 +101,24 @@ export class SpeciesService {
     return { message: 'Species unsaved successfully' };
   }
 
-  // Get all species saved by a user
+  // Remove all plant instances of a species from a specific garden
+  async unsaveSpeciesFromGarden(userId: number, perenualId: number, gardenId: number) {
+    const species = await this.db.species.findUnique({ where: { perenualId } });
+    if (!species) throw new NotFoundException('Species not found in database');
+
+    const garden = await this.db.garden.findFirst({
+      where: { id: gardenId, ownerId: userId },
+    });
+    if (!garden) throw new NotFoundException('Garden not found');
+
+    const deleted = await this.db.plantInstance.deleteMany({
+      where: { gardenId, speciesId: species.id },
+    });
+
+    return { message: `Removed ${deleted.count} plant(s) from garden` };
+  }
+
+  // Get all species saved by a user, with bloom days and modelCategory
   async getSavedSpecies(userId: number) {
     const user = await this.db.user.findUnique({
       where: { id: userId },
@@ -57,29 +126,37 @@ export class SpeciesService {
     });
 
     if (!user) throw new NotFoundException('User not found');
-    
-    // Compute 'modelCategory' dynamically for Unreal Engine and React clients
-    return user.savedSpecies.map((species) => {
-      let modelCategory = 'flower'; // Default category
-      const typeStr = (species.type || '').toLowerCase();
 
-      if (
-        typeStr.includes('vegetable') ||
-        species.edibleFruit ||
-        species.edibleLeaf
-      ) {
-        modelCategory = 'vegetable';
-      } else if (typeStr.includes('tree') || typeStr.includes('shrub')) {
-        modelCategory = 'tree';
-      } else {
-        modelCategory = 'flower';
-      }
+    return user.savedSpecies.map((species) => ({
+      ...species,
+      modelCategory: this.getModelCategory(species),
+      bloomDays: species.bloomDays ?? computeBloomDays(species),
+    }));
+  }
 
-      return {
-        ...species,
-        modelCategory,
-      };
+  // Get distinct species planted in a specific garden, with bloom days and modelCategory
+  async getSavedSpeciesForGarden(userId: number, gardenId: number) {
+    const garden = await this.db.garden.findFirst({
+      where: { id: gardenId, ownerId: userId },
+      include: {
+        plants: { include: { species: true } },
+      },
     });
+
+    if (!garden) throw new NotFoundException('Garden not found');
+
+    const seen = new Set<number>();
+    return garden.plants
+      .filter((p) => {
+        if (seen.has(p.speciesId)) return false;
+        seen.add(p.speciesId);
+        return true;
+      })
+      .map((p) => ({
+        ...p.species,
+        modelCategory: this.getModelCategory(p.species),
+        bloomDays: p.species.bloomDays ?? computeBloomDays(p.species),
+      }));
   }
 
   // Standard CRUD operations
@@ -144,5 +221,20 @@ export class SpeciesService {
       }
       throw new BadRequestException((err as Error).message ?? 'Unknown error');
     }
+  }
+
+  private getModelCategory(species: {
+    type: string | null;
+    edibleFruit: boolean | null;
+    edibleLeaf: boolean | null;
+  }): string {
+    const typeStr = (species.type || '').toLowerCase();
+    if (typeStr.includes('vegetable') || species.edibleFruit || species.edibleLeaf) {
+      return 'vegetable';
+    }
+    if (typeStr.includes('tree') || typeStr.includes('shrub')) {
+      return 'tree';
+    }
+    return 'flower';
   }
 }
