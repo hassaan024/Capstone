@@ -8,6 +8,7 @@ interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   isError?: boolean;
+  suggestions?: string[];
 }
 
 const SUGGESTIONS = [
@@ -164,7 +165,7 @@ const ChatWidget: React.FC = () => {
       } else {
         setMessages(prev => [
           ...prev,
-          { role: 'model', text: data.reply },
+          { role: 'model', text: data.reply, suggestions: data.suggestions },
         ]);
       }
     } catch (err) {
@@ -267,18 +268,32 @@ const ChatWidget: React.FC = () => {
             )}
 
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`chat-msg ${
-                  msg.role === 'user'
-                    ? 'chat-msg--user'
-                    : msg.isError
-                      ? 'chat-msg--error'
-                      : 'chat-msg--bot'
-                }`}
-              >
-                {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
-              </div>
+              <React.Fragment key={i}>
+                <div
+                  className={`chat-msg ${
+                    msg.role === 'user'
+                      ? 'chat-msg--user'
+                      : msg.isError
+                        ? 'chat-msg--error'
+                        : 'chat-msg--bot'
+                  }`}
+                >
+                  {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
+                </div>
+                {msg.suggestions && msg.suggestions.length > 0 && (
+                  <div className="chat-welcome-suggestions" style={{ marginTop: '0.5rem', alignSelf: 'center', width: '85%' }}>
+                    {msg.suggestions.map((suggestion, sIdx) => (
+                      <button
+                        key={`sugg-${i}-${sIdx}`}
+                        className="chat-suggestion-btn"
+                        onClick={() => sendMessage(suggestion)}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
             ))}
 
             {/* Quick Replies styled exactly like welcome suggestions */}
