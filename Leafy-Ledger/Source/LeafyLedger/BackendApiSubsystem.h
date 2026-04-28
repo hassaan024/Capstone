@@ -14,6 +14,7 @@ DECLARE_DELEGATE_ThreeParams(FBackendPlantsResponse, bool /*bSuccess*/, const FS
 DECLARE_DELEGATE_ThreeParams(FBackendCurrentUserResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserDto& /*User*/)
 DECLARE_DELEGATE_ThreeParams(FBackendUserLocationResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendUserLocationDto& /*Location*/)
 DECLARE_DELEGATE_ThreeParams(FBackendWeatherResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendWeatherDto& /*Weather*/)
+DECLARE_DELEGATE_FourParams(FBackendZipLocationResponse, bool /*bSuccess*/, const FString& /*Message*/, float /*Latitude*/, float /*Longitude*/)
 DECLARE_DELEGATE_ThreeParams(FBackendGardenResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendGardenDto& /*Garden*/)
 DECLARE_DELEGATE_ThreeParams(FBackendPlantInstanceResponse, bool /*bSuccess*/, const FString& /*Message*/, const FBackendPlantInstanceDto& /*PlantInstance*/)
 DECLARE_DELEGATE_ThreeParams(FBackendGardenSummariesResponse, bool /*bSuccess*/, const FString& /*Message*/, const TArray<FBackendGardenSummaryDto>& /*Gardens*/)
@@ -41,6 +42,7 @@ public:
 	void UpdateDisplayName(const FString& NewDisplayName, const FBackendOperationResponse& Callback);
 	void GetCurrentUser(const FBackendCurrentUserResponse& Callback);
 	void GetUserLocation(const FBackendUserLocationResponse& Callback);
+	void ResolveZipCodeLocation(const FString& ZipCode, const FBackendZipLocationResponse& Callback);
 	void GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback);
 	void GetGardensByUser(const FBackendGardenSummariesResponse& Callback);
 	void GetGardenDetail(int32 GardenId, const FBackendGardenDetailResponse& Callback);

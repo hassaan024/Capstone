@@ -15,10 +15,25 @@ bool UCreateGardenPopup::Initialize()
 {
     if (!Super::Initialize()) return false;
 
-    if (BTN_Create)
+	if (BTN_Create)
+	{
+		BTN_Create->OnClicked.AddDynamic(this, &UCreateGardenPopup::OnPressCreate);
+	}
+
+    if (BTN_StartPlanting)
     {
-        BTN_Create->OnClicked.AddDynamic(this, &UCreateGardenPopup::OnPressCreate);
+		BTN_StartPlanting->OnClicked.AddDynamic(this, &UCreateGardenPopup::OnPressStartPlanting);
     }
+
+	if (BTN_UseLocation)
+	{
+		BTN_UseLocation->OnClicked.AddDynamic(this, &UCreateGardenPopup::OnPressUseLocation);
+	}
+
+	if (ET_Location)
+	{
+		ET_Location->OnTextChanged.AddDynamic(this, &UCreateGardenPopup::HandleLocationTextChanged);
+	}
 
     return true;
 }
@@ -33,91 +48,274 @@ void UCreateGardenPopup::NativeConstruct()
 		ET_BloomDate->SetHintText(FText::FromString(TEXT("MM/DD/YYYY")));
 		ET_BloomDate->SetError(FText::GetEmpty());
 	}
+
+	if (ET_Location)
+	{
+		ET_Location->SetHintText(FText::FromString(TEXT("ZIP Code")));
+		ET_Location->SetError(FText::GetEmpty());
+	}
 }
 
 void UCreateGardenPopup::OnPressCreate()
 {
-	if (!ET_GardenName || !ET_GardenDesc || !ET_BloomDate)
+	if (!ReadValidatedGardenInput(PendingCreateGardenName, PendingCreateGardenDesc, PendingCreateBloomDate))
 	{
-		UE_LOG(LogTemp, Error, TEXT("CreateGardenPopup: required text boxes are not bound"));
 		return;
 	}
 
-	const FString GardenName = ET_GardenName->GetText().ToString().TrimStartAndEnd();
-	const FString GardenDesc = ET_GardenDesc->GetText().ToString().TrimStartAndEnd();
-	const FBloomDateValidationResult BloomDateValidation = FBloomDateUtils::ValidateUserInput(ET_BloomDate->GetText().ToString(), false);
+	ResolveSelectedLocation(ECreateGardenSubmitAction::CreateOnly);
+}
 
-	if (GardenName.IsEmpty())
+void UCreateGardenPopup::OnPressStartPlanting()
+{
+	if (!ReadValidatedGardenInput(PendingCreateGardenName, PendingCreateGardenDesc, PendingCreateBloomDate))
 	{
 		return;
+	}
+
+	ResolveSelectedLocation(ECreateGardenSubmitAction::StartPlanting);
+}
+
+void UCreateGardenPopup::OnPressUseLocation()
+{
+	SelectedLocationSource = ECreateGardenLocationSource::BackendUserLocation;
+	if (ET_Location)
+	{
+		ET_Location->SetText(FText::GetEmpty());
+		ET_Location->SetError(FText::GetEmpty());
+	}
+}
+
+void UCreateGardenPopup::HandleLocationTextChanged(const FText& NewText)
+{
+	if (!NewText.ToString().TrimStartAndEnd().IsEmpty())
+	{
+		SelectedLocationSource = ECreateGardenLocationSource::ZipCode;
+	}
+	else if (SelectedLocationSource == ECreateGardenLocationSource::ZipCode)
+	{
+		SelectedLocationSource = ECreateGardenLocationSource::None;
+	}
+
+	if (ET_Location)
+	{
+		ET_Location->SetError(FText::GetEmpty());
+	}
+}
+
+void UCreateGardenPopup::ResolveSelectedLocation(ECreateGardenSubmitAction SubmitAction)
+{
+	if (!GetGameInstance())
+	{
+		UE_LOG(LogTemp, Error, TEXT("ResolveSelectedLocation: GameInstance is null"));
+		return;
+	}
+
+	UBackendApiSubsystem* BackendApi = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
+	if (!BackendApi)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ResolveSelectedLocation: BackendApiSubsystem missing"));
+		return;
+	}
+
+	const bool bHasZipCode = ET_Location && !ET_Location->GetText().ToString().TrimStartAndEnd().IsEmpty();
+	if (bHasZipCode)
+	{
+		SelectedLocationSource = ECreateGardenLocationSource::ZipCode;
+	}
+
+	PendingSubmitAction = SubmitAction;
+
+	if (SelectedLocationSource == ECreateGardenLocationSource::BackendUserLocation)
+	{
+		BackendApi->GetUserLocation(FBackendUserLocationResponse::CreateUObject(this, &UCreateGardenPopup::HandleGardenLocationResponse));
+		return;
+	}
+
+	if (SelectedLocationSource == ECreateGardenLocationSource::ZipCode)
+	{
+		FString ZipCode;
+		if (!ReadValidatedZipCode(ZipCode))
+		{
+			PendingSubmitAction = ECreateGardenSubmitAction::None;
+			return;
+		}
+
+		BackendApi->ResolveZipCodeLocation(ZipCode, FBackendZipLocationResponse::CreateUObject(this, &UCreateGardenPopup::HandleZipLocationResponse));
+		return;
+	}
+
+	if (ET_Location)
+	{
+		ET_Location->SetError(FText::FromString(TEXT("Use your saved location or enter a ZIP code.")));
+	}
+}
+
+bool UCreateGardenPopup::ReadValidatedGardenInput(FString& OutGardenName, FString& OutGardenDesc, FString& OutBloomDate)
+{
+	if (!ET_GardenName || !ET_GardenDesc || !ET_BloomDate)
+	{
+		UE_LOG(LogTemp, Error, TEXT("CreateGardenPopup: required text boxes are not bound"));
+		return false;
+	}
+
+	OutGardenName = ET_GardenName->GetText().ToString().TrimStartAndEnd();
+	OutGardenDesc = ET_GardenDesc->GetText().ToString().TrimStartAndEnd();
+	const FBloomDateValidationResult BloomDateValidation = FBloomDateUtils::ValidateUserInput(ET_BloomDate->GetText().ToString(), false);
+
+	if (OutGardenName.IsEmpty())
+	{
+		return false;
 	}
 
 	if (!BloomDateValidation.bIsValid)
 	{
 		ET_BloomDate->SetError(FText::FromString(BloomDateValidation.ErrorMessage));
-		return;
+		return false;
 	}
 
 	ET_BloomDate->SetText(FText::FromString(BloomDateValidation.DisplayText));
 	ET_BloomDate->SetError(FText::GetEmpty());
+	OutBloomDate = BloomDateValidation.BackendText;
+	return true;
+}
 
+bool UCreateGardenPopup::ReadValidatedZipCode(FString& OutZipCode)
+{
+	if (!ET_Location)
+	{
+		UE_LOG(LogTemp, Error, TEXT("CreateGardenPopup: ET_Location is not bound"));
+		return false;
+	}
+
+	OutZipCode = ET_Location->GetText().ToString().TrimStartAndEnd();
+	if (OutZipCode.IsEmpty())
+	{
+		ET_Location->SetError(FText::FromString(TEXT("Enter a ZIP code or use your saved location.")));
+		return false;
+	}
+
+	return true;
+}
+
+void UCreateGardenPopup::HandleCreateGardenLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location)
+{
+	HandleGardenLocationResponse(bSuccess, Message, Location);
+}
+
+void UCreateGardenPopup::HandleZipLocationResponse(bool bSuccess, const FString& Message, float Latitude, float Longitude)
+{
+	if (!bSuccess)
+	{
+		if (ET_Location)
+		{
+			ET_Location->SetError(FText::FromString(Message));
+		}
+		UE_LOG(LogTemp, Warning, TEXT("CreateGardenPopup: ZIP location unavailable: %s"), *Message);
+		PendingSubmitAction = ECreateGardenSubmitAction::None;
+		return;
+	}
+
+	if (ET_Location)
+	{
+		ET_Location->SetError(FText::GetEmpty());
+	}
+
+	ContinueWithResolvedLocation(Latitude, Longitude, TEXT(""));
+}
+
+void UCreateGardenPopup::CreateGardenFromInput(float Latitude, float Longitude, const FString& Timezone)
+{
 	if (!GetGameInstance())
 	{
-		UE_LOG(LogTemp, Error, TEXT("GameInstance is null"));
+		UE_LOG(LogTemp, Error, TEXT("CreateGardenFromInput: GameInstance is null"));
 		return;
 	}
-
-	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
-
-	if (!GardenSession)
-	{
-		UE_LOG(LogTemp, Error, TEXT("GardenSessionSubsystem is missing"));
-		return;
-	}
-
-	GardenSession->StartNewGardenDraft(GardenName, GardenDesc, BloomDateValidation.BackendText);
 
 	UBackendApiSubsystem* BackendApi = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
 	if (!BackendApi)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("BackendApiSubsystem missing, opening garden without stored location"));
-		UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
+		UE_LOG(LogTemp, Error, TEXT("CreateGardenFromInput: BackendApiSubsystem missing"));
 		return;
 	}
 
-	BackendApi->GetUserLocation(FBackendUserLocationResponse::CreateUObject(this, &UCreateGardenPopup::HandleGardenLocationResponse));
+	BackendApi->CreateGarden(
+		PendingCreateGardenName,
+		PendingCreateGardenDesc,
+		PendingCreateBloomDate,
+		Latitude,
+		Longitude,
+		Timezone,
+		FBackendGardenResponse::CreateWeakLambda(
+			this,
+			[this](bool bSuccess, const FString& Message, const FBackendGardenDto& Garden)
+			{
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Error, TEXT("CreateGardenPopup: CreateGarden failed: %s"), *Message);
+					return;
+				}
+
+				UE_LOG(LogTemp, Log, TEXT("CreateGardenPopup: garden created. BackendGardenId=%d"), Garden.Id);
+				OnGardenCreated.Broadcast();
+				RemoveFromParent();
+			}
+		)
+	);
 }
 
 void UCreateGardenPopup::HandleGardenLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location)
 {
-	if (!GetGameInstance())
+	if (!bSuccess || !Location.bHasLatitude || !Location.bHasLongitude)
 	{
-		UE_LOG(LogTemp, Error, TEXT("HandleGardenLocationResponse: GameInstance is null"));
+		if (ET_Location)
+		{
+			ET_Location->SetError(FText::FromString(TEXT("Saved location is not set. Enter a ZIP code instead.")));
+		}
+		UE_LOG(LogTemp, Warning, TEXT("Garden location unavailable: %s"), *Message);
+		PendingSubmitAction = ECreateGardenSubmitAction::None;
 		return;
 	}
 
-	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
-	if (!GardenSession)
+	if (ET_Location)
 	{
-		UE_LOG(LogTemp, Error, TEXT("HandleGardenLocationResponse: GardenSessionSubsystem is missing"));
+		ET_Location->SetError(FText::GetEmpty());
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Garden location set from user profile: lat=%f lon=%f"), Location.Latitude, Location.Longitude);
+	ContinueWithResolvedLocation(static_cast<float>(Location.Latitude), static_cast<float>(Location.Longitude), TEXT(""));
+}
+
+void UCreateGardenPopup::ContinueWithResolvedLocation(float Latitude, float Longitude, const FString& Timezone)
+{
+	const ECreateGardenSubmitAction SubmitAction = PendingSubmitAction;
+	PendingSubmitAction = ECreateGardenSubmitAction::None;
+
+	if (SubmitAction == ECreateGardenSubmitAction::CreateOnly)
+	{
+		CreateGardenFromInput(Latitude, Longitude, Timezone);
 		return;
 	}
 
-	if (bSuccess && Location.bHasLatitude && Location.bHasLongitude)
+	if (SubmitAction == ECreateGardenSubmitAction::StartPlanting)
 	{
-		GardenSession->SetGardenLocation(
-			static_cast<float>(Location.Latitude),
-			static_cast<float>(Location.Longitude),
-			TEXT("")
-		);
-		UE_LOG(LogTemp, Log, TEXT("Garden draft location set from user profile: lat=%f lon=%f"), Location.Latitude, Location.Longitude);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Garden draft location unavailable: %s"), *Message);
-	}
+		if (!GetGameInstance())
+		{
+			UE_LOG(LogTemp, Error, TEXT("ContinueWithResolvedLocation: GameInstance is null"));
+			return;
+		}
 
-	UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
+		UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+		if (!GardenSession)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ContinueWithResolvedLocation: GardenSessionSubsystem is missing"));
+			return;
+		}
+
+		GardenSession->StartNewGardenDraft(PendingCreateGardenName, PendingCreateGardenDesc, PendingCreateBloomDate);
+		GardenSession->SetGardenLocation(Latitude, Longitude, Timezone);
+		UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
+	}
 }
 
 void UCreateGardenPopup::EnsureBloomDateField()

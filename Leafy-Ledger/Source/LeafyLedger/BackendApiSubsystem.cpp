@@ -734,6 +734,75 @@ void UBackendApiSubsystem::GetUserLocation(const FBackendUserLocationResponse& C
 	}
 }
 
+void UBackendApiSubsystem::ResolveZipCodeLocation(const FString& ZipCode, const FBackendZipLocationResponse& Callback)
+{
+	const FString TrimmedZip = ZipCode.TrimStartAndEnd();
+	if (TrimmedZip.IsEmpty())
+	{
+		Callback.ExecuteIfBound(false, TEXT("ZIP code is empty"), 0.0f, 0.0f);
+		return;
+	}
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(FString::Printf(TEXT("https://api.zippopotam.us/us/%s"), *FGenericPlatformHttp::UrlEncode(TrimmedZip)));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetHeader(TEXT("Accept"), TEXT("application/json"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response resolving ZIP code"), 0.0f, 0.0f);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Could not find coordinates for that ZIP code"), 0.0f, 0.0f);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+			if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid ZIP location JSON"), 0.0f, 0.0f);
+				return;
+			}
+
+			const TArray<TSharedPtr<FJsonValue>>* Places = nullptr;
+			if (!Obj->TryGetArrayField(TEXT("places"), Places) || !Places || Places->Num() == 0)
+			{
+				Callback.ExecuteIfBound(false, TEXT("No coordinates found for that ZIP code"), 0.0f, 0.0f);
+				return;
+			}
+
+			const TSharedPtr<FJsonObject> PlaceObj = (*Places)[0]->AsObject();
+			if (!PlaceObj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid ZIP location place JSON"), 0.0f, 0.0f);
+				return;
+			}
+
+			FString LatitudeText;
+			FString LongitudeText;
+			if (!PlaceObj->TryGetStringField(TEXT("latitude"), LatitudeText) || !PlaceObj->TryGetStringField(TEXT("longitude"), LongitudeText))
+			{
+				Callback.ExecuteIfBound(false, TEXT("ZIP location coordinates missing"), 0.0f, 0.0f);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), FCString::Atof(*LatitudeText), FCString::Atof(*LongitudeText));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start ZIP location request"), 0.0f, 0.0f);
+	}
+}
+
 void UBackendApiSubsystem::GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback)
 {
 	const FString Route = FString::Printf(

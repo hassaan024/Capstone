@@ -14,6 +14,7 @@ class USizeBox;
 class USpacer;
 class UTextBlock;
 class UVerticalBox;
+class UCreateGardenPopup;
 class USaveDestinationEntry;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnManageSaveApplied, int32, PerenualId, bool, bIsGloballySaved);
@@ -43,6 +44,12 @@ protected:
 	UFUNCTION()
 	void OnPressApplyChanges();
 
+	UFUNCTION()
+	void OnPressCreateGarden();
+
+	UFUNCTION()
+	void HandleGardenCreated();
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_CloseCard = nullptr;
 
@@ -52,6 +59,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* TXT_Changes;
 
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UCreateGardenPopup> CreateGardenPopupClass;
+
 private:
 	void ResolveWidgetReferences();
 	void ConfigureModalLayout();
@@ -59,6 +69,7 @@ private:
 	void UpdatePlantNameText() const;
 	void RefreshDestinationList();
 	void PopulateDestinationList();
+	void AddCreateGardenRow();
 	void AddMessageRow(const FString& Message);
 	void AddBottomScrollSpacer();
 	void HandleGlobalStateResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants);
@@ -98,6 +109,12 @@ private:
 
 	UPROPERTY()
 	USaveDestinationEntry* GlobalRow = nullptr;
+
+	UPROPERTY()
+	UButton* CreateGardenButton = nullptr;
+
+	UPROPERTY()
+	UCreateGardenPopup* CreateGardenPopupInstance = nullptr;
 
 	int32 PerenualId = 0;
 	FString CommonName;

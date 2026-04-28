@@ -13,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "CreateGardenPopup.h"
 #include "SaveDestinationEntry.h"
 
 bool UManageSave::Initialize()
@@ -174,6 +175,41 @@ void UManageSave::OnPressApplyChanges()
 			)
 		);
 	}
+}
+
+void UManageSave::OnPressCreateGarden()
+{
+	if (!CreateGardenPopupClass)
+	{
+		CreateGardenPopupClass = LoadClass<UCreateGardenPopup>(nullptr, TEXT("/Game/UI/WB_CreateGarden.WB_CreateGarden_C"));
+		if (!CreateGardenPopupClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ManageSave: failed to load /Game/UI/WB_CreateGarden.WB_CreateGarden_C"));
+			return;
+		}
+	}
+
+	if (CreateGardenPopupInstance)
+	{
+		CreateGardenPopupInstance->RemoveFromParent();
+		CreateGardenPopupInstance = nullptr;
+	}
+
+	CreateGardenPopupInstance = CreateWidget<UCreateGardenPopup>(GetOwningPlayer(), CreateGardenPopupClass);
+	if (!CreateGardenPopupInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ManageSave: failed to create CreateGarden popup"));
+		return;
+	}
+
+	CreateGardenPopupInstance->OnGardenCreated.AddUniqueDynamic(this, &UManageSave::HandleGardenCreated);
+	CreateGardenPopupInstance->AddToViewport(40);
+}
+
+void UManageSave::HandleGardenCreated()
+{
+	CreateGardenPopupInstance = nullptr;
+	RefreshDestinationList();
 }
 
 void UManageSave::ResolveWidgetReferences()
@@ -356,6 +392,8 @@ void UManageSave::PopulateDestinationList()
 		SaveOptionsScrollBox->AddChild(GlobalRow);
 	}
 
+	AddCreateGardenRow();
+
 	if (!bHasLoadedGardens)
 	{
 		AddMessageRow(TEXT("Loading your gardens..."));
@@ -384,6 +422,25 @@ void UManageSave::PopulateDestinationList()
 	}
 
 	AddBottomScrollSpacer();
+}
+
+void UManageSave::AddCreateGardenRow()
+{
+	if (!SaveOptionsScrollBox || !WidgetTree) return;
+
+	CreateGardenButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BTN_CreateGardenDestination"));
+	UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TXT_CreateGardenDestination"));
+	if (!CreateGardenButton || !ButtonText)
+	{
+		CreateGardenButton = nullptr;
+		return;
+	}
+
+	ButtonText->SetText(FText::FromString(TEXT("+ Create Garden")));
+	ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	CreateGardenButton->SetContent(ButtonText);
+	CreateGardenButton->OnClicked.AddDynamic(this, &UManageSave::OnPressCreateGarden);
+	SaveOptionsScrollBox->AddChild(CreateGardenButton);
 }
 
 void UManageSave::AddMessageRow(const FString& Message)
