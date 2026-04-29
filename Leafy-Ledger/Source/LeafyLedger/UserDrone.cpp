@@ -286,7 +286,7 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 		AGardenTimeManager* TM = Cast<AGardenTimeManager>(Found[0]);
 		if (TM)
 		{
-			Plant->BloomDayIndex = TM->GetCurrentDayIndex();
+			Plant->BloomDayIndex = TM->GlobalBloomDate;
 			Plant->PlantingDayIndex = Plant->BloomDayIndex - Plant->DaysToBloom;
 			Plant->WitherDayIndex = Plant->BloomDayIndex + Plant->DaysToWither;
 			Plant->UpdateForDay(TM->GetCurrentDayIndex());

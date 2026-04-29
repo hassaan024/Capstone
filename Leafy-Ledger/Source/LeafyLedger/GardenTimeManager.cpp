@@ -52,5 +52,6 @@ bool AGardenTimeManager::SetCurrentDayIndexFromBloomDate(const FString& BloomDat
 	}
 
 	SetCurrentDayIndex(DayIndex);
+	GlobalBloomDate = DayIndex;
 	return true;
 }

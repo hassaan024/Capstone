@@ -16,6 +16,8 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 		int32 CurrentDayIndex;
+	UPROPERTY(BlueprintReadOnly)
+		int32 GlobalBloomDate;
 
 	UPROPERTY(BlueprintAssignable)
 		FOnGardenDayChanged OnDayChanged;
