@@ -1184,6 +1184,45 @@ void UBackendApiSubsystem::UpdateGarden(
 	}
 }
 
+void UBackendApiSubsystem::DeleteGarden(int32 GardenId, const FBackendOperationResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"));
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/garden/%d"), GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("DELETE"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"));
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to delete garden"))
+				);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Garden deleted"));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"));
+	}
+}
+
 void UBackendApiSubsystem::EnsureGenericSoil(const FBackendSoilIdResponse& Callback)
 {
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> GetReq = CreateRequest(TEXT("/soil"), TEXT("GET"));

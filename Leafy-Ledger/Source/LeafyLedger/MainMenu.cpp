@@ -20,16 +20,6 @@ bool UMainMenu::Initialize()
 		return false;
 	}
 
-	if (BTN_UpdateDisplayName)
-	{
-		BTN_UpdateDisplayName->OnClicked.AddDynamic(this, &UMainMenu::OnPressUpdateDisplayName);
-	}
-
-	if (BTN_SavedPlants)
-	{
-		BTN_SavedPlants->OnClicked.AddDynamic(this, &UMainMenu::OnPressSavedPlants);
-	}
-
 	if (BTN_CreateGarden)
 	{
 		BTN_CreateGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressCreateGarden);
@@ -38,6 +28,21 @@ bool UMainMenu::Initialize()
 	if (BTN_LoadGarden)
 	{
 		BTN_LoadGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressLoadGarden);
+	}
+
+	if (BTN_DeleteGarden)
+	{
+		BTN_DeleteGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressDeleteGarden);
+	}
+
+	if (BTN_UpdateDisplayName)
+	{
+		BTN_UpdateDisplayName->OnClicked.AddDynamic(this, &UMainMenu::OnPressUpdateDisplayName);
+	}
+
+	if (BTN_SavedPlants)
+	{
+		BTN_SavedPlants->OnClicked.AddDynamic(this, &UMainMenu::OnPressSavedPlants);
 	}
 
 	if (BTN_BrowseSpecies)
@@ -147,6 +152,64 @@ void UMainMenu::OnPressLoadGarden()
 				LoadGardenPopupInstance->SetGardens(Gardens);
 				LoadGardenPopupInstance->OnGardenChosen = FOnGardenChosen::CreateUObject(this, &UMainMenu::HandleLoadGardenSelected);
 				LoadGardenPopupInstance->AddToViewport(20);
+			}
+		)
+	);
+}
+
+void UMainMenu::OnPressDeleteGarden()
+{
+	if (!GetGameInstance())
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressDeleteGarden: GameInstance is null"));
+		return;
+	}
+
+	UBackendApiSubsystem* Backend = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
+	if (!Backend)
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressDeleteGarden: BackendApiSubsystem missing"));
+		return;
+	}
+
+	if (!DeleteGardenPopupClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressDeleteGarden: DeleteGardenPopupClass is null"));
+		return;
+	}
+
+	Backend->GetGardensByUser(
+		FBackendGardenSummariesResponse::CreateWeakLambda(
+			this,
+			[this](bool bSuccess, const FString& Message, const TArray<FBackendGardenSummaryDto>& Gardens)
+			{
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Error, TEXT("GetGardensByUser failed: %s"), *Message);
+					return;
+				}
+
+				if (Gardens.Num() == 0)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("No gardens available to delete"));
+					return;
+				}
+
+				if (DeleteGardenPopupInstance)
+				{
+					DeleteGardenPopupInstance->RemoveFromParent();
+					DeleteGardenPopupInstance = nullptr;
+				}
+
+				DeleteGardenPopupInstance = CreateWidget<UDeleteGardenPopup>(GetOwningPlayer(), DeleteGardenPopupClass);
+				if (!DeleteGardenPopupInstance)
+				{
+					UE_LOG(LogTemp, Error, TEXT("Failed to create delete garden popup"));
+					return;
+				}
+
+				DeleteGardenPopupInstance->SetGardens(Gardens);
+				DeleteGardenPopupInstance->AddToViewport(20);
 			}
 		)
 	);

@@ -38,9 +38,8 @@ void ULoadGardenPopup::SetGardens(const TArray<FBackendGardenSummaryDto>& InGard
 	for (const FBackendGardenSummaryDto& Garden : Gardens)
 	{
 		const FString Label = FString::Printf(
-			TEXT("%s [#%d] (%d plants)"),
+			TEXT("%s (%d plants)"),
 			*Garden.Name,
-			Garden.Id,
 			Garden.PlantCount
 		);
 		GardenCombo->AddOption(Label);
@@ -50,9 +49,8 @@ void ULoadGardenPopup::SetGardens(const TArray<FBackendGardenSummaryDto>& InGard
 	{
 		SelectedGardenId = Gardens[0].Id;
 		const FString InitialLabel = FString::Printf(
-			TEXT("%s [#%d] (%d plants)"),
+			TEXT("%s (%d plants)"),
 			*Gardens[0].Name,
-			Gardens[0].Id,
 			Gardens[0].PlantCount
 		);
 		GardenCombo->SetSelectedOption(InitialLabel);

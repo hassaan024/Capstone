@@ -77,10 +77,10 @@ void UPlantCardPopup::PopulateInfo(UObject* ListItemObject)
 
     if (PlantCard->PerenualId > 0 && GetGameInstance())
     {
-        UBackendApiSubsystem* Api = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
-        if (Api)
+        USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+        if (Cache)
         {
-            Api->GetPerenualPlantDetails(
+            Cache->GetOrLoadPlantDetails(
                 PlantCard->PerenualId,
                 FBackendPlantDetailsResponse::CreateUObject(this, &UPlantCardPopup::HandlePlantDetailsLoaded)
             );
@@ -283,7 +283,80 @@ void UPlantCardPopup::LoadPlantImage(const FString& ImageUrl)
 
                 if (CurrentUrl != ExpectedUrl) return;
 
-                IMG_Plant->SetBrushFromTexture(Texture, false);
+                ApplyPlantImageTexture(Texture);
+                QueueDeferredPlantImageCrop(Texture);
+            })
+    );
+}
+
+void UPlantCardPopup::ApplyPlantImageTexture(UTexture2D* Texture)
+{
+    if (!Texture || !IMG_Plant)
+    {
+        return;
+    }
+
+    ForceLayoutPrepass();
+
+    const FVector2D TargetSize = IMG_Plant->GetCachedGeometry().GetLocalSize();
+    if (TargetSize.X <= 0.0f || TargetSize.Y <= 0.0f || Texture->GetSizeX() <= 0 || Texture->GetSizeY() <= 0)
+    {
+        FSlateBrush Brush = IMG_Plant->Brush;
+        Brush.SetResourceObject(Texture);
+        Brush.SetUVRegion(FBox2D());
+        IMG_Plant->SetBrush(Brush);
+        return;
+    }
+
+    const float TextureAspect = static_cast<float>(Texture->GetSizeX()) / static_cast<float>(Texture->GetSizeY());
+    const float TargetAspect = TargetSize.X / TargetSize.Y;
+
+    FVector2D MinUV(0.0f, 0.0f);
+    FVector2D MaxUV(1.0f, 1.0f);
+
+    if (TextureAspect > TargetAspect)
+    {
+        const float VisibleWidth = TargetAspect / TextureAspect;
+        MinUV.X = (1.0f - VisibleWidth) * 0.5f;
+        MaxUV.X = MinUV.X + VisibleWidth;
+    }
+    else if (TextureAspect < TargetAspect)
+    {
+        const float VisibleHeight = TextureAspect / TargetAspect;
+        MinUV.Y = (1.0f - VisibleHeight) * 0.5f;
+        MaxUV.Y = MinUV.Y + VisibleHeight;
+    }
+
+    FSlateBrush Brush = IMG_Plant->Brush;
+    Brush.SetResourceObject(Texture);
+    Brush.DrawAs = ESlateBrushDrawType::Image;
+    Brush.ImageSize = TargetSize;
+    Brush.SetUVRegion(FBox2D(MinUV, MaxUV));
+    IMG_Plant->SetBrush(Brush);
+}
+
+void UPlantCardPopup::QueueDeferredPlantImageCrop(UTexture2D* Texture)
+{
+    UWorld* World = GetWorld();
+    if (!World || !Texture)
+    {
+        return;
+    }
+
+    World->GetTimerManager().SetTimerForNextTick(
+        FTimerDelegate::CreateWeakLambda(this, [this, Texture]()
+            {
+                ApplyPlantImageTexture(Texture);
+
+                if (UWorld* InnerWorld = GetWorld())
+                {
+                    InnerWorld->GetTimerManager().SetTimerForNextTick(
+                        FTimerDelegate::CreateWeakLambda(this, [this, Texture]()
+                            {
+                                ApplyPlantImageTexture(Texture);
+                            })
+                    );
+                }
             })
     );
 }

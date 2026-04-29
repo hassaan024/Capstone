@@ -126,14 +126,20 @@ void USavedPlants::FetchGardenSavedSpecies(int32 GardenId)
 		return;
 	}
 
-	UBackendApiSubsystem* Api = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
-	if (!Api)
+	USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+	if (!Cache)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Backend API subsystem not found"));
+		UE_LOG(LogTemp, Error, TEXT("SavedPlantCacheSubsystem not found"));
 		return;
 	}
 
-	Api->GetSavedSpeciesForGarden(GardenId, FBackendPlantsResponse::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse));
+	if (const TArray<FBackendPlantDto>* CachedPlants = Cache->GetCachedGardenPlants(GardenId))
+	{
+		UE_LOG(LogTemp, Log, TEXT("Using cached saved plants for garden %d immediately"), GardenId);
+		PopulatePlants(*CachedPlants);
+	}
+
+	Cache->RefreshGardenSavedPlants(GardenId, FOnSavedPlantsRefreshed::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse));
 }
 
 void USavedPlants::FetchGardens()
@@ -225,10 +231,17 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 		PlantObject->Maintenance = !Plant.Maintenance.IsEmpty() ? Plant.Maintenance : Plant.CareLevel;
 		PlantObject->Type = Plant.Type;
 		PlantObject->LifeCycle = Plant.Cycle;
-		PlantObject->GrowthRate = Plant.GrowthRate > 0 ? FString::FromInt(Plant.GrowthRate) : TEXT("");
+		PlantObject->GrowthRate = !Plant.GrowthRateText.IsEmpty()
+			? Plant.GrowthRateText
+			: (Plant.GrowthRate > 0 ? FString::FromInt(Plant.GrowthRate) : TEXT(""));
 		PlantObject->DaysToBloom = Plant.DaysToBloom;
+		PlantObject->HardinessZones = Plant.HardinessZones;
 
-		if (Plant.AvgHoursSun > 0)
+		if (!Plant.SunlightText.IsEmpty())
+		{
+			PlantObject->Sunlight = Plant.SunlightText;
+		}
+		else if (Plant.AvgHoursSun > 0)
 		{
 			PlantObject->Sunlight = FString::Printf(TEXT("%d hours"), Plant.AvgHoursSun);
 		}

@@ -7,15 +7,13 @@
 #include "BackendApiTypes.h"
 #include "Components/Button.h"
 #include "Components/ComboBoxString.h"
-#include "LoadGardenPopup.generated.h"
+#include "DeleteGardenPopup.generated.h"
 
-class UButton;
-class UComboBoxString;
-
-DECLARE_DELEGATE_OneParam(FOnGardenChosen, int32)
-
+/**
+ * 
+ */
 UCLASS()
-class LEAFYLEDGER_API ULoadGardenPopup : public UUserWidget
+class LEAFYLEDGER_API UDeleteGardenPopup : public UUserWidget
 {
 	GENERATED_BODY()
 	
@@ -28,15 +26,13 @@ public:
 	void OnGardenSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Load;
+	UButton* BTN_Delete;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UComboBoxString* GardenCombo;
 
 	UFUNCTION()
-	void OnPressLoad();
-
-	FOnGardenChosen OnGardenChosen;
+	void OnPressDelete();
 
 	UPROPERTY()
 	TArray<FBackendGardenSummaryDto> Gardens;

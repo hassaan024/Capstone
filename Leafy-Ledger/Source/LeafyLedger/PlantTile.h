@@ -87,5 +87,7 @@ private:
     FString CurrentUrl;
 
     void LoadPlantImage(const FString& ImageUrl);
+    void ApplyPlantImageTexture(UTexture2D* Texture);
+    void QueueDeferredPlantImageCrop(UTexture2D* Texture);
     static FString GetPreferredImageUrl(const FBackendPlantDto& Plant);
 };

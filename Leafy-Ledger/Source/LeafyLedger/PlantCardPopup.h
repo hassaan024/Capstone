@@ -96,6 +96,8 @@ private:
 
     void PopulateKnownDetails();
     void LoadPlantImage(const FString& ImageUrl);
+    void ApplyPlantImageTexture(UTexture2D* Texture);
+    void QueueDeferredPlantImageCrop(UTexture2D* Texture);
     void SetTextOrNA(UTextBlock* TextBlock, const FString& Value);
     void ConfigureDetailTextWrapping();
     void ApplyWrapTextAt(UTextBlock* TextBlock);
