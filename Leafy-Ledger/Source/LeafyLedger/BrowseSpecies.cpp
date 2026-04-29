@@ -128,11 +128,15 @@ void UBrowseSpecies::HandleSearchResponse(bool bSuccess, const FString& Message,
 
 	for (const FBackendPlantSearchResultDto& Plant : Plants)
 	{
-		UPlantObject* PlantObject = NewObject<UPlantObject>(this);
-		if (!PlantObject)
+		if (Plant.CommonName.TrimStartAndEnd().IsEmpty()
+			|| Plant.ScientificName.TrimStartAndEnd().IsEmpty()
+			|| Plant.ImageUrl.TrimStartAndEnd().IsEmpty())
 		{
 			continue;
 		}
+
+		UPlantObject* PlantObject = NewObject<UPlantObject>(this);
+		if (!PlantObject) continue;
 
 		PlantObject->PerenualId = Plant.PerenualId;
 		PlantObject->CommonName = Plant.CommonName;

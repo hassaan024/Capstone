@@ -1,11 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "PlantTile.h"
+#include "BackendApiSubsystem.h"
 #include "SavedPlants.h"
 #include "PlantObject.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "SavedPlantCacheSubsystem.h"
+#include "TimerManager.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -88,9 +90,9 @@ void UPlantTile::OnPressOpenPlantCard()
         return;
     }
 
-    CardPopupInstance->PopulateInfo(PlantCard);
     CardPopupInstance->OnGlobalSaveRemoved.AddUniqueDynamic(this, &UPlantTile::HandlePopupRemoveClicked);
     CardPopupInstance->AddToViewport();
+    CardPopupInstance->PopulateInfo(PlantCard);
 }
 
 void UPlantTile::HandlePopupRemoveClicked(int32 PerenualId)
@@ -127,28 +129,166 @@ void UPlantTile::NativeOnListItemObjectSet(UObject* ListItemObject)
     if (TXT_ScientificName)
         TXT_ScientificName->SetText(FText::FromString(PlantCard->ScientificName));
 
-    if (!PlantCard->ImgSrcUrl.IsEmpty() && PlantCard->ImgSrcUrl != CurrentUrl)
+    LoadPlantImage(PlantCard->ImgSrcUrl);
+
+    if (PlantCard->ImgSrcUrl.IsEmpty() && PlantCard->PerenualId > 0 && GetGameInstance())
     {
-        CurrentUrl = PlantCard->ImgSrcUrl;
-
-        if (!GetGameInstance()) return; 
-
-        USavedPlantCacheSubsystem* ImageCache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
-
-        if (!ImageCache) return;
-        
-        const FString ExpectedUrl = CurrentUrl;
-
-        ImageCache->GetOrLoadImage(
-            ExpectedUrl,
-            FOnPlantImageReady::CreateWeakLambda(this, [this, ExpectedUrl](UTexture2D* Texture)
-                {
-                    if (!this || !Texture || !IMG_Plant) return;
-
-                    if (CurrentUrl != ExpectedUrl) return;
-
-                    IMG_Plant->SetBrushFromTexture(Texture, true);
-                })
-        );
+        USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+        if (Cache)
+        {
+            Cache->GetOrLoadPlantDetails(
+                PlantCard->PerenualId,
+                FBackendPlantDetailsResponse::CreateUObject(this, &UPlantTile::HandlePlantDetailsLoaded)
+            );
+        }
     }
+}
+
+void UPlantTile::HandlePlantDetailsLoaded(bool bSuccess, const FString& Message, const FBackendPlantDto& Plant)
+{
+    if (!bSuccess)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Plant tile details fetch failed: %s"), *Message);
+        return;
+    }
+
+    if (!PlantCard || PlantCard->PerenualId != Plant.PerenualId)
+    {
+        return;
+    }
+
+    PlantCard->ImgSrcUrl = GetPreferredImageUrl(Plant);
+    LoadPlantImage(PlantCard->ImgSrcUrl);
+}
+
+void UPlantTile::LoadPlantImage(const FString& ImageUrl)
+{
+    if (ImageUrl.IsEmpty() || ImageUrl == CurrentUrl)
+    {
+        return;
+    }
+
+    if (!GetGameInstance())
+    {
+        return;
+    }
+
+    USavedPlantCacheSubsystem* ImageCache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+    if (!ImageCache)
+    {
+        return;
+    }
+
+    CurrentUrl = ImageUrl;
+    const FString ExpectedUrl = CurrentUrl;
+
+    ImageCache->GetOrLoadImage(
+        ExpectedUrl,
+        FOnPlantImageReady::CreateWeakLambda(this, [this, ExpectedUrl](UTexture2D* Texture)
+            {
+                if (!this || !Texture || !IMG_Plant) return;
+
+                if (CurrentUrl != ExpectedUrl) return;
+
+                ApplyPlantImageTexture(Texture);
+                QueueDeferredPlantImageCrop(Texture);
+            })
+    );
+}
+
+void UPlantTile::ApplyPlantImageTexture(UTexture2D* Texture)
+{
+    if (!Texture || !IMG_Plant)
+    {
+        return;
+    }
+
+    ForceLayoutPrepass();
+
+    const FVector2D TargetSize = IMG_Plant->GetCachedGeometry().GetLocalSize();
+    if (TargetSize.X <= 0.0f || TargetSize.Y <= 0.0f || Texture->GetSizeX() <= 0 || Texture->GetSizeY() <= 0)
+    {
+        FSlateBrush Brush = IMG_Plant->Brush;
+        Brush.SetResourceObject(Texture);
+        Brush.SetUVRegion(FBox2D());
+        IMG_Plant->SetBrush(Brush);
+        return;
+    }
+
+    const float TextureAspect = static_cast<float>(Texture->GetSizeX()) / static_cast<float>(Texture->GetSizeY());
+    const float TargetAspect = TargetSize.X / TargetSize.Y;
+
+    FVector2D MinUV(0.0f, 0.0f);
+    FVector2D MaxUV(1.0f, 1.0f);
+
+    if (TextureAspect > TargetAspect)
+    {
+        const float VisibleWidth = TargetAspect / TextureAspect;
+        MinUV.X = (1.0f - VisibleWidth) * 0.5f;
+        MaxUV.X = MinUV.X + VisibleWidth;
+    }
+    else if (TextureAspect < TargetAspect)
+    {
+        const float VisibleHeight = TextureAspect / TargetAspect;
+        MinUV.Y = (1.0f - VisibleHeight) * 0.5f;
+        MaxUV.Y = MinUV.Y + VisibleHeight;
+    }
+
+    FSlateBrush Brush = IMG_Plant->Brush;
+    Brush.SetResourceObject(Texture);
+    Brush.DrawAs = ESlateBrushDrawType::Image;
+    Brush.ImageSize = TargetSize;
+    Brush.SetUVRegion(FBox2D(MinUV, MaxUV));
+    IMG_Plant->SetBrush(Brush);
+}
+
+void UPlantTile::QueueDeferredPlantImageCrop(UTexture2D* Texture)
+{
+    UWorld* World = GetWorld();
+    if (!World || !Texture)
+    {
+        return;
+    }
+
+    World->GetTimerManager().SetTimerForNextTick(
+        FTimerDelegate::CreateWeakLambda(this, [this, Texture]()
+            {
+                ApplyPlantImageTexture(Texture);
+
+                if (UWorld* InnerWorld = GetWorld())
+                {
+                    InnerWorld->GetTimerManager().SetTimerForNextTick(
+                        FTimerDelegate::CreateWeakLambda(this, [this, Texture]()
+                            {
+                                ApplyPlantImageTexture(Texture);
+                            })
+                    );
+                }
+            })
+    );
+}
+
+FString UPlantTile::GetPreferredImageUrl(const FBackendPlantDto& Plant)
+{
+    if (!Plant.ImgSrcUrls.Regular.IsEmpty())
+    {
+        return Plant.ImgSrcUrls.Regular;
+    }
+
+    if (!Plant.ImgSrcUrls.Medium.IsEmpty())
+    {
+        return Plant.ImgSrcUrls.Medium;
+    }
+
+    if (!Plant.ImgSrcUrls.Small.IsEmpty())
+    {
+        return Plant.ImgSrcUrls.Small;
+    }
+
+    if (!Plant.ImgSrcUrls.Thumbnail.IsEmpty())
+    {
+        return Plant.ImgSrcUrls.Thumbnail;
+    }
+
+    return Plant.ImgSrcUrls.Original;
 }

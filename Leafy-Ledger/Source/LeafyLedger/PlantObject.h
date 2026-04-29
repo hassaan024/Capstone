@@ -34,6 +34,27 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
 	int32 DaysToWither = 0;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString Sunlight;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString Watering;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString HardinessZones;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString Maintenance;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString Type;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString LifeCycle;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
+	FString GrowthRate;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
 	TSubclassOf<APlant> PlantClass;
 

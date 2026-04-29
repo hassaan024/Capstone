@@ -8,6 +8,30 @@
 
 namespace
 {
+	static FString JoinStringArrayField(const TSharedPtr<FJsonObject>& Obj, const FString& FieldName)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+		if (!Obj.IsValid() || !Obj->TryGetArrayField(FieldName, Values) || !Values)
+		{
+			return TEXT("");
+		}
+
+		TArray<FString> Strings;
+		for (const TSharedPtr<FJsonValue>& Value : *Values)
+		{
+			if (Value.IsValid())
+			{
+				const FString StringValue = Value->AsString();
+				if (!StringValue.IsEmpty())
+				{
+					Strings.Add(StringValue);
+				}
+			}
+		}
+
+		return FString::Join(Strings, TEXT(", "));
+	}
+
 	static void ParsePlantDtoFromObject(const TSharedPtr<FJsonObject>& Obj, FBackendPlantDto& OutPlant)
 	{
 		if (!Obj.IsValid())
@@ -74,6 +98,90 @@ bool FBackendJsonUtils::TryGetErrorMessage(const FString& JsonString, FString& O
 	}
 
 	return false;
+}
+
+bool FBackendJsonUtils::ParsePerenualPlantDetails(const FString& JsonString, FBackendPlantDto& OutPlant)
+{
+	OutPlant = FBackendPlantDto{};
+
+	TSharedPtr<FJsonObject> Obj;
+	if (!ParseObject(JsonString, Obj) || !Obj.IsValid())
+	{
+		return false;
+	}
+
+	double NumberValue = 0.0;
+	if (Obj->TryGetNumberField(TEXT("id"), NumberValue))
+	{
+		OutPlant.PerenualId = static_cast<int32>(NumberValue);
+	}
+
+	Obj->TryGetStringField(TEXT("common_name"), OutPlant.CommonName);
+
+	const TArray<TSharedPtr<FJsonValue>>* ScientificNames = nullptr;
+	if (Obj->TryGetArrayField(TEXT("scientific_name"), ScientificNames) && ScientificNames && ScientificNames->Num() > 0)
+	{
+		const TSharedPtr<FJsonValue>& FirstName = (*ScientificNames)[0];
+		if (FirstName.IsValid())
+		{
+			OutPlant.ScientificName = FirstName->AsString();
+		}
+	}
+	else
+	{
+		Obj->TryGetStringField(TEXT("scientific_name"), OutPlant.ScientificName);
+	}
+
+	Obj->TryGetStringField(TEXT("watering"), OutPlant.WateringFreq);
+	Obj->TryGetStringField(TEXT("maintenance"), OutPlant.Maintenance);
+	Obj->TryGetStringField(TEXT("care_level"), OutPlant.CareLevel);
+	Obj->TryGetStringField(TEXT("type"), OutPlant.Type);
+	Obj->TryGetStringField(TEXT("cycle"), OutPlant.Cycle);
+	Obj->TryGetStringField(TEXT("growth_rate"), OutPlant.GrowthRateText);
+	Obj->TryGetStringField(TEXT("modelCategory"), OutPlant.ModelCategory);
+
+	if (Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
+	{
+		OutPlant.DaysToBloom = static_cast<int32>(NumberValue);
+	}
+
+	const FString Sunlight = JoinStringArrayField(Obj, TEXT("sunlight"));
+	if (!Sunlight.IsEmpty())
+	{
+		OutPlant.SunlightText = Sunlight;
+	}
+
+	const TSharedPtr<FJsonObject>* HardinessObj = nullptr;
+	if (Obj->TryGetObjectField(TEXT("hardiness"), HardinessObj) && HardinessObj && HardinessObj->IsValid())
+	{
+		FString MinZone;
+		FString MaxZone;
+		(*HardinessObj)->TryGetStringField(TEXT("min"), MinZone);
+		(*HardinessObj)->TryGetStringField(TEXT("max"), MaxZone);
+
+		if (!MinZone.IsEmpty() && !MaxZone.IsEmpty() && MinZone == MaxZone)
+		{
+			OutPlant.HardinessZones = MinZone;
+		}
+		else if (!MinZone.IsEmpty() || !MaxZone.IsEmpty())
+		{
+			const FString MinDisplay = !MinZone.IsEmpty() ? MinZone : TEXT("?");
+			const FString MaxDisplay = !MaxZone.IsEmpty() ? MaxZone : TEXT("?");
+			OutPlant.HardinessZones = FString::Printf(TEXT("%s - %s"), *MinDisplay, *MaxDisplay);
+		}
+	}
+
+	const TSharedPtr<FJsonObject>* DefaultImage = nullptr;
+	if (Obj->TryGetObjectField(TEXT("default_image"), DefaultImage) && DefaultImage && DefaultImage->IsValid())
+	{
+		(*DefaultImage)->TryGetStringField(TEXT("original_url"), OutPlant.ImgSrcUrls.Original);
+		(*DefaultImage)->TryGetStringField(TEXT("regular_url"), OutPlant.ImgSrcUrls.Regular);
+		(*DefaultImage)->TryGetStringField(TEXT("medium_url"), OutPlant.ImgSrcUrls.Medium);
+		(*DefaultImage)->TryGetStringField(TEXT("small_url"), OutPlant.ImgSrcUrls.Small);
+		(*DefaultImage)->TryGetStringField(TEXT("thumbnail"), OutPlant.ImgSrcUrls.Thumbnail);
+	}
+
+	return true;
 }
 
 bool FBackendJsonUtils::ParsePlantArray(const FString& JsonString, TArray<FBackendPlantDto>& OutPlants)
@@ -240,10 +348,19 @@ bool FBackendJsonUtils::ParsePlantArray(const FString& JsonString, TArray<FBacke
 		const TSharedPtr<FJsonObject>* ImgObj = nullptr;
 		if (Obj->TryGetObjectField(TEXT("imgSrcUrls"), ImgObj) && ImgObj && ImgObj->IsValid())
 		{
+			(*ImgObj)->TryGetStringField(TEXT("original"), Plant.ImgSrcUrls.Original);
 			(*ImgObj)->TryGetStringField(TEXT("regular"), Plant.ImgSrcUrls.Regular);
+			(*ImgObj)->TryGetStringField(TEXT("medium"), Plant.ImgSrcUrls.Medium);
+			(*ImgObj)->TryGetStringField(TEXT("small"), Plant.ImgSrcUrls.Small);
+			(*ImgObj)->TryGetStringField(TEXT("thumbnail"), Plant.ImgSrcUrls.Thumbnail);
 		}
 
 		Obj->TryGetStringField(TEXT("modelCategory"), Plant.ModelCategory);
+
+		if (Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
+		{
+			Plant.DaysToBloom = static_cast<int32>(NumberValue);
+		}
 
 		OutPlants.Add(MoveTemp(Plant));
 	}
@@ -415,6 +532,7 @@ bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGar
 
 	Obj->TryGetStringField(TEXT("name"), OutGarden.Name);
 	Obj->TryGetStringField(TEXT("description"), OutGarden.Description);
+	Obj->TryGetStringField(TEXT("bloomDate"), OutGarden.BloomDate);
 	Obj->TryGetStringField(TEXT("timezone"), OutGarden.Timezone);
 
 	if (Obj->TryGetNumberField(TEXT("latitude"), NumberValue))
@@ -525,6 +643,7 @@ bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGar
 
 		PlantObj->TryGetStringField(TEXT("healthStatus"), PlantInstance.HealthStatus);
 		PlantObj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered);
+		PlantObj->TryGetStringField(TEXT("plantedDate"), PlantInstance.PlantedDate);
 		PlantObj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
 
 		const TSharedPtr<FJsonObject>* SpeciesObj = nullptr;

@@ -18,6 +18,7 @@ void APlant::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogTemp, Warning, TEXT("Plant beginplay"));
 	PreviewMaterial = PreviewMesh->GetMaterial(0);
 	if (PreviewMaterial)
 	{
@@ -61,11 +62,43 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	PlantName = PlantData->CommonName;
 	DaysToBloom = PlantData->DaysToBloom;
 	DaysToWither = PlantData->DaysToWither;
+	Category = PlantData->ModelCategory.TrimStartAndEnd();
+	const FString NormalizedCategory = Category.ToLower();
+
+	// Set the meshes to correspond with their categories
+	if (NormalizedCategory == TEXT("tree")) {
+		SeedMesh = TreeSeedMesh;
+		SaplingMesh = TreeSaplingMesh;
+		BloomedMesh = TreeBloomedMesh;
+		WitherMesh = TreeWitherMesh;
+	}
+	else if (NormalizedCategory == TEXT("flower")) {
+		SeedMesh = FlowerSeedMesh;
+		SaplingMesh = FlowerSaplingMesh;
+		BloomedMesh = FlowerBloomedMesh;
+		WitherMesh = FlowerWitherMesh;
+	}
+	else if (NormalizedCategory == TEXT("vegetable")) {
+		SeedMesh = VegetableSeedMesh;
+		SaplingMesh = VegetableSaplingMesh;
+		BloomedMesh = VegetableBloomedMesh;
+		WitherMesh = VegetableWitherMesh;
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("Unknown plant model category '%s' for %s; defaulting to flower meshes"), *Category, *PlantName);
+		Category = TEXT("flower");
+		SeedMesh = FlowerSeedMesh;
+		SaplingMesh = FlowerSaplingMesh;
+		BloomedMesh = FlowerBloomedMesh;
+		WitherMesh = FlowerWitherMesh;
+	}
 
 	if (PreviewMesh && BloomedMesh)
 	{
 		PreviewMesh->SetStaticMesh(BloomedMesh);
 	}
+
+	if (Category != "") UE_LOG(LogTemp, Warning, TEXT("%s"), *Category);
 }
 
 void APlant::UpdateForDay(int32 DayIndex)

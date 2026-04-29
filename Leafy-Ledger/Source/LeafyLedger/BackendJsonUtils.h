@@ -16,6 +16,7 @@ struct FBackendJsonUtils
 	static FString StringifyObject(const TSharedRef<FJsonObject>& JsonObject);
 
 	static bool TryGetErrorMessage(const FString& JsonString, FString& OutErrorMessage);
+	static bool ParsePerenualPlantDetails(const FString& JsonString, FBackendPlantDto& OutPlant);
 	static bool ParsePlantArray(const FString& JsonString, TArray<FBackendPlantDto>& OutPlants);
 	static bool ParseCurrentUser(const FString& JsonString, FBackendUserDto& OutUser);
 	static bool ParseUserLocation(const FString& JsonString, FBackendUserLocationDto& OutLocation);

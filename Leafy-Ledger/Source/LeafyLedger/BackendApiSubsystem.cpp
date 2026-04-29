@@ -222,6 +222,13 @@ void UBackendApiSubsystem::SearchPerenualPlants(const FString& Query, const FBac
 					}
 				}
 
+				if (Plant.CommonName.TrimStartAndEnd().IsEmpty()
+					|| Plant.ScientificName.TrimStartAndEnd().IsEmpty()
+					|| Plant.ImageUrl.TrimStartAndEnd().IsEmpty())
+				{
+					continue;
+				}
+
 				Plants.Add(Plant);
 			}
 
@@ -233,6 +240,54 @@ void UBackendApiSubsystem::SearchPerenualPlants(const FString& Query, const FBac
 	{
 		const TArray<FBackendPlantSearchResultDto> EmptyPlants;
 		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), EmptyPlants);
+	}
+}
+
+void UBackendApiSubsystem::GetPerenualPlantDetails(int32 PerenualId, const FBackendPlantDetailsResponse& Callback)
+{
+	if (PerenualId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("PerenualId must be > 0"), FBackendPlantDto{});
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/perenual/details/%d"), PerenualId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("GET"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendPlantDto Plant;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Plant);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to fetch plant details")),
+					Plant
+				);
+				return;
+			}
+
+			if (!FBackendJsonUtils::ParsePerenualPlantDetails(Response->GetContentAsString(), Plant))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid plant details JSON"), Plant);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), Plant);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendPlantDto{});
 	}
 }
 
@@ -679,6 +734,75 @@ void UBackendApiSubsystem::GetUserLocation(const FBackendUserLocationResponse& C
 	}
 }
 
+void UBackendApiSubsystem::ResolveZipCodeLocation(const FString& ZipCode, const FBackendZipLocationResponse& Callback)
+{
+	const FString TrimmedZip = ZipCode.TrimStartAndEnd();
+	if (TrimmedZip.IsEmpty())
+	{
+		Callback.ExecuteIfBound(false, TEXT("ZIP code is empty"), 0.0f, 0.0f);
+		return;
+	}
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(FString::Printf(TEXT("https://api.zippopotam.us/us/%s"), *FGenericPlatformHttp::UrlEncode(TrimmedZip)));
+	Req->SetVerb(TEXT("GET"));
+	Req->SetHeader(TEXT("Accept"), TEXT("application/json"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response resolving ZIP code"), 0.0f, 0.0f);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Could not find coordinates for that ZIP code"), 0.0f, 0.0f);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+			if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid ZIP location JSON"), 0.0f, 0.0f);
+				return;
+			}
+
+			const TArray<TSharedPtr<FJsonValue>>* Places = nullptr;
+			if (!Obj->TryGetArrayField(TEXT("places"), Places) || !Places || Places->Num() == 0)
+			{
+				Callback.ExecuteIfBound(false, TEXT("No coordinates found for that ZIP code"), 0.0f, 0.0f);
+				return;
+			}
+
+			const TSharedPtr<FJsonObject> PlaceObj = (*Places)[0]->AsObject();
+			if (!PlaceObj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid ZIP location place JSON"), 0.0f, 0.0f);
+				return;
+			}
+
+			FString LatitudeText;
+			FString LongitudeText;
+			if (!PlaceObj->TryGetStringField(TEXT("latitude"), LatitudeText) || !PlaceObj->TryGetStringField(TEXT("longitude"), LongitudeText))
+			{
+				Callback.ExecuteIfBound(false, TEXT("ZIP location coordinates missing"), 0.0f, 0.0f);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("OK"), FCString::Atof(*LatitudeText), FCString::Atof(*LongitudeText));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start ZIP location request"), 0.0f, 0.0f);
+	}
+}
+
 void UBackendApiSubsystem::GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback)
 {
 	const FString Route = FString::Printf(
@@ -835,7 +959,15 @@ void UBackendApiSubsystem::GetGardenDetail(int32 GardenId, const FBackendGardenD
 	}
 }
 
-void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Description, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback)
+void UBackendApiSubsystem::CreateGarden(
+	const FString& Name,
+	const FString& Description,
+	const FString& BloomDate,
+	float Latitude,
+	float Longitude,
+	const FString& Timezone,
+	const FBackendGardenResponse& Callback
+)
 {
 	const FString TrimmedName = Name.TrimStartAndEnd();
 	if (TrimmedName.IsEmpty())
@@ -862,6 +994,11 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 	if (!Timezone.IsEmpty())
 	{
 		BodyObj->SetStringField(TEXT("timezone"), Timezone);
+	}
+
+	if (!BloomDate.TrimStartAndEnd().IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("bloomDate"), BloomDate.TrimStartAndEnd());
 	}
 
 	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
@@ -909,6 +1046,7 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 
 			Obj->TryGetStringField(TEXT("name"), Garden.Name);
 			Obj->TryGetStringField(TEXT("description"), Garden.Description);
+			Obj->TryGetStringField(TEXT("bloomDate"), Garden.BloomDate);
 
 			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
 			{
@@ -931,6 +1069,157 @@ void UBackendApiSubsystem::CreateGarden(const FString& Name, const FString& Desc
 	if (!Req->ProcessRequest())
 	{
 		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendGardenDto{});
+	}
+}
+
+void UBackendApiSubsystem::UpdateGarden(
+	int32 GardenId,
+	const FString& Name,
+	const FString& Description,
+	const FString& BloomDate,
+	float Latitude,
+	float Longitude,
+	const FString& Timezone,
+	const FBackendGardenResponse& Callback
+)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"), FBackendGardenDto{});
+		return;
+	}
+
+	const FString TrimmedName = Name.TrimStartAndEnd();
+	if (TrimmedName.IsEmpty())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Garden name is empty"), FBackendGardenDto{});
+		return;
+	}
+
+	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+	BodyObj->SetStringField(TEXT("name"), TrimmedName);
+	BodyObj->SetStringField(TEXT("description"), Description);
+	BodyObj->SetNumberField(TEXT("latitude"), Latitude);
+	BodyObj->SetNumberField(TEXT("longitude"), Longitude);
+
+	if (!Timezone.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("timezone"), Timezone);
+	}
+
+	if (!BloomDate.TrimStartAndEnd().IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("bloomDate"), BloomDate.TrimStartAndEnd());
+	}
+
+	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+	const FString Route = FString::Printf(TEXT("/garden/%d"), GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("PATCH"), BodyStr);
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendGardenDto Garden;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Garden);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to update garden")),
+					Garden
+				);
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Obj;
+			if (!FBackendJsonUtils::ParseObject(Response->GetContentAsString(), Obj) || !Obj.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid garden JSON"), Garden);
+				return;
+			}
+
+			double Num = 0.0;
+
+			if (Obj->TryGetNumberField(TEXT("id"), Num))
+			{
+				Garden.Id = static_cast<int32>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("ownerId"), Num))
+			{
+				Garden.OwnerId = static_cast<int32>(Num);
+			}
+
+			Obj->TryGetStringField(TEXT("name"), Garden.Name);
+			Obj->TryGetStringField(TEXT("description"), Garden.Description);
+			Obj->TryGetStringField(TEXT("bloomDate"), Garden.BloomDate);
+
+			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
+			{
+				Garden.Latitude = static_cast<float>(Num);
+			}
+
+			if (Obj->TryGetNumberField(TEXT("longitude"), Num))
+			{
+				Garden.Longitude = static_cast<float>(Num);
+			}
+
+			Obj->TryGetStringField(TEXT("timezone"), Garden.Timezone);
+			Obj->TryGetStringField(TEXT("creationTimestamp"), Garden.CreationTimestamp);
+			Obj->TryGetStringField(TEXT("lastUpdated"), Garden.LastUpdated);
+
+			Callback.ExecuteIfBound(true, TEXT("Garden updated"), Garden);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendGardenDto{});
+	}
+}
+
+void UBackendApiSubsystem::DeleteGarden(int32 GardenId, const FBackendOperationResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"));
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/garden/%d"), GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("DELETE"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"));
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to delete garden"))
+				);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Garden deleted"));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"));
 	}
 }
 
@@ -1055,7 +1344,7 @@ void UBackendApiSubsystem::EnsureGenericSoil(const FBackendSoilIdResponse& Callb
 	}
 }
 
-void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (GardenId <= 0)
 	{
@@ -1107,6 +1396,11 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 	if (LastWateredIso8601 && !LastWateredIso8601->IsEmpty())
 	{
 		BodyObj->SetStringField(TEXT("lastWatered"), *LastWateredIso8601);
+	}
+
+	if (PlantedDateIso8601 && !PlantedDateIso8601->IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("plantedDate"), *PlantedDateIso8601);
 	}
 
 	if (!Notes.IsEmpty())
@@ -1234,6 +1528,11 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 				PlantInstance.bHasLastWatered = !PlantInstance.LastWatered.IsEmpty();
 			}
 
+			if (Obj->TryGetStringField(TEXT("plantedDate"), PlantInstance.PlantedDate))
+			{
+				PlantInstance.bHasPlantedDate = !PlantInstance.PlantedDate.IsEmpty();
+			}
+
 			Obj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
 			Obj->TryGetStringField(TEXT("creationTimestamp"), PlantInstance.CreationTimestamp);
 			Obj->TryGetStringField(TEXT("lastUpdated"), PlantInstance.LastUpdated);
@@ -1248,7 +1547,7 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 	}
 }
 
-void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (PlantInstanceId <= 0)
 	{
@@ -1270,6 +1569,11 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 	BodyObj->SetNumberField(TEXT("ageDays"), AgeDays);
 	BodyObj->SetStringField(TEXT("healthStatus"), HealthStatus);
 	BodyObj->SetStringField(TEXT("lastWatered"), LastWateredIso8601);
+
+	if (!PlantedDateIso8601.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("plantedDate"), PlantedDateIso8601);
+	}
 
 	if (!Notes.IsEmpty())
 	{
@@ -1395,6 +1699,11 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 			if (Obj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered))
 			{
 				PlantInstance.bHasLastWatered = !PlantInstance.LastWatered.IsEmpty();
+			}
+
+			if (Obj->TryGetStringField(TEXT("plantedDate"), PlantInstance.PlantedDate))
+			{
+				PlantInstance.bHasPlantedDate = !PlantInstance.PlantedDate.IsEmpty();
 			}
 
 			Obj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);

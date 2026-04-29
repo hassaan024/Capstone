@@ -126,14 +126,20 @@ void USavedPlants::FetchGardenSavedSpecies(int32 GardenId)
 		return;
 	}
 
-	UBackendApiSubsystem* Api = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
-	if (!Api)
+	USavedPlantCacheSubsystem* Cache = GetGameInstance()->GetSubsystem<USavedPlantCacheSubsystem>();
+	if (!Cache)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Backend API subsystem not found"));
+		UE_LOG(LogTemp, Error, TEXT("SavedPlantCacheSubsystem not found"));
 		return;
 	}
 
-	Api->GetSavedSpeciesForGarden(GardenId, FBackendPlantsResponse::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse));
+	if (const TArray<FBackendPlantDto>* CachedPlants = Cache->GetCachedGardenPlants(GardenId))
+	{
+		UE_LOG(LogTemp, Log, TEXT("Using cached saved plants for garden %d immediately"), GardenId);
+		PopulatePlants(*CachedPlants);
+	}
+
+	Cache->RefreshGardenSavedPlants(GardenId, FOnSavedPlantsRefreshed::CreateUObject(this, &USavedPlants::HandleFetchSavedSpeciesResponse));
 }
 
 void USavedPlants::FetchGardens()
@@ -198,10 +204,47 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 
 		PlantObject->CommonName = Plant.CommonName;
 		PlantObject->ScientificName = Plant.ScientificName;
-		PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
+		if (!Plant.ImgSrcUrls.Regular.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Regular;
+		}
+		else if (!Plant.ImgSrcUrls.Medium.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Medium;
+		}
+		else if (!Plant.ImgSrcUrls.Small.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Small;
+		}
+		else if (!Plant.ImgSrcUrls.Thumbnail.IsEmpty())
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Thumbnail;
+		}
+		else
+		{
+			PlantObject->ImgSrcUrl = Plant.ImgSrcUrls.Original;
+		}
 		PlantObject->SpeciesId = Plant.Id;
 		PlantObject->PerenualId = Plant.PerenualId;
 		PlantObject->ModelCategory = Plant.ModelCategory;
+		PlantObject->Watering = Plant.WateringFreq;
+		PlantObject->Maintenance = !Plant.Maintenance.IsEmpty() ? Plant.Maintenance : Plant.CareLevel;
+		PlantObject->Type = Plant.Type;
+		PlantObject->LifeCycle = Plant.Cycle;
+		PlantObject->GrowthRate = !Plant.GrowthRateText.IsEmpty()
+			? Plant.GrowthRateText
+			: (Plant.GrowthRate > 0 ? FString::FromInt(Plant.GrowthRate) : TEXT(""));
+		PlantObject->DaysToBloom = Plant.DaysToBloom;
+		PlantObject->HardinessZones = Plant.HardinessZones;
+
+		if (!Plant.SunlightText.IsEmpty())
+		{
+			PlantObject->Sunlight = Plant.SunlightText;
+		}
+		else if (Plant.AvgHoursSun > 0)
+		{
+			PlantObject->Sunlight = FString::Printf(TEXT("%d hours"), Plant.AvgHoursSun);
+		}
 
 		//UE_LOG(LogTemp, Log, TEXT("PopulatePlants: %s Plant.Id=%d Plant.PerenualId=%d"), *Plant.CommonName, Plant.Id, Plant.PerenualId);
 

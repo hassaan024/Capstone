@@ -31,9 +31,6 @@ public:
 	UButton* BTN_Load;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Quit;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UComboBoxString* GardenCombo;
 
 	UFUNCTION()

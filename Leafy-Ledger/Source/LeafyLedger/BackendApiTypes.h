@@ -9,7 +9,15 @@ struct FBackendPlantImageUrlsDto
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite)
+	FString Original;
+	UPROPERTY(BlueprintReadWrite)
 	FString Regular;
+	UPROPERTY(BlueprintReadWrite)
+	FString Medium;
+	UPROPERTY(BlueprintReadWrite)
+	FString Small;
+	UPROPERTY(BlueprintReadWrite)
+	FString Thumbnail;
 };
 
 USTRUCT(BlueprintType)
@@ -40,6 +48,8 @@ struct FBackendPlantDto
 	UPROPERTY(BlueprintReadWrite)
 	int32 GrowthRate = 0;
 	UPROPERTY(BlueprintReadWrite)
+	FString GrowthRateText;
+	UPROPERTY(BlueprintReadWrite)
 	FString Cycle;
 	UPROPERTY(BlueprintReadWrite)
 	FString Type;
@@ -49,6 +59,12 @@ struct FBackendPlantDto
 	FString CareLevel;
 	UPROPERTY(BlueprintReadWrite)
 	int32 AvgHoursSun = 0;
+	UPROPERTY(BlueprintReadWrite)
+	FString SunlightText;
+	UPROPERTY(BlueprintReadWrite)
+	FString HardinessZones;
+	UPROPERTY(BlueprintReadWrite)
+	int32 DaysToBloom = 0;
 
 	UPROPERTY(BlueprintReadWrite)
 	float MinTemp = 0.0f;
@@ -205,6 +221,9 @@ struct FBackendGardenDto
 	FString Description;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	float Latitude = 0.f;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -286,6 +305,9 @@ struct FBackendPlantInstanceDto
 	FString LastWatered;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	FString Notes;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -305,6 +327,9 @@ struct FBackendPlantInstanceDto
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bHasLastWatered = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasPlantedDate = false;
 };
 
 USTRUCT(BlueprintType)
@@ -346,6 +371,9 @@ struct FBackendGardenPlantInstanceDto
 	FString LastWatered;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	FString Notes;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -368,6 +396,9 @@ struct FBackendGardenDetailDto
 
 	UPROPERTY(BlueprintReadWrite)
 	FString Description;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
 
 	UPROPERTY(BlueprintReadWrite)
 	float Latitude = 0.f;
