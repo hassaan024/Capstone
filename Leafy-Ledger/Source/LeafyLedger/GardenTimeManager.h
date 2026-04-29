@@ -25,4 +25,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		int32 GetCurrentDayIndex() const;
+
+	UFUNCTION(BlueprintCallable)
+		int32 BloomDateToDayIndex(const FString& BloomDate) const;
+
+	UFUNCTION(BlueprintCallable)
+		bool SetCurrentDayIndexFromBloomDate(const FString& BloomDate);
 };

@@ -467,10 +467,7 @@ void UGardenExit::ApplyDraftBloomDate()
 
 void UGardenExit::ValidateBloomDateText(bool bBroadcastOnSuccess)
 {
-	if (!ET_BloomDate)
-	{
-		return;
-	}
+	if (!ET_BloomDate) return;
 
 	const FBloomDateValidationResult ValidationResult = FBloomDateUtils::ValidateUserInput(GetRawBloomDateText(), true);
 	if (!ValidationResult.bIsValid)
