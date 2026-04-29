@@ -88,12 +88,21 @@ void USaveDestinationEntry::RefreshVisuals()
 
 	CheckText->SetText(FText::FromString(bIsChecked ? TEXT("[x]") : TEXT("[ ]")));
 	CheckText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.95f, 0.90f, 1.0f)));
+	FSlateFontInfo CheckFont = CheckText->Font;
+	CheckFont.Size = 18;
+	CheckText->SetFont(CheckFont);
 
 	TitleText->SetText(FText::FromString(Title));
 	TitleText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	FSlateFontInfo TitleFont = TitleText->Font;
+	TitleFont.Size = 22; //bIsGlobalDestination ? 22 : 22;
+	TitleText->SetFont(TitleFont);
 
 	DescriptionText->SetText(FText::FromString(Description));
 	DescriptionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.70f, 0.76f, 0.84f, 1.0f)));
+	FSlateFontInfo DescriptionFont = DescriptionText->Font;
+	DescriptionFont.Size = 14; //bIsGlobalDestination ? 14 : 14;
+	DescriptionText->SetFont(DescriptionFont);
 
 	const FLinearColor BackgroundColor = bIsChecked
 		? FLinearColor(0.10f, 0.25f, 0.22f, 0.96f)
