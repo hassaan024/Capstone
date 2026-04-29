@@ -12,6 +12,55 @@ import { Prisma } from '@prisma/client';
 export class GardenService {
   constructor(private readonly db: DatabaseService) {}
 
+  private computeModelCategory(species: {
+    type?: string | null;
+    cycle?: string | null;
+    edibleFruit?: boolean | null;
+    edibleLeaf?: boolean | null;
+    cuisine?: boolean | null;
+    commonName?: string | null;
+    scientificName?: string | null;
+  }) {
+    const typeStr = (species.type || species.cycle || '').toLowerCase();
+
+    if (typeStr.includes('flower')) return 'flower';
+
+    if (
+      typeStr.includes('vegetable') ||
+      species.edibleFruit ||
+      species.edibleLeaf ||
+      species.cuisine ||
+      typeStr.includes('herb') ||
+      typeStr.includes('fruit') ||
+      species.commonName?.toLowerCase().includes('tomato')
+    ) {
+      return 'vegetable';
+    }
+
+    if (species.scientificName?.includes('Malus')) {
+      return 'tree';
+    }
+
+    return 'flower';
+  }
+
+  private mapSpeciesWithCategory(species: any) {
+    const modelCategory = this.computeModelCategory(species);
+    let daysToBloom = 0;
+    if (modelCategory === 'flower') daysToBloom = 20;
+    else if (modelCategory === 'vegetable') daysToBloom = 30;
+    else if (modelCategory === 'tree') daysToBloom = 50;
+
+    return {
+      ...species,
+      commonName: species.commonName
+        ? species.commonName.charAt(0).toUpperCase() + species.commonName.slice(1)
+        : species.commonName,
+      modelCategory,
+      daysToBloom,
+    };
+  }
+
   async create(createGardenDto: CreateGardenDto) {
     try {
       const { bloomDate, ...restDto } = createGardenDto;
@@ -86,7 +135,14 @@ export class GardenService {
         `Garden ${gardenId} not found or not owned by user ${ownerId}`,
       );
     }
-    return garden;
+
+    return {
+      ...garden,
+      plants: garden.plants.map((plant) => ({
+        ...plant,
+        species: this.mapSpeciesWithCategory(plant.species),
+      })),
+    };
   }
 
   async update(id: number, updateGardenDto: UpdateGardenDto) {

@@ -62,26 +62,35 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	PlantName = PlantData->CommonName;
 	DaysToBloom = PlantData->DaysToBloom;
 	DaysToWither = PlantData->DaysToWither;
-	Category = PlantData->ModelCategory;
+	Category = PlantData->ModelCategory.TrimStartAndEnd();
+	const FString NormalizedCategory = Category.ToLower();
 
 	// Set the meshes to correspond with their categories
-	if (Category == "Tree") {
+	if (NormalizedCategory == TEXT("tree")) {
 		SeedMesh = TreeSeedMesh;
 		SaplingMesh = TreeSaplingMesh;
 		BloomedMesh = TreeBloomedMesh;
 		WitherMesh = TreeWitherMesh;
 	}
-	else if (Category == "Flower") {
+	else if (NormalizedCategory == TEXT("flower")) {
 		SeedMesh = FlowerSeedMesh;
 		SaplingMesh = FlowerSaplingMesh;
 		BloomedMesh = FlowerBloomedMesh;
 		WitherMesh = FlowerWitherMesh;
 	}
-	else {
+	else if (NormalizedCategory == TEXT("vegetable")) {
 		SeedMesh = VegetableSeedMesh;
 		SaplingMesh = VegetableSaplingMesh;
 		BloomedMesh = VegetableBloomedMesh;
 		WitherMesh = VegetableWitherMesh;
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("Unknown plant model category '%s' for %s; defaulting to flower meshes"), *Category, *PlantName);
+		Category = TEXT("flower");
+		SeedMesh = FlowerSeedMesh;
+		SaplingMesh = FlowerSaplingMesh;
+		BloomedMesh = FlowerBloomedMesh;
+		WitherMesh = FlowerWitherMesh;
 	}
 
 	if (PreviewMesh && BloomedMesh)
