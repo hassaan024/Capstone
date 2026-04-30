@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
+#include "OAuthGISubsystem.h"
 #include "MenuController.generated.h"
 
 UCLASS()
@@ -29,6 +30,9 @@ public:
     void ShowSavedPlants();
 
     UFUNCTION()
+    void ShowBrowseSpecies();
+
+    UFUNCTION()
     void HandleLoginFailed(const FString& Error);
 
     UFUNCTION()
@@ -46,12 +50,14 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
     TSubclassOf<UUserWidget> SavedPlantsWidgetClass;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
+    TSubclassOf<UUserWidget> BrowseSpeciesWidgetClass;
+
     UPROPERTY(Transient)
     UUserWidget* CurrentWidget = nullptr;
 
+    UOAuthGISubsystem* Auth;
 
 private:
     void SetRootWidget(TSubclassOf<UUserWidget> WidgetClass);
-
-    bool OpenWebsite = true;
 };

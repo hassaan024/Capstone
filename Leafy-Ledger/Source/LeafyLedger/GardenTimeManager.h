@@ -16,6 +16,8 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 		int32 CurrentDayIndex;
+	UPROPERTY(BlueprintReadOnly)
+		int32 GlobalBloomDate;
 
 	UPROPERTY(BlueprintAssignable)
 		FOnGardenDayChanged OnDayChanged;
@@ -25,4 +27,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		int32 GetCurrentDayIndex() const;
+
+	UFUNCTION(BlueprintCallable)
+		int32 BloomDateToDayIndex(const FString& BloomDate) const;
+
+	UFUNCTION(BlueprintCallable)
+		bool SetCurrentDayIndexFromBloomDate(const FString& BloomDate);
 };

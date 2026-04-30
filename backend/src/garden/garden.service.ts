@@ -12,13 +12,75 @@ import { Prisma } from '@prisma/client';
 export class GardenService {
   constructor(private readonly db: DatabaseService) {}
 
+  private computeModelCategory(species: {
+    type?: string | null;
+    cycle?: string | null;
+    edibleFruit?: boolean | null;
+    edibleLeaf?: boolean | null;
+    cuisine?: boolean | null;
+    commonName?: string | null;
+    scientificName?: string | null;
+  }) {
+    const typeStr = (species.type || species.cycle || '').toLowerCase();
+
+    if (typeStr.includes('flower')) return 'flower';
+
+    if (
+      typeStr.includes('vegetable') ||
+      species.edibleFruit ||
+      species.edibleLeaf ||
+      species.cuisine ||
+      typeStr.includes('herb') ||
+      typeStr.includes('fruit') ||
+      species.commonName?.toLowerCase().includes('tomato')
+    ) {
+      return 'vegetable';
+    }
+
+    if (species.scientificName?.includes('Malus')) {
+      return 'tree';
+    }
+
+    return 'flower';
+  }
+
+  private mapSpeciesWithCategory(species: any) {
+    const modelCategory = this.computeModelCategory(species);
+    let daysToBloom = 0;
+    if (modelCategory === 'flower') daysToBloom = 20;
+    else if (modelCategory === 'vegetable') daysToBloom = 30;
+    else if (modelCategory === 'tree') daysToBloom = 50;
+
+    return {
+      ...species,
+      commonName: species.commonName
+        ? species.commonName.charAt(0).toUpperCase() + species.commonName.slice(1)
+        : species.commonName,
+      modelCategory,
+      daysToBloom,
+    };
+  }
+
   async create(createGardenDto: CreateGardenDto) {
     try {
+      const { bloomDate, ...restDto } = createGardenDto;
+      let parsedBloomDate: Date | undefined;
+
+      if (bloomDate) {
+        parsedBloomDate = new Date(bloomDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedBloomDate < today) {
+          throw new BadRequestException('Target bloom date cannot be in the past');
+        }
+      }
+
       return await this.db.garden.create({
         data: {
-          description: createGardenDto.description ?? '',
-          timezone: createGardenDto.timezone ?? undefined,
-          ...createGardenDto,
+          description: restDto.description ?? '',
+          timezone: restDto.timezone ?? undefined,
+          ...restDto,
+          bloomDate: parsedBloomDate,
         },
       });
     } catch (err: unknown) {
@@ -73,14 +135,36 @@ export class GardenService {
         `Garden ${gardenId} not found or not owned by user ${ownerId}`,
       );
     }
-    return garden;
+
+    return {
+      ...garden,
+      plants: garden.plants.map((plant) => ({
+        ...plant,
+        species: this.mapSpeciesWithCategory(plant.species),
+      })),
+    };
   }
 
   async update(id: number, updateGardenDto: UpdateGardenDto) {
     try {
+      const { bloomDate, ...restDto } = updateGardenDto as any;
+      let parsedBloomDate: Date | undefined;
+
+      if (bloomDate) {
+        parsedBloomDate = new Date(bloomDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedBloomDate < today) {
+          throw new BadRequestException('Target bloom date cannot be in the past');
+        }
+      }
+
       return await this.db.garden.update({
         where: { id },
-        data: updateGardenDto,
+        data: {
+          ...restDto,
+          ...(parsedBloomDate !== undefined && { bloomDate: parsedBloomDate }),
+        },
       });
     } catch (err: unknown) {
       if (

@@ -10,6 +10,9 @@
 #include "Engine/Texture2D.h"
 #include "MenuController.h"
 #include "BackendApiTypes.h"
+#include "CreateGardenPopup.h"
+#include "DeleteGardenPopup.h"
+#include "LoadGardenPopup.h"
 #include "MainMenu.generated.h"
 
 class UBackendApiSubsystem;
@@ -29,6 +32,19 @@ protected:
 	UFUNCTION()
 	void OnPressSavedPlants();
 
+	UFUNCTION()
+	void OnPressBrowseSpecies();
+
+	UFUNCTION()
+	void OnPressCreateGarden();
+
+	UFUNCTION()
+	void OnPressLoadGarden();
+
+	UFUNCTION()
+	void OnPressDeleteGarden();
+
+	void HandleLoadGardenSelected(int32 GardenId);
 	void RequestWeatherFromStoredLocation();
 	void HandleUserLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location);
 	void HandleWeatherResponse(bool bSuccess, const FString& Message, const FBackendWeatherDto& Weather);
@@ -36,12 +52,44 @@ protected:
 	void UpdateWeatherIcon(const FString& Description);
 	UTexture2D* GetWeatherIconForDescription(const FString& Description) const;
 
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UCreateGardenPopup> CreateGardenPopupClass;
+
+	UPROPERTY()
+	UCreateGardenPopup* CreateGardenPopupInstance = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<ULoadGardenPopup> LoadGardenPopupClass;
+
+	UPROPERTY()
+	ULoadGardenPopup* LoadGardenPopupInstance = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UDeleteGardenPopup> DeleteGardenPopupClass;
+
+	UPROPERTY()
+	UDeleteGardenPopup* DeleteGardenPopupInstance = nullptr;
+
+	//buttons
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_CreateGarden;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_LoadGarden;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_DeleteGarden;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_UpdateDisplayName;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_SavedPlants;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_BrowseSpecies;
+
+	// weather stuff
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* TXT_CurrentTemp;
 

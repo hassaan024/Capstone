@@ -43,10 +43,12 @@ model Garden {
   latitude          Float
   longitude         Float
   timezone          String?
+  bloomDate         DateTime?
   creationTimestamp DateTime        @default(now())
   lastUpdated       DateTime        @updatedAt
-  owner             User            @relation(fields: [ownerId], references: [id])
+  owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   plants            PlantInstance[]
+  savedSpecies      Species[]       @relation("GardenSavedSpecies")
 }
 
 model PlantInstance {
@@ -54,9 +56,19 @@ model PlantInstance {
   gardenId          Int
   speciesId         Int
   soilId            Int
+  locationX         Float    @default(0)
+  locationY         Float    @default(0)
+  locationZ         Float    @default(0)
+  rotationPitch     Float    @default(0)
+  rotationYaw       Float    @default(0)
+  rotationRoll      Float    @default(0)
+  scaleX            Float    @default(1)
+  scaleY            Float    @default(1)
+  scaleZ            Float    @default(1)
   heightCm          Float?   // height in cm, optional
   healthStatus      HealthStatus?  
   lastWatered       DateTime? 
+  plantedDate       DateTime? // when the plant was physically placed (set by Unreal)
   notes             String?  // any notes
 
   plantedDate       DateTime  @default(now())  // when it was planted, fixed
@@ -67,7 +79,7 @@ model PlantInstance {
 
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
-  garden            Garden   @relation(fields: [gardenId], references: [id])
+  garden            Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
   soil              Soil     @relation(fields: [soilId], references: [id])
   species           Species  @relation(fields: [speciesId], references: [id])
   histories         PlantHistory[]
@@ -219,6 +231,9 @@ model Species {
   savedBy         User[]   @relation("UserSavedSpecies")  
   // Users who saved this species
 
+  savedByGardens  Garden[] @relation("GardenSavedSpecies")
+  // Gardens that have this species saved
+
   @@index([commonName])
   // Index for fast search by common name
 }
@@ -244,7 +259,7 @@ model PlantHistory {
   predictedValue Float?       // overall stress factor from the ML model
   notes          String?
 
-  plant          PlantInstance @relation(fields: [plantId], references: [id])
+  plant          PlantInstance @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
   @@index([plantId, date])
 }

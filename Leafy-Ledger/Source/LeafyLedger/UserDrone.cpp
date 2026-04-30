@@ -5,6 +5,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Kismet/GameplayStatics.h"
 #include "GardenTimeManager.h"
+#include "GardenSessionSubsystem.h"
 
 AUserDrone::AUserDrone()
 {
@@ -57,10 +58,7 @@ void AUserDrone::UpdatePan()
 	if (!PC) return;
 
 	FHitResult CurrentHit;
-	if (!GetMouseGroundHit(CurrentHit))
-	{
-		return;
-	}
+	if (!GetMouseGroundHit(CurrentHit)) return;
 
 	FVector CurrentLoc = CurrentHit.Location;
 	const FVector Delta = MouseDragStart - CurrentLoc;
@@ -110,6 +108,7 @@ void AUserDrone::LeftMousePressed()
 		PreviewPlant = Temp;
 		bDraggingRealPlant = true;
 		bSelectedPlantSpawned = false;
+		DragOriginalTransform = Temp->GetActorTransform();
 		return;
 	}
 
@@ -131,14 +130,44 @@ void AUserDrone::LeftMouseReleased()
 		return;
 	}
 
+	APlant* FinalizedPlant = PreviewPlant;
+
 	if (ValidPlantPlacement())
 	{
-		PreviewPlant->SetPlacedMaterial();
+		FinalizedPlant->SetPlacedMaterial();
 		PreviewPlant = nullptr;
+
+		if (bDraggingRealPlant && FinalizedPlant->bIsTrackedInGardenDraft)
+		{
+			if (GetGameInstance())
+			{
+				if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
+				{
+					GardenSession->UpdatePlantTransform(
+						FinalizedPlant->LocalPlantId,
+						FinalizedPlant->GetActorLocation(),
+						FinalizedPlant->GetActorRotation(),
+						FinalizedPlant->GetActorScale3D()
+					);
+				}
+			}
+		}
+		else
+		{
+			TrackPlacedPlant(FinalizedPlant);
+		}
 	}
 	else
 	{
-		PreviewPlant->Destroy();
+		if (bDraggingRealPlant)
+		{
+			FinalizedPlant->SetActorTransform(DragOriginalTransform);
+		}
+		else
+		{
+			FinalizedPlant->Destroy();
+		}
+
 		PreviewPlant = nullptr;
 	}
 
@@ -194,10 +223,7 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
 	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
-	if (!bHit)
-	{
-		return false;
-	}
+	if (!bHit) return false;
 
 	OutHit = Hit;
 	return true;
@@ -260,7 +286,7 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 		AGardenTimeManager* TM = Cast<AGardenTimeManager>(Found[0]);
 		if (TM)
 		{
-			Plant->BloomDayIndex = TM->GetCurrentDayIndex();
+			Plant->BloomDayIndex = TM->GlobalBloomDate;
 			Plant->PlantingDayIndex = Plant->BloomDayIndex - Plant->DaysToBloom;
 			Plant->WitherDayIndex = Plant->BloomDayIndex + Plant->DaysToWither;
 			Plant->UpdateForDay(TM->GetCurrentDayIndex());
@@ -268,4 +294,73 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 	}
 
 	return true;
+}
+
+void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
+{
+	if (!PlantActor) return;
+
+	if (!GetGameInstance())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: GameInstance is null"));
+		return;
+	}
+
+	UGardenSessionSubsystem* GardenSession =
+		GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+
+	if (!GardenSession)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: GardenSessionSubsystem missing"));
+		return;
+	}
+
+	if (!GardenSession->HasActiveDraft())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: no active garden draft"));
+		return;
+	}
+
+	const int32 SoilId = 1;
+	PlantActor->HeightCm = 0.f;
+	PlantActor->AgeDays = 0;
+	PlantActor->HealthStatus = TEXT("Healthy");
+	PlantActor->LastWateredIso8601 = FDateTime::UtcNow().ToIso8601();
+
+	if (PlantActor->SpeciesId <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: PlantActor->SpeciesId is invalid (%d)"), PlantActor->SpeciesId);
+		return;
+	}
+
+	const FGuid LocalId = GardenSession->AddPlantPlacement(
+		PlantActor->SpeciesId,
+		SoilId,
+		PlantActor->GetActorLocation(),
+		PlantActor->GetActorRotation(),
+		PlantActor->GetActorScale3D(),
+		PlantActor->HeightCm,
+		PlantActor->AgeDays,
+		PlantActor->HealthStatus,
+		PlantActor->LastWateredIso8601,
+		PlantActor->PerenualId,
+		PlantActor->PlantName,
+		TEXT(""),
+		PlantActor->Category,
+		PlantActor->Notes
+	);
+
+	const FEditableGardenState& Draft = GardenSession->GetDraft();
+	UE_LOG(LogTemp, Error, TEXT("Draft now has %d plant(s)"), Draft.Plants.Num());
+
+	if (!LocalId.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TrackPlacedPlant failed: AddPlantPlacement returned invalid LocalId"));
+		return;
+	}
+
+	PlantActor->LocalPlantId = LocalId;
+	PlantActor->bIsTrackedInGardenDraft = true;
+
+	UE_LOG(LogTemp, Log, TEXT("Tracked placed plant. LocalId=%s PerenualId=%d"), *LocalId.ToString(), PlantActor->PerenualId);
 }

@@ -14,6 +14,33 @@ export class CreatePlantInstanceDto {
   @IsEnum(SoilType)
   soilType: SoilType;
 
+  @IsNumber()
+  locationX: number;
+
+  @IsNumber()
+  locationY: number;
+
+  @IsNumber()
+  locationZ: number;
+
+  @IsNumber()
+  rotationPitch: number;
+
+  @IsNumber()
+  rotationYaw: number;
+
+  @IsNumber()
+  rotationRoll: number;
+
+  @IsNumber()
+  scaleX: number;
+
+  @IsNumber()
+  scaleY: number;
+
+  @IsNumber()
+  scaleZ: number;
+
   @IsOptional()
   @IsNumber()
   heightCm?: number;

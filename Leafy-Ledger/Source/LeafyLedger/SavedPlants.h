@@ -7,12 +7,33 @@
 #include "Components/ListView.h"
 #include "Components/TileView.h"
 #include "Components/Button.h"
+#include "Components/WrapBox.h"
 #include "BackendApiTypes.h"
 #include "MenuController.h"
 #include "SavedPlants.generated.h"
 
 class UPlantObject;
+class UTextBlock;
 class UUserWidget;
+class USavedPlants;
+
+UCLASS()
+class LEAFYLEDGER_API UGardenSelectorButtonProxy : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(USavedPlants* InOwner, int32 InGardenId);
+
+	UFUNCTION()
+	void HandleClicked();
+
+private:
+	UPROPERTY()
+	USavedPlants* Owner = nullptr;
+
+	int32 GardenId = 0;
+};
 
 UCLASS()
 class LEAFYLEDGER_API USavedPlants : public UUserWidget
@@ -29,13 +50,21 @@ public:
 	UFUNCTION()
 	void HandleRemoveClicked(int32 PerenualId);
 
+	UFUNCTION()
+	void HandleSaveStateChanged();
+
 	void HandleEntryGenerated(UUserWidget& EntryWidget);
 
 	UFUNCTION()
 	void OnPressBack();
 
+	void SelectGarden(int32 GardenId);
+
 	UPROPERTY(meta = (BindWidget))
 	UTileView* TV_PlantCards;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UWrapBox* WB_Gardens;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_Back;
@@ -46,8 +75,31 @@ protected:
 	virtual void NativeConstruct() override;
 
 private:
-	void FetchSavedSpecies();
+	void RefreshCurrentSource();
+	void FetchGlobalSavedSpecies();
+	void FetchGardenSavedSpecies(int32 GardenId);
+	void FetchGardens();
 	void HandleFetchSavedSpeciesResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants);
+	void HandleFetchGardensResponse(bool bSuccess, const FString& Message, const TArray<FBackendGardenSummaryDto>& InGardens);
+	void RebuildGardenTabs();
+	void CreateGardenTabButton(int32 GardenId, const FString& Label);
+	void UpdateGardenTabStyles();
+	FString BuildGardenOptionLabel(const FBackendGardenSummaryDto& Garden, const TSet<FString>& DuplicateNames) const;
+	int32 GetSelectedGardenId() const;
+
 	void PopulatePlants(const TArray<FBackendPlantDto>& Plants);
-	void PrefetchPlantImages(const TArray<FBackendPlantDto>& Plants);
+
+	UPROPERTY()
+	TArray<FBackendGardenSummaryDto> Gardens;
+
+	UPROPERTY()
+	TMap<UButton*, int32> GardenButtonToId;
+
+	UPROPERTY()
+	TMap<UButton*, UTextBlock*> GardenButtonLabels;
+
+	UPROPERTY()
+	TArray<UGardenSelectorButtonProxy*> GardenButtonHandlers;
+
+	int32 SelectedGardenId = 0;
 };

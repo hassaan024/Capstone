@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Plant.generated.h"
 
+class UStaticMesh;
 class UStaticMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
@@ -59,6 +60,72 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		FString PlantName;
 
+	UPROPERTY(BlueprintReadOnly, EditAnywhere)
+		FString Category = "";
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		int32 PerenualId = -1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		int32 SpeciesId = -1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		float HeightCm = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		int32 AgeDays = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		FString HealthStatus;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		FString LastWateredIso8601;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Garden Save")
+		FString Notes;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
+		FGuid LocalPlantId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Garden Save")
+		bool bIsTrackedInGardenDraft = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerSeedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerSaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerBloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Flower")
+		UStaticMesh* FlowerWitherMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeSeedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeSaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeBloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Tree")
+		UStaticMesh* TreeWitherMesh = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableSeedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableSaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableBloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PlantMeshes|Vegetable")
+		UStaticMesh* VegetableWitherMesh = nullptr;
+
+	UPROPERTY(BlueprintReadOnly)
+		UStaticMesh* SeedMesh = nullptr;
+	UPROPERTY(BlueprintReadOnly)
+		UStaticMesh* SaplingMesh = nullptr;
+	UPROPERTY(BlueprintReadOnly)
+		UStaticMesh* BloomedMesh = nullptr;
+	UPROPERTY(BlueprintReadOnly)
+		UStaticMesh* WitherMesh = nullptr;
+
 	UFUNCTION()
 		void HandleDayChanged(int32 NewDayIndex);
 
@@ -66,6 +133,7 @@ public:
 		void InitializeFromPlantData(UPlantObject* PlantData);
 
 	void UpdateForDay(int32 DayIndex);
+
 	UFUNCTION(BlueprintImplementableEvent)
 		void BlueprintDayUpdate(int32 DayIndex);
 

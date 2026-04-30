@@ -1,15 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "MenuController.h"
-#include "OAuthGISubsystem.h"
 #include "SavedPlantCacheSubsystem.h"
 
 void AMenuController::BeginPlay()
 {
     Super::BeginPlay();
 
-    UOAuthGISubsystem* Auth = GetGameInstance()->GetSubsystem<UOAuthGISubsystem>();
+    Auth = GetGameInstance()->GetSubsystem<UOAuthGISubsystem>();
     if (!Auth)
     {
         ShowLogin();
@@ -67,12 +65,13 @@ void AMenuController::ShowLogin()
 
 void AMenuController::ShowMainMenu()
 {
-    if (OpenWebsite) {
+    if (Auth->OpenWebsite) {
         FPlatformProcess::LaunchURL(
             TEXT("http://localhost:5173/login"),
             nullptr,
             nullptr
         );
+        Auth->OpenWebsite = false;
     }
 
     SetRootWidget(MainMenuWidgetClass);
@@ -80,16 +79,17 @@ void AMenuController::ShowMainMenu()
 
 void AMenuController::ShowDisplayName() 
 {
-    OpenWebsite = false;
-
     SetRootWidget(DisplayNameWidgetClass);
 }
 
 void AMenuController::ShowSavedPlants()
 {
-    OpenWebsite = false;
-
     SetRootWidget(SavedPlantsWidgetClass);
+}
+
+void AMenuController::ShowBrowseSpecies()
+{
+    SetRootWidget(BrowseSpeciesWidgetClass);
 }
 
 void AMenuController::HandleLoginFailed(const FString& Error)

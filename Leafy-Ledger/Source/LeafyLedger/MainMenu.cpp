@@ -2,8 +2,10 @@
 
 #include "MainMenu.h"
 #include "BackendApiSubsystem.h"
-#include "Kismet/GameplayStatics.h"
+#include "GardenSessionSubsystem.h"
 #include "Components/Image.h"
+#include "Components/SlateWrapperTypes.h"
+#include "GameFramework/PlayerController.h"
 
 bool UMainMenu::Initialize()
 {
@@ -18,6 +20,21 @@ bool UMainMenu::Initialize()
 		return false;
 	}
 
+	if (BTN_CreateGarden)
+	{
+		BTN_CreateGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressCreateGarden);
+	}
+
+	if (BTN_LoadGarden)
+	{
+		BTN_LoadGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressLoadGarden);
+	}
+
+	if (BTN_DeleteGarden)
+	{
+		BTN_DeleteGarden->OnClicked.AddDynamic(this, &UMainMenu::OnPressDeleteGarden);
+	}
+
 	if (BTN_UpdateDisplayName)
 	{
 		BTN_UpdateDisplayName->OnClicked.AddDynamic(this, &UMainMenu::OnPressUpdateDisplayName);
@@ -26,6 +43,11 @@ bool UMainMenu::Initialize()
 	if (BTN_SavedPlants)
 	{
 		BTN_SavedPlants->OnClicked.AddDynamic(this, &UMainMenu::OnPressSavedPlants);
+	}
+
+	if (BTN_BrowseSpecies)
+	{
+		BTN_BrowseSpecies->OnClicked.AddDynamic(this, &UMainMenu::OnPressBrowseSpecies);
 	}
 
 	if (TXT_CurrentTemp)
@@ -53,6 +75,182 @@ void UMainMenu::OnPressSavedPlants()
 	MenuController->ShowSavedPlants();
 }
 
+void UMainMenu::OnPressBrowseSpecies()
+{
+	MenuController->ShowBrowseSpecies();
+}
+
+void UMainMenu::OnPressCreateGarden()
+{
+	if (!CreateGardenPopupClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("CreateGardenPopupClass is null"));
+		return;
+	}
+
+	CreateGardenPopupInstance = CreateWidget<UCreateGardenPopup>(GetOwningPlayer(), CreateGardenPopupClass);
+	if (!CreateGardenPopupInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to create popup"));
+		return;
+	}
+
+	CreateGardenPopupInstance->AddToViewport();
+}
+
+void UMainMenu::OnPressLoadGarden()
+{
+	if (!GetGameInstance())
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressLoadGarden: GameInstance is null"));
+		return;
+	}
+
+	UBackendApiSubsystem* Backend = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
+	if (!Backend)
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressLoadGarden: BackendApiSubsystem missing"));
+		return;
+	}
+
+	if (!LoadGardenPopupClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressLoadGarden: LoadGardenPopupClass is null"));
+		return;
+	}
+
+	Backend->GetGardensByUser(
+		FBackendGardenSummariesResponse::CreateWeakLambda(
+			this,
+			[this](bool bSuccess, const FString& Message, const TArray<FBackendGardenSummaryDto>& Gardens)
+			{
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Error, TEXT("GetGardensByUser failed: %s"), *Message);
+					return;
+				}
+
+				if (Gardens.Num() == 0)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("No gardens available to load"));
+					return;
+				}
+
+				if (LoadGardenPopupInstance)
+				{
+					LoadGardenPopupInstance->RemoveFromParent();
+					LoadGardenPopupInstance = nullptr;
+				}
+
+				LoadGardenPopupInstance = CreateWidget<ULoadGardenPopup>(GetOwningPlayer(), LoadGardenPopupClass);
+				if (!LoadGardenPopupInstance)
+				{
+					UE_LOG(LogTemp, Error, TEXT("Failed to create load garden popup"));
+					return;
+				}
+
+				LoadGardenPopupInstance->SetGardens(Gardens);
+				LoadGardenPopupInstance->OnGardenChosen = FOnGardenChosen::CreateUObject(this, &UMainMenu::HandleLoadGardenSelected);
+				LoadGardenPopupInstance->AddToViewport(20);
+			}
+		)
+	);
+}
+
+void UMainMenu::OnPressDeleteGarden()
+{
+	if (!GetGameInstance())
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressDeleteGarden: GameInstance is null"));
+		return;
+	}
+
+	UBackendApiSubsystem* Backend = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
+	if (!Backend)
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressDeleteGarden: BackendApiSubsystem missing"));
+		return;
+	}
+
+	if (!DeleteGardenPopupClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("OnPressDeleteGarden: DeleteGardenPopupClass is null"));
+		return;
+	}
+
+	Backend->GetGardensByUser(
+		FBackendGardenSummariesResponse::CreateWeakLambda(
+			this,
+			[this](bool bSuccess, const FString& Message, const TArray<FBackendGardenSummaryDto>& Gardens)
+			{
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Error, TEXT("GetGardensByUser failed: %s"), *Message);
+					return;
+				}
+
+				if (Gardens.Num() == 0)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("No gardens available to delete"));
+					return;
+				}
+
+				if (DeleteGardenPopupInstance)
+				{
+					DeleteGardenPopupInstance->RemoveFromParent();
+					DeleteGardenPopupInstance = nullptr;
+				}
+
+				DeleteGardenPopupInstance = CreateWidget<UDeleteGardenPopup>(GetOwningPlayer(), DeleteGardenPopupClass);
+				if (!DeleteGardenPopupInstance)
+				{
+					UE_LOG(LogTemp, Error, TEXT("Failed to create delete garden popup"));
+					return;
+				}
+
+				DeleteGardenPopupInstance->SetGardens(Gardens);
+				DeleteGardenPopupInstance->AddToViewport(20);
+			}
+		)
+	);
+}
+
+void UMainMenu::HandleLoadGardenSelected(int32 GardenId)
+{
+	if (!GetGameInstance())
+	{
+		UE_LOG(LogTemp, Error, TEXT("HandleLoadGardenSelected: GameInstance is null"));
+		return;
+	}
+
+	UBackendApiSubsystem* Backend = GetGameInstance()->GetSubsystem<UBackendApiSubsystem>();
+	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+
+	if (!Backend || !GardenSession)
+	{
+		UE_LOG(LogTemp, Error, TEXT("HandleLoadGardenSelected: missing subsystem(s)"));
+		return;
+	}
+
+	Backend->GetGardenDetail(
+		GardenId,
+		FBackendGardenDetailResponse::CreateWeakLambda(
+			this,
+			[this, GardenSession](bool bSuccess, const FString& Message, const FBackendGardenDetailDto& Garden)
+			{
+				if (!bSuccess)
+				{
+					UE_LOG(LogTemp, Error, TEXT("GetGardenDetail failed: %s"), *Message);
+					return;
+				}
+
+				GardenSession->LoadGardenDraft(Garden);
+				UGameplayStatics::OpenLevel(GetWorld(), FName("Garden"));
+			}
+		)
+	);
+}
+
 void UMainMenu::RequestWeatherFromStoredLocation()
 {
 	if (!GetGameInstance())
@@ -74,9 +272,7 @@ void UMainMenu::RequestWeatherFromStoredLocation()
 		return;
 	}
 
-	Backend->GetUserLocation(
-		FBackendUserLocationResponse::CreateUObject(this, &UMainMenu::HandleUserLocationResponse)
-	);
+	Backend->GetUserLocation(FBackendUserLocationResponse::CreateUObject(this, &UMainMenu::HandleUserLocationResponse));
 }
 
 void UMainMenu::HandleUserLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location)
@@ -85,27 +281,12 @@ void UMainMenu::HandleUserLocationResponse(bool bSuccess, const FString& Message
 	{
 		if (TXT_CurrentTemp)
 		{
-			TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
+			TXT_CurrentTemp->SetText(FText::FromString(TEXT("")));
 		}
 
 		if (TXT_WeatherDesc)
 		{
-			TXT_WeatherDesc->SetText(FText::FromString(Message));
-		}
-
-		return;
-	}
-
-	if (!Location.bHasLatitude || !Location.bHasLongitude)
-	{
-		if (TXT_CurrentTemp)
-		{
-			TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
-		}
-
-		if (TXT_WeatherDesc)
-		{
-			TXT_WeatherDesc->SetText(FText::FromString(TEXT("Location missing")));
+			TXT_WeatherDesc->SetText(FText::FromString(TEXT("")));
 		}
 
 		return;
@@ -134,12 +315,12 @@ void UMainMenu::HandleWeatherResponse(bool bSuccess, const FString& Message, con
 	{
 		if (TXT_CurrentTemp)
 		{
-			TXT_CurrentTemp->SetText(FText::FromString(TEXT("--")));
+			TXT_CurrentTemp->SetText(FText::FromString(TEXT("")));
 		}
 
 		if (TXT_WeatherDesc)
 		{
-			TXT_WeatherDesc->SetText(FText::FromString(Message));
+			TXT_WeatherDesc->SetText(FText::FromString(TEXT("")));
 		}
 
 		UpdateWeatherIcon(TEXT(""));
@@ -150,7 +331,7 @@ void UMainMenu::HandleWeatherResponse(bool bSuccess, const FString& Message, con
 	{
 		if (Weather.bHasTemperature2m)
 		{
-			const FString TempString = FString::Printf(TEXT("%.0f°"), Weather.Temperature2m);
+			const FString TempString = FString::Printf(TEXT("%.0fÂ°"), Weather.Temperature2m);
 			TXT_CurrentTemp->SetText(FText::FromString(TempString));
 		}
 		else
@@ -221,6 +402,7 @@ void UMainMenu::UpdateWeatherIcon(const FString& Description)
 	if (UTexture2D* ChosenIcon = GetWeatherIconForDescription(Description))
 	{
 		IMG_WeatherIcon->SetBrushFromTexture(ChosenIcon);
+		IMG_WeatherIcon->SetVisibility(ESlateVisibility::Visible);
 	}
 	else
 	{

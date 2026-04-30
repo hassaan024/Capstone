@@ -8,6 +8,11 @@ import { useAuth } from '../context/AuthContext';
 
 import { FaLeaf, FaSearch } from 'react-icons/fa';
 
+interface GardenSummary {
+  id: number;
+  name: string;
+}
+
 const BrowseSpecies: React.FC = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -15,7 +20,10 @@ const BrowseSpecies: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
   const [savedPlantIds, setSavedPlantIds] = useState<Set<number>>(new Set());
+  const [gardens, setGardens] = useState<GardenSummary[]>([]);
+  const [gardenSaveStates, setGardenSaveStates] = useState<Record<number, boolean>>({});
   const { user } = useAuth();
+
   // Suggest Chatbot interaction
   React.useEffect(() => {
     if (user?.pageInfoRecommendations !== false) {
@@ -38,6 +46,43 @@ const BrowseSpecies: React.FC = () => {
         .catch(err => console.error("Failed to fetch saved species", err));
     }
   }, [user]);
+
+  // Fetch user's gardens on mount
+  React.useEffect(() => {
+    if (user) {
+      api.get(`/garden/by-user/${user.id}`)
+        .then((res: { data: GardenSummary[] }) => {
+          setGardens(res.data);
+        })
+        .catch(err => console.error("Failed to fetch gardens", err));
+    }
+  }, [user]);
+
+  // When a plant is selected, fetch garden-level save states
+  React.useEffect(() => {
+    if (!user || !selectedPlantId || gardens.length === 0) {
+      setGardenSaveStates({});
+      return;
+    }
+
+    const fetchGardenStates = async () => {
+      const states: Record<number, boolean> = {};
+      await Promise.all(
+        gardens.map(async (garden) => {
+          try {
+            const res = await api.get(`/species/saved?userId=${user.id}&gardenId=${garden.id}`);
+            const ids: number[] = res.data.map((s: { perenualId: number }) => s.perenualId);
+            states[garden.id] = ids.includes(selectedPlantId);
+          } catch {
+            states[garden.id] = false;
+          }
+        })
+      );
+      setGardenSaveStates(states);
+    };
+
+    fetchGardenStates();
+  }, [user, selectedPlantId, gardens]);
 
   const handleToggleSave = async (plantId: number) => {
     console.log("handleToggleSave called for:", plantId, "User:", user);
@@ -75,6 +120,43 @@ const BrowseSpecies: React.FC = () => {
     }
   };
 
+  const handleSaveToDestinations = async (plantId: number, saveGlobal: boolean, gardenIds: number[]) => {
+    if (!user) return;
+
+    try {
+      // Handle global save/unsave
+      const wasGlobal = savedPlantIds.has(plantId);
+      if (saveGlobal && !wasGlobal) {
+        await api.post(`/species/save/${plantId}?userId=${user.id}`, {});
+        setSavedPlantIds(prev => { const next = new Set(prev); next.add(plantId); return next; });
+      } else if (!saveGlobal && wasGlobal) {
+        await api.del(`/species/save/${plantId}?userId=${user.id}`);
+        setSavedPlantIds(prev => { const next = new Set(prev); next.delete(plantId); return next; });
+      }
+
+      // Handle per-garden save/unsave
+      for (const garden of gardens) {
+        const wasSaved = gardenSaveStates[garden.id] || false;
+        const shouldSave = gardenIds.includes(garden.id);
+
+        if (shouldSave && !wasSaved) {
+          await api.post(`/species/save/${plantId}?userId=${user.id}&gardenId=${garden.id}`, {});
+        } else if (!shouldSave && wasSaved) {
+          await api.del(`/species/save/${plantId}?userId=${user.id}&gardenId=${garden.id}`);
+        }
+      }
+
+      // Update garden save states
+      const newStates: Record<number, boolean> = {};
+      gardens.forEach(g => {
+        newStates[g.id] = gardenIds.includes(g.id);
+      });
+      setGardenSaveStates(newStates);
+    } catch (err) {
+      console.error("Failed to save to destinations", err);
+    }
+  };
+
 
   const handleSearch = async (e: React.FormEvent | string) => {
     if (typeof e !== 'string') e.preventDefault();
@@ -87,11 +169,22 @@ const BrowseSpecies: React.FC = () => {
       const { data } = await api.get(`/perenual/search?query=${encodeURIComponent(q)}`);
       // Perenual returns { data: [...] } structure
       if (Array.isArray(data.data)) {
-        const mappedResults = data.data.map((p: any) => ({
+        // Filter out poor quality data or missing required fields
+        const validPlants = data.data.filter((p: any) => 
+          p.common_name && 
+          p.scientific_name && 
+          p.scientific_name.length > 0 && 
+          p.default_image && 
+          (p.default_image.regular_url || p.default_image.original_url)
+        );
+
+        const mappedResults = validPlants.map((p: any) => ({
           id: p.id,
           common_name: p.common_name,
           scientific_name: Array.isArray(p.scientific_name) ? p.scientific_name[0] : p.scientific_name,
-          image_url: p.default_image?.regular_url || p.default_image?.original_url
+          image_url: p.default_image?.regular_url || p.default_image?.original_url,
+          modelCategory: p.modelCategory,
+          daysToBloom: p.daysToBloom
         }));
         setResults(mappedResults);
       } else {
@@ -166,6 +259,11 @@ const BrowseSpecies: React.FC = () => {
         onClose={() => setSelectedPlantId(null)}
         isSaved={selectedPlantId ? savedPlantIds.has(selectedPlantId) : false}
         onToggleSave={() => selectedPlantId && handleToggleSave(selectedPlantId)}
+        gardens={gardens}
+        gardenSaveStates={gardenSaveStates}
+        onSaveToDestinations={
+          (saveGlobal, gardenIds) => selectedPlantId && handleSaveToDestinations(selectedPlantId, saveGlobal, gardenIds)
+        }
       />
     </div>
   );

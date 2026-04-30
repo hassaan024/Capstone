@@ -18,6 +18,7 @@ void APlant::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogTemp, Warning, TEXT("Plant beginplay"));
 	PreviewMaterial = PreviewMesh->GetMaterial(0);
 	if (PreviewMaterial)
 	{
@@ -56,51 +57,105 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 {
 	if (!PlantData) return;
 
+	SpeciesId = PlantData->SpeciesId;
+	PerenualId = PlantData->PerenualId;
 	PlantName = PlantData->CommonName;
 	DaysToBloom = PlantData->DaysToBloom;
 	DaysToWither = PlantData->DaysToWither;
+	Category = PlantData->ModelCategory.TrimStartAndEnd();
+	const FString NormalizedCategory = Category.ToLower();
 
-	if (PreviewMesh && PlantData->PlantMesh)
-	{
-		PreviewMesh->SetStaticMesh(PlantData->PlantMesh);
+	// Set the meshes to correspond with their categories
+	if (NormalizedCategory == TEXT("tree")) {
+		SeedMesh = TreeSeedMesh;
+		SaplingMesh = TreeSaplingMesh;
+		BloomedMesh = TreeBloomedMesh;
+		WitherMesh = TreeWitherMesh;
 	}
+	else if (NormalizedCategory == TEXT("flower")) {
+		SeedMesh = FlowerSeedMesh;
+		SaplingMesh = FlowerSaplingMesh;
+		BloomedMesh = FlowerBloomedMesh;
+		WitherMesh = FlowerWitherMesh;
+	}
+	else if (NormalizedCategory == TEXT("vegetable")) {
+		SeedMesh = VegetableSeedMesh;
+		SaplingMesh = VegetableSaplingMesh;
+		BloomedMesh = VegetableBloomedMesh;
+		WitherMesh = VegetableWitherMesh;
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("Unknown plant model category '%s' for %s; defaulting to flower meshes"), *Category, *PlantName);
+		Category = TEXT("flower");
+		SeedMesh = FlowerSeedMesh;
+		SaplingMesh = FlowerSaplingMesh;
+		BloomedMesh = FlowerBloomedMesh;
+		WitherMesh = FlowerWitherMesh;
+	}
+
+	if (PreviewMesh && BloomedMesh)
+	{
+		PreviewMesh->SetStaticMesh(BloomedMesh);
+	}
+
+	if (Category != "") UE_LOG(LogTemp, Warning, TEXT("%s"), *Category);
 }
 
 void APlant::UpdateForDay(int32 DayIndex)
 {
 	BlueprintDayUpdate(DayIndex);
-	float Scale01 = 0.f;
+
+	if (!PreviewMesh)
+	{
+		return;
+	}
+
+	UStaticMesh* DesiredMesh = nullptr;
+	FVector DesiredScale = FVector(1.f);
 
 	if (DayIndex < PlantingDayIndex)
 	{
-		Scale01 = 0.f;
+		DesiredMesh = SeedMesh;
+		DesiredScale = FVector(1.f);
 	}
-	else if (DayIndex <= BloomDayIndex)
+	else if (DayIndex < BloomDayIndex)
 	{
-		if (DaysToBloom <= 0)
+		if (SeedMesh && SaplingMesh)
 		{
-			Scale01 = 1.f;
+			const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
+			const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
+
+			if (GrowthAlpha < 0.5f)
+			{
+				DesiredMesh = SeedMesh;
+			}
+			else
+			{
+				DesiredMesh = SaplingMesh;
+			}
+		}
+		else if (SaplingMesh)
+		{
+			DesiredMesh = SaplingMesh;
 		}
 		else
 		{
-			Scale01 = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(DaysToBloom), 0.f, 1.f);
+			DesiredMesh = SeedMesh;
 		}
 	}
-	else if (DayIndex <= WitherDayIndex)
+	else if (DayIndex < WitherDayIndex)
 	{
-		if (DaysToWither <= 0)
-		{
-			Scale01 = 0.f;
-		}
-		else
-		{
-			Scale01 = 1.f - FMath::Clamp(static_cast<float>(DayIndex - BloomDayIndex) / static_cast<float>(DaysToWither), 0.f, 1.f);
-		}
+		DesiredMesh = BloomedMesh;
 	}
 	else
 	{
-		Scale01 = 0.f;
+		DesiredMesh = WitherMesh ? WitherMesh : BloomedMesh;
 	}
 
-	SetActorScale3D(FVector(Scale01));
+	if (DesiredMesh)
+	{
+		PreviewMesh->SetStaticMesh(DesiredMesh);
+	}
+
+	SetActorScale3D(DesiredScale);
 }

@@ -25,6 +25,51 @@ export class PerenualService {
 
   constructor(private readonly db: DatabaseService) {}
 
+  private enrichWithModelCategory(data: any) {
+    if (!data) return data;
+
+    // NOTE: The search-list endpoint does NOT return a `type` field, so plants
+    // without explicit edible/vegetable signals fall through to 'flower' by default.
+    // We keep the same rule for the detail endpoint for consistency with saved plants.
+    const enrichPlant = (p: any) => {
+      const typeStr = (p.type || p.cycle || '').toLowerCase();
+      let modelCategory = 'flower';
+
+      // If Perenual explicitly tagged it as a flower, trust that over edible flags
+      if (typeStr.includes('flower')) {
+        modelCategory = 'flower';
+      } else if (
+        // Vegetable: edible signals or explicit vegetable/herb/fruit type
+        typeStr.includes('vegetable') ||
+        p.edible_fruit ||
+        p.edible_leaf ||
+        p.cuisine ||
+        typeStr.includes('herb') ||
+        typeStr.includes('fruit') ||
+        p.common_name?.toLowerCase().includes('tomato')
+      ) {
+        modelCategory = 'vegetable';
+      } else if (p.scientific_name?.[0]?.includes('Malus')) {
+        // Tree: only via scientific-name hints so behavior matches the list endpoint
+        modelCategory = 'tree';
+      }
+
+      let daysToBloom = 0;
+      if (modelCategory === 'flower') daysToBloom = 20;
+      else if (modelCategory === 'vegetable') daysToBloom = 30;
+      else if (modelCategory === 'tree') daysToBloom = 50;
+
+      return { ...p, modelCategory, daysToBloom };
+    };
+
+    if (data.data && Array.isArray(data.data)) {
+      data.data = data.data.map(enrichPlant);
+    } else {
+      return enrichPlant(data);
+    }
+    return data;
+  }
+
   async searchPlants(queryDto: SearchPlantsQueryDto) {
     try {
       const url = `${BASE_PERENUAL_URL}species-list?key=${this.API_KEY}&q=${encodeURIComponent(
@@ -35,7 +80,18 @@ export class PerenualService {
       if (!response.ok)
         throw new Error(`Failed to search plants: ${response.statusText}`);
 
-      return response.json();
+      const data = await response.json();
+      
+      if (data && data.data && Array.isArray(data.data)) {
+        data.data = data.data.map((p: any) => {
+          if (p.common_name) {
+            p.common_name = p.common_name.charAt(0).toUpperCase() + p.common_name.slice(1);
+          }
+          return p;
+        });
+      }
+      
+      return data;
     } catch (err: any) {
       this.logger.error(err.message);
       throw err;
@@ -51,7 +107,13 @@ export class PerenualService {
       if (!response.ok)
         throw new Error(`Failed to get plant details: ${response.statusText}`);
 
-      return response.json();
+      const data = await response.json();
+      
+      if (data && data.common_name) {
+        data.common_name = data.common_name.charAt(0).toUpperCase() + data.common_name.slice(1);
+      }
+      
+      return this.enrichWithModelCategory(data);
     } catch (err: any) {
       this.logger.error(err.message);
       throw err;
@@ -94,7 +156,7 @@ export class PerenualService {
 
     const speciesData = {
       commonName: data.common_name || 'Unknown',
-      scientificName: data.scientific_name?.[0] || null,
+      scientificName: data.scientific_name?.[0] || 'Unknown',
       otherNames: data.other_name || [],
       family: data.family || null,
       genus: data.genus || null,
@@ -102,7 +164,7 @@ export class PerenualService {
       origin: data.origin || [],
       type: data.type || null,
       cycle: data.cycle || null,
-      growthRate: this.mapGrowthRate(data.growth_rate),
+      growthRate: this.mapGrowthRate(data.growth_rate) ?? 2,
 
       wateringFreq: data.watering || null,
       wateringMinDays,

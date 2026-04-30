@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/BrowseSpecies.css';
 import GardenPlantCard from '../components/GardenPlantCard';
-import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint } from 'react-icons/fa';
+import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaProjectDiagram } from 'react-icons/fa';
+import PlantStageTrackerCard from '../components/PlantStageTrackerCard';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
 
 const MOCK_GARDEN = {
@@ -12,124 +13,82 @@ const MOCK_GARDEN = {
   latitude: 34.0522,
   longitude: -118.2437,
   timezone: "America/Los_Angeles",
+  bloomDate: "2026-08-30T00:00:00Z",
   creationTimestamp: new Date().toISOString(),
   lastUpdated: new Date().toISOString(),
-  _count: { plants: 5 },
+  _count: { plants: 3 },
   plants: [
     {
       id: 1,
-      heightCm: 150,
-      ageDays: 30,
-      healthStatus: "Healthy",
-      lastWatered: new Date(Date.now() - 3600000 * 6).toISOString(),
-      plantedDate: new Date(Date.now() - 3600000 * 24 * 30).toISOString(),
+      heightCm: 25,
+      ageDays: 15,
+      healthStatus: "NeedsWater",
+      lastWatered: new Date(Date.now() - 3600000 * 24 * 4).toISOString(),
+      plantedDate: "2026-07-31T00:00:00.000Z", // bloomDate (Aug 30) - 30 days
       species: {
-        commonName: 'common sunflower',
-        scientificName: 'Helianthus annuus',
-        type: 'Flower',
+        commonName: "tomato",
+        scientificName: "Lycopersicon esculentum 'Big Beef'",
+        type: "Fruit",
         flowers: true,
         cuisine: true,
         edibleFruit: true,
         edibleLeaf: true,
         medicinal: false,
-        droughtTolerant: true,
+        droughtTolerant: false,
         indoor: false,
         invasive: false,
-        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/3384_helianthus_annuus/regular/52370427473_b8e914065a_b.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T182622Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=5047ce7bc2d518e6b5d75ef02307e5b025f20d131692d932e3e8d7df90fbf789' }
-      },
-      soil: { type: "LOAM" }
-    },
-    {
-      id: 2,
-      heightCm: 45,
-      ageDays: 60,
-      healthStatus: "Excellent",
-      lastWatered: new Date(Date.now() - 3600000 * 24).toISOString(),
-      plantedDate: new Date(Date.now() - 3600000 * 24 * 60).toISOString(),
-      species: {
-        commonName: 'Dolgo Apple',
-        scientificName: "Malus 'Dolgo'",
-        type: 'tree',
-        flowers: false,
-        cuisine: true,
-        edibleFruit: true,
-        edibleLeaf: false,
-        medicinal: true,
-        droughtTolerant: true,
-        indoor: false,
-        invasive: false,
-        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/359_malus_dolgo/regular/apple-zieraepfel-wild-apple-tree-branch.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T192749Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=fa0882952f67e60b12a5ef410ea67be05dd1e952f4396e8142ebfe2fd29c5025' }
+        imgSrcUrls: { regular: "https://s3.us-central-1.wasabisys.com/perenual/species_image/5022_lycopersicon_esculentum_big_beef/regular/52614055517_dca623a496_b.jpg" },
+        daysToBloom: 30
       },
       soil: { type: "LOAM" }
     },
     {
       id: 3,
-      heightCm: 80,
-      ageDays: 90,
-      healthStatus: "Nurturing",
-      lastWatered: new Date(Date.now() - 3600000 * 12).toISOString(),
-      plantedDate: new Date(Date.now() - 3600000 * 24 * 90).toISOString(),
+      heightCm: 45,
+      ageDays: 60,
+      healthStatus: "Excellent",
+      lastWatered: new Date(Date.now() - 3600000 * 24).toISOString(),
+      plantedDate: "2026-07-11T00:00:00.000Z", // bloomDate (Aug 30) - 50 days
       species: {
-        commonName: 'rose cactus',
-        scientificName: 'Pereskia grandifolia',
-        type: 'Broadleaf evergreen',
-        flowers: true,
-        cuisine: false,
+        commonName: "Akane Apple",
+        scientificName: "Malus 'Akane'",
+        type: "tree",
+        flowers: false,
+        cuisine: true,
         edibleFruit: false,
         edibleLeaf: false,
-        medicinal: true,
-        droughtTolerant: true,
-        indoor: false,
-        invasive: false,
-        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/5809_pereskia_grandifolia/regular/27487227123_a9b4d90e13_b.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T192810Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=86b0f27d161aa3cf1a3942a5c7155856bc461807ad7242f67baffb42ef4deaa9' }
-      },
-      soil: { type: "SANDY" }
-    },
-    {
-      id: 4,
-      heightCm: 25,
-      ageDays: 15,
-      healthStatus: "NeedsWater",
-      lastWatered: new Date(Date.now() - 3600000 * 24 * 4).toISOString(), // 4 days ago
-      plantedDate: new Date(Date.now() - 3600000 * 24 * 15).toISOString(),
-      species: {
-        commonName: 'tomato',
-        scientificName: "Lycopersicon esculentum 'Big Beef'",
-        type: 'Fruit',
-        flowers: true,
-        cuisine: true,
-        edibleFruit: true,
-        edibleLeaf: true,
         medicinal: false,
         droughtTolerant: false,
         indoor: false,
         invasive: false,
-        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/5022_lycopersicon_esculentum_big_beef/regular/52614055517_dca623a496_b.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T193104Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=29f63dd49aa3c61cdb053f549d33b5434d50c502a92c1beb41501067f771af90' }
+        imgSrcUrls: { regular: "https://s3.us-central-1.wasabisys.com/perenual/species_image/351_malus_akane/regular/800px-Akane-Pomme-20141026.jpg" },
+        daysToBloom: 50
       },
       soil: { type: "LOAM" }
     },
     {
       id: 5,
-      heightCm: 300,
-      ageDays: 365,
+      heightCm: 150,
+      ageDays: 30,
       healthStatus: "Healthy",
-      lastWatered: new Date(Date.now() - 3600000 * 24 * 5).toISOString(), // 5 days ago
-      plantedDate: new Date(Date.now() - 3600000 * 24 * 365).toISOString(),
+      lastWatered: new Date(Date.now() - 3600000 * 6).toISOString(),
+      plantedDate: "2026-08-10T00:00:00.000Z", // bloomDate (Aug 30) - 20 days
       species: {
-        commonName: 'Candied Apple Flowering Crab',
-        scientificName: "Malus 'Candied Apple'",
-        type: 'tree',
-        flowers: false,
+        commonName: "lily of the Nile",
+        scientificName: "Agapanthus (group)",
+        type: "Bulb",
+        flowers: true,
         cuisine: false,
         edibleFruit: false,
         edibleLeaf: false,
         medicinal: false,
-        droughtTolerant: false,
+        droughtTolerant: true,
         indoor: false,
-        invasive: false,
-        imgSrcUrls: { regular: 'https://s3.us-central-1.wasabisys.com/perenual/species_image/355_malus_candied_apple/regular/663px-Apples_on_tree_2021_G1.jpg?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0MPGHU7CIPXNPMVWMXUW%2F20260404%2Fus-central-1%2Fs3%2Faws4_request&X-Amz-Date=20260404T193133Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Signature=422a4eed7a77cea3e19f676988a2686160c46fa32b0ea638f478a3a70d64460a' }
+        invasive: true,
+        imgSrcUrls: { regular: "https://s3.us-central-1.wasabisys.com/perenual/species_image/575_agapanthus_group/regular/2742717111_04f3b1bee3_b.jpg" },
+        daysToBloom: 20
       },
-      soil: { type: "LOAM" }
+      soil: { type: "SANDY" }
     }
   ]
 };
@@ -138,6 +97,27 @@ const DummyGarden: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [subTab, setSubTab] = useState<'grid' | 'track'>('grid');
+  
+  // Timeline dates for Track tab
+  const timelineDates = useMemo(() => {
+    let earliest = MOCK_GARDEN.bloomDate ? new Date(MOCK_GARDEN.bloomDate).getTime() : Date.now();
+    for (const p of MOCK_GARDEN.plants) {
+      if (p.plantedDate) {
+        const d = new Date(p.plantedDate).getTime();
+        if (d < earliest) earliest = d;
+      }
+    }
+    const end = MOCK_GARDEN.bloomDate ? new Date(MOCK_GARDEN.bloomDate).getTime() : Date.now();
+    return { start: earliest, end };
+  }, []);
+
+  const [sliderValue, setSliderValue] = useState(100); // 0 to 100
+  const currentTimestamp = useMemo(() => {
+    if (timelineDates.start === timelineDates.end) return timelineDates.end;
+    const diff = timelineDates.end - timelineDates.start;
+    return timelineDates.start + (diff * (sliderValue / 100));
+  }, [sliderValue, timelineDates]);
 
   const formatDt = (iso: string) => {
     try {
@@ -239,6 +219,24 @@ const DummyGarden: React.FC = () => {
               <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 0 1rem', lineHeight: 1.5, maxWidth: '800px' }}>
                 {MOCK_GARDEN.description}
               </p>
+              {MOCK_GARDEN.bloomDate && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(252, 211, 77, 0.15)',
+                  color: '#fcd34d',
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  marginBottom: '1rem',
+                  border: '1px solid rgba(252, 211, 77, 0.25)'
+                }}>
+                  <FaClock />
+                  Target Bloom: {new Date(MOCK_GARDEN.bloomDate).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}
+                </div>
+              )}
             </div>
             <button 
               className={`browse-back-btn ${showAnalytics ? 'active' : ''}`} 
@@ -367,37 +365,112 @@ const DummyGarden: React.FC = () => {
           </section>
         )}
 
-        <div className="browse-search-bar" style={{ maxWidth: '100%' }}>
-          <FaSearch className="browse-search-icon" />
-          <input
-            type="text"
-            className="browse-search-input"
-            placeholder="Search plants in your garden..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Sub-tab bar: Grid | Track */}
+        <div className="sub-tab-bar" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+          <button
+            className={`sub-tab ${subTab === 'grid' ? 'active' : ''}`}
+            onClick={() => setSubTab('grid')}
+          >
+            <FaSeedling /> Plant Grid
+          </button>
+          <button
+            className={`sub-tab ${subTab === 'track' ? 'active' : ''}`}
+            onClick={() => setSubTab('track')}
+          >
+            <FaProjectDiagram /> Track Growth Stages
+          </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.2rem', margin: 0 }}>
-            Plants in Grid
-          </h3>
-          <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)' }}>
-            Showing {filteredPlants.length} of {MOCK_GARDEN.plants.length}
-          </span>
-        </div>
+        {subTab === 'grid' && (
+          <>
+            <div className="browse-search-bar" style={{ maxWidth: '100%' }}>
+              <FaSearch className="browse-search-icon" />
+              <input
+                type="text"
+                className="browse-search-input"
+                placeholder="Search plants in your garden..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
 
-        {filteredPlants.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(255,255,255,0.4)' }}>
-            <FaSearch style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
-            <p>No plants match your search "{searchTerm}"</p>
-          </div>
-        ) : (
-          <div className="browse-grid">
-            {filteredPlants.map((p) => (
-              <GardenPlantCard key={p.id} plant={p as any} />
-            ))}
-          </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.2rem', margin: 0 }}>
+                Plants in Grid
+              </h3>
+              <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)' }}>
+                Showing {filteredPlants.length} of {MOCK_GARDEN.plants.length}
+              </span>
+            </div>
+
+            {filteredPlants.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(255,255,255,0.4)' }}>
+                <FaSearch style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.5 }} />
+                <p>No plants match your search "{searchTerm}"</p>
+              </div>
+            ) : (
+              <div className="browse-grid">
+                {filteredPlants.map((p) => (
+                  <GardenPlantCard key={p.id} plant={p as any} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {subTab === 'track' && (
+          <>
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.8)',
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              marginBottom: '1.5rem'
+            }}>
+              <h3 style={{ margin: '0 0 1rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FaClock /> Timeline Tracker
+              </h3>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                Drag the timeline to see what stages your plants will be in at different dates. Models automatically transition between stages as they grow.
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem' }}>
+                <span>{new Date(timelineDates.start).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} (First Plant)</span>
+                <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>
+                  Viewing: {new Date(currentTimestamp).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}
+                </span>
+                <span>{new Date(timelineDates.end).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} (Bloom Target)</span>
+              </div>
+              
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={sliderValue} 
+                onChange={(e) => setSliderValue(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  appearance: 'none',
+                  height: '8px',
+                  background: 'rgba(255,255,255,0.1)',
+                  borderRadius: '4px',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+            
+            <div className="browse-grid">
+              {MOCK_GARDEN.plants.map(p => (
+                <PlantStageTrackerCard
+                  key={p.id}
+                  plant={p}
+                  currentTimestamp={currentTimestamp}
+                  bloomTimestamp={timelineDates.end}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
