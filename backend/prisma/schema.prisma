@@ -71,7 +71,6 @@ model PlantInstance {
   plantedDate       DateTime? // when the plant was physically placed (set by Unreal)
   notes             String?  // any notes
 
-  plantedDate       DateTime  @default(now())  // when it was planted, fixed
   currentGameDate   DateTime  @default(now())  // current in-game date, updated by Unreal
 
   growthStage       GrowthStage?  // Seedling, Vegetative, Flowering, Fruiting, Dormant
