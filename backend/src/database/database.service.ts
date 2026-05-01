@@ -64,7 +64,6 @@ export class DatabaseService
     } finally {
       await this.$disconnect();
     }
-
     await this.printDatabase();
   }
   async onModuleDestroy() {

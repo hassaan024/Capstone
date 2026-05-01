@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PlantInstanceService } from './plant-instance.service';
-import { PlantInstanceController } from './plant-instance.controller';
+import { PlantInstanceService } from './plant-instance.service.js';
+import { PlantInstanceController } from './plant-instance.controller.js';
 
 @Module({
   controllers: [PlantInstanceController],

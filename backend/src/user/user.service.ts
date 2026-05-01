@@ -4,11 +4,11 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
 import { DatabaseService } from 'database/database.service';
 import { Prisma, User } from '@prisma/client';
-import { UserLocationDto } from './dto/user-location.dto';
+import { UserLocationDto } from './dto/user-location.dto.js';
 
 @Injectable()
 export class UserService {

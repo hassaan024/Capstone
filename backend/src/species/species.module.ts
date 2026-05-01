@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { SpeciesService } from './species.service';
-import { SpeciesController } from './species.controller';
-import { TrefleModule } from '../trefle/trefle.module';
-import { PerenualModule } from '../perenual/perenual.module';
+import { SpeciesService } from './species.service.js';
+import { SpeciesController } from './species.controller.js';
+import { TrefleModule } from '../trefle/trefle.module.js';
+import { PerenualModule } from '../perenual/perenual.module.js';
 
 @Module({
   imports: [TrefleModule, PerenualModule],
