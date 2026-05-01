@@ -1,13 +1,8 @@
 import { Type } from 'class-transformer';
 import {
-  IsDate,
-  IsEnum,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
+  IsBoolean, IsDate, IsEnum, IsInt, IsNumber, IsOptional, IsString,
 } from 'class-validator';
-import { HealthStatus } from 'enums/table_enums';
+import { HealthStatus, SoilType, GrowthStage } from 'enums/table_enums';
 
 export class CreatePlantInstanceDto {
   @IsInt()
@@ -16,8 +11,8 @@ export class CreatePlantInstanceDto {
   @IsInt()
   speciesId: number;
 
-  @IsInt()
-  soilId: number;
+  @IsEnum(SoilType)
+  soilType: SoilType;
 
   @IsNumber()
   locationX: number;
@@ -51,14 +46,16 @@ export class CreatePlantInstanceDto {
   heightCm?: number;
 
   @IsOptional()
-  @IsInt()
-  ageDays?: number;
+  @IsEnum(HealthStatus)
+  healthStatus?: HealthStatus;
 
   @IsOptional()
-  @IsEnum(HealthStatus, {
-    message: 'healthStatus must be a valid HealthStatus enum value',
-  })
-  healthStatus?: HealthStatus;
+  @IsEnum(GrowthStage)
+  growthStage?: GrowthStage;
+
+  @IsOptional()
+  @IsBoolean()
+  bloomState?: boolean;
 
   @IsOptional()
   @IsDate()
@@ -68,7 +65,12 @@ export class CreatePlantInstanceDto {
   @IsOptional()
   @IsDate()
   @Type(() => Date)
-  plantedDate?: Date;
+  plantedDate?: Date;   // defaults to now() if not provided
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  currentGameDate?: Date;  // defaults to now() if not provided
 
   @IsOptional()
   @IsString()

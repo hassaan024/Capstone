@@ -1,2 +1,3 @@
 -- AlterTable
-ALTER TABLE "PlantInstance" ADD COLUMN     "plantedDate" TIMESTAMP(3);
+ALTER TABLE "PlantInstance" ALTER COLUMN "plantedDate" DROP NOT NULL,
+ALTER COLUMN "plantedDate" DROP DEFAULT;

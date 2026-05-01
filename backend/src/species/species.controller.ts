@@ -8,9 +8,9 @@ import {
   Delete,
   Query,
 } from '@nestjs/common';
-import { SpeciesService } from './species.service.js';
-import { CreateSpeciesDto } from './dto/create-species.dto.js';
-import { UpdateSpeciesDto } from './dto/update-species.dto.js';
+import { SpeciesService } from './species.service';
+import { CreateSpeciesDto } from './dto/create-species.dto';
+import { UpdateSpeciesDto } from './dto/update-species.dto';
 
 @Controller('species')
 export class SpeciesController {

@@ -10,6 +10,7 @@
     "docker:clean_build": "npm run docker:stop && npm run docker:rebuild",
     "docker:build": "docker compose up -d",
     "docker:rebuild": "docker compose up --build",
+    "docker:restart": "docker compose down && docker compose up -d && npm run docker:log_backend",
     "docker:log_backend": "docker compose logs -f backend",
     "docker:log_model": "docker compose logs -f model",
     "docker:up": "npm run docker:build && npm run docker:log_backend",
@@ -93,6 +94,9 @@
       "ts"
     ],
     "rootDir": "src",
+    "modulePaths": [
+      "<rootDir>"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"

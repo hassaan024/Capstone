@@ -66,11 +66,16 @@ model PlantInstance {
   scaleY            Float    @default(1)
   scaleZ            Float    @default(1)
   heightCm          Float?   // height in cm, optional
-  ageDays           Int?     // age of plant in days, optional
   healthStatus      HealthStatus?  
   lastWatered       DateTime? 
   plantedDate       DateTime? // when the plant was physically placed (set by Unreal)
   notes             String?  // any notes
+
+  currentGameDate   DateTime  @default(now())  // current in-game date, updated by Unreal
+
+  growthStage       GrowthStage?  // Seedling, Vegetative, Flowering, Fruiting, Dormant
+  bloomState        Boolean @default(false)  // is it currently blooming?
+
   creationTimestamp DateTime @default(now())
   lastUpdated       DateTime @updatedAt
   garden            Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
@@ -207,11 +212,15 @@ model Species {
   notes           String?  
   // Description or additional info
 
+  // ---------- Growth Timeline ----------
+  bloomDays       Int?
+  // Estimated days from planting to first bloom/harvest; stored when species is saved
+
   // ---------- External IDs ----------
-  perenualId      Int?     @unique  
+  perenualId      Int?     @unique
   // Unique ID from Perenual API
 
-  trefleId        Int?     @unique  
+  trefleId        Int?     @unique
   // Unique ID from Trefle API for cross-API reference
 
   // ---------- Relationships ----------
@@ -240,17 +249,18 @@ model Soil {
 }
 
 model PlantHistory {
-  id             Int       @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   plantId        Int
-  date           DateTime  // timestamp for the measurement or prediction
+  date           DateTime     // game date for this snapshot
   heightCm       Float?
   healthStatus   HealthStatus?
-  predictedValue Float?    // model prediction
+  growthStage    GrowthStage? // stage at this point in the timeline
+  predictedValue Float?       // overall stress factor from the ML model
   notes          String?
 
   plant          PlantInstance @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
-  @@index([plantId, date]) // good for querying ranges
+  @@index([plantId, date])
 }
 
 enum HealthStatus {
@@ -259,6 +269,14 @@ enum HealthStatus {
   Sick
   Dead
   NeedsWater
+}
+
+enum GrowthStage {
+  Seedling
+  Vegetative
+  Flowering
+  Fruiting
+  Dormant
 }
 
 enum SoilType {

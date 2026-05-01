@@ -5,7 +5,6 @@ import { celsiusToFahrenheit, metersPerSecondToMph } from 'utils/util-functions'
 import { hourlyToDaily } from 'utils/array';
 import { 
   getTodaysDateAsString, 
-  calculatePastDate,
   goForwardDays,
   goBackDays,
 } from 'utils/time';
@@ -86,6 +85,55 @@ const weatherCodeMap = {
 export class WeatherService {
   private readonly logger = new Logger(WeatherService.name);
 
+  // weather.service.ts
+  async getWeatherForGameDate(
+    latitude: number,
+    longitude: number,
+    gameDate: Date,
+    days: number,
+  ): Promise<WeatherInfoDto[]> {
+
+    // Anchor to 1 year before the game date for seasonal accuracy.
+    // Cap end_date to yesterday — the Open-Meteo archive API does not serve future dates.
+    const gameDateStr = gameDate.toISOString().split('T')[0];
+    const oneYearBeforeGame = goBackDays(gameDateStr, 365);
+    const yesterday = goBackDays(new Date().toISOString().split('T')[0], 1);
+    const rawEndDate = goForwardDays(oneYearBeforeGame, days);
+    const end_date = rawEndDate > yesterday ? yesterday : rawEndDate;
+
+    const daily_args = [
+      'temperature_2m_max',
+      'temperature_2m_min',
+      'precipitation_sum',
+      'et0_fao_evapotranspiration',
+      'shortwave_radiation_sum',
+    ];
+
+    const hourly_args = [
+      'vapour_pressure_deficit',
+      'wind_speed_10m',
+      'relative_humidity_2m',
+    ];
+
+    const url =
+      `${OPEN_METEO_ARCHIVE_FORCAST_URL}?latitude=${latitude}&longitude=${longitude}` +
+      `&start_date=${oneYearBeforeGame}&end_date=${end_date}` +
+      `&daily=${daily_args.join(',')}` +
+      `&hourly=${hourly_args.join(',')}` +
+      `&timezone=auto`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      this.logger.error(`Open-Meteo API Error: ${res.status} ${errorText}`);
+      throw new BadRequestException(`Weather API error (${res.status}): ${errorText}`);
+    }
+
+    const data = await res.json();
+    return this.mapWeatherApiDataToDto(data, true);
+  }
+  
   // GET (current days weather) ##################################################################
   // FIXME: add soil_temperature_6cm
   // FIXME: add soil_moisture_0_to_3cm
@@ -226,14 +274,14 @@ export class WeatherService {
     // cacluate the range of days we are fetching
     let start_date: string;
     let end_date: string;
+    const oneYearAgo = goBackDays(getTodaysDateAsString(), 365);
 
-    if (offset === 0){
-      start_date = goBackDays(getTodaysDateAsString(), days);
-      end_date = getTodaysDateAsString();
-    } 
-    else {
-      start_date = calculatePastDate(offset, PAGE_SIZE); // page start
-      end_date = goForwardDays(start_date, days); // page end
+    if (offset === 0) {
+      start_date = oneYearAgo;
+      end_date = goForwardDays(start_date, days);
+    } else {
+      start_date = goForwardDays(oneYearAgo, offset * PAGE_SIZE);
+      end_date = goForwardDays(start_date, days);
     }
 
     this.logger.log(`
@@ -275,7 +323,6 @@ export class WeatherService {
         URL: ${url}
         ===============================================
       `);
-      const data = await res.json();
       throw new BadRequestException(
         `Weather API error (${res.status}): ${errorText}`
       );

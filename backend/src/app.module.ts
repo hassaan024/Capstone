@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { LogDbInterceptor } from './database/log-db.interceptor';
 import { DatabaseModule } from 'database/database.module';
 import { UserModule } from './user/user.module.js';
 import { GardenModule } from './garden/garden.module.js';
@@ -36,6 +38,9 @@ import { PlantInstanceModule } from './plant-instance/plant-instance.module.js';
     PlantInstanceModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_INTERCEPTOR, useClass: LogDbInterceptor },
+  ],
 })
 export class AppModule {}
