@@ -75,14 +75,14 @@ export class PerenualService {
       const url = `${BASE_PERENUAL_URL}species-list?key=${this.API_KEY}&q=${encodeURIComponent(
         queryDto.query,
       )}&page=${queryDto.page || 1}`;
-
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(30000),
+      });
       if (!response.ok)
         throw new Error(`Failed to search plants: ${response.statusText}`);
-
       const data = await response.json();
       
-      if (data && data.data && Array.isArray(data.data)) {
+      if (data?.data && Array.isArray(data.data)) {
         data.data = data.data.map((p: any) => {
           if (p.common_name) {
             p.common_name = p.common_name.charAt(0).toUpperCase() + p.common_name.slice(1);
@@ -97,6 +97,7 @@ export class PerenualService {
       throw err;
     }
   }
+
 
   async getPlantDetails(id: number) {
     try {

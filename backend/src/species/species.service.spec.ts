@@ -32,6 +32,7 @@ const mockDb = {
   },
   garden: {
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
   soil: {
     create: jest.fn(),
@@ -99,25 +100,22 @@ describe('SpeciesService', () => {
 
   describe('saveSpeciesToGarden', () => {
     const mockGarden = { id: 5, ownerId: 1 };
-    const mockSoil = { id: 10, type: 'LOAM' };
-    const mockPlantInstance = { id: 20, gardenId: 5, speciesId: 1, soilId: 10 };
 
-    it('creates a plant instance in the garden', async () => {
+    it('connects the species to the garden saved list without creating a plant instance', async () => {
       mockDb.garden.findFirst.mockResolvedValue(mockGarden);
       mockPerenual.importSpecies.mockResolvedValue(mockSpecies);
       mockDb.species.update.mockResolvedValue({ ...mockSpecies, bloomDays: 60 });
-      mockDb.soil.create.mockResolvedValue(mockSoil);
-      mockDb.plantInstance.create.mockResolvedValue(mockPlantInstance);
+      mockDb.garden.update.mockResolvedValue({});
 
       const result = await service.saveSpeciesToGarden(1, 100, 5);
 
-      expect(mockDb.plantInstance.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ gardenId: 5, speciesId: 1 }),
-        }),
-      );
-      expect(result.plantInstance).toEqual(mockPlantInstance);
-      expect(result.bloomDays).toBeGreaterThan(0);
+      expect(mockDb.garden.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { savedSpecies: { connect: { id: 1 } } },
+      });
+      expect(mockDb.plantInstance.create).not.toHaveBeenCalled();
+      expect(mockDb.soil.create).not.toHaveBeenCalled();
+      expect(result.species.bloomDays).toBeGreaterThan(0);
     });
 
     it('throws NotFoundException when garden does not belong to user', async () => {
@@ -127,20 +125,7 @@ describe('SpeciesService', () => {
         NotFoundException,
       );
       expect(mockDb.plantInstance.create).not.toHaveBeenCalled();
-    });
-
-    it('creates LOAM soil with defaults for the new plant instance', async () => {
-      mockDb.garden.findFirst.mockResolvedValue(mockGarden);
-      mockPerenual.importSpecies.mockResolvedValue(mockSpecies);
-      mockDb.species.update.mockResolvedValue({ ...mockSpecies, bloomDays: 60 });
-      mockDb.soil.create.mockResolvedValue(mockSoil);
-      mockDb.plantInstance.create.mockResolvedValue(mockPlantInstance);
-
-      await service.saveSpeciesToGarden(1, 100, 5);
-
-      expect(mockDb.soil.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ type: 'LOAM' }) }),
-      );
+      expect(mockDb.garden.update).not.toHaveBeenCalled();
     });
   });
 
@@ -166,17 +151,19 @@ describe('SpeciesService', () => {
   });
 
   describe('unsaveSpeciesFromGarden', () => {
-    it('deletes all plant instances of that species in the garden', async () => {
+    it('disconnects the species from the garden saved list without touching plant instances', async () => {
       mockDb.species.findUnique.mockResolvedValue(mockSpecies);
       mockDb.garden.findFirst.mockResolvedValue({ id: 5, ownerId: 1 });
-      mockDb.plantInstance.deleteMany.mockResolvedValue({ count: 2 });
+      mockDb.garden.update.mockResolvedValue({});
 
       const result = await service.unsaveSpeciesFromGarden(1, 100, 5);
 
-      expect(mockDb.plantInstance.deleteMany).toHaveBeenCalledWith({
-        where: { gardenId: 5, speciesId: 1 },
+      expect(mockDb.garden.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { savedSpecies: { disconnect: { id: 1 } } },
       });
-      expect(result.message).toContain('2');
+      expect(mockDb.plantInstance.deleteMany).not.toHaveBeenCalled();
+      expect(result.message).toBe('Species removed from garden');
     });
 
     it('throws NotFoundException when species is not in database', async () => {
@@ -251,14 +238,13 @@ describe('SpeciesService', () => {
   });
 
   describe('getSavedSpeciesForGarden', () => {
-    it('returns distinct species from plant instances in the garden', async () => {
+    it('returns species from the garden saved list', async () => {
       mockDb.garden.findFirst.mockResolvedValue({
         id: 5,
         ownerId: 1,
-        plants: [
-          { speciesId: 1, species: { ...mockSpecies, bloomDays: 60 } },
-          { speciesId: 1, species: { ...mockSpecies, bloomDays: 60 } }, // duplicate
-          { speciesId: 2, species: { ...mockSpecies, id: 2, commonName: 'Crape Myrtle', type: 'Tree', bloomDays: 730 } },
+        savedSpecies: [
+          { ...mockSpecies, bloomDays: 60 },
+          { ...mockSpecies, id: 2, commonName: 'Crape Myrtle', type: 'Tree', bloomDays: 730 },
         ],
       });
 

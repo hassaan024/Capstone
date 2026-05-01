@@ -9,9 +9,7 @@ import { UpdateSpeciesDto } from './dto/update-species.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';                                                                                                                             
 import { PerenualService } from 'perenual/perenual.service';
-import { computeBloomDays } from 'utils/plant-growth';                                                                                                               
-import { getSoilDefaults } from 'utils/soil-defaults';                                                                                                               
-import { SoilType } from 'enums/table_enums';
+import { computeBloomDays } from 'utils/plant-growth';
 
 @Injectable()                           
 export class SpeciesService {                                                                                                                                        
@@ -41,46 +39,33 @@ export class SpeciesService {
     return { message: 'Species saved successfully', species: { ...updatedSpecies, bloomDays } };                                                                     
   }                                     
 
-  // Save a species to a specific garden — imports species, stores bloom days,                                                                                       
-  // creates a PlantInstance with LOAM soil defaults
-  async saveSpeciesToGarden(userId: number, perenualId: number, gardenId: number) {                                                                                  
-    const garden = await this.db.garden.findFirst({                                                                                                                  
+  // Pin a species to a specific garden's saved list (a wishlist-style relation).
+  // Does NOT create a PlantInstance — instances are only created when a user
+  // actually plants and saves in Unreal.
+  async saveSpeciesToGarden(userId: number, perenualId: number, gardenId: number) {
+    const garden = await this.db.garden.findFirst({
       where: { id: gardenId, ownerId: userId },
-    });                                                                                                                                                              
+    });
     if (!garden) throw new NotFoundException('Garden not found');
 
     const species = await this.getOrCreateSpecies(perenualId);
-    const bloomDays = computeBloomDays(species);                                                                                                                     
+    const bloomDays = computeBloomDays(species);
 
-    if (species.bloomDays === null || species.bloomDays === undefined) {
-      await this.db.species.update({                                                                                                                                 
+    const [updatedSpecies] = await Promise.all([
+      this.db.species.update({
         where: { id: species.id },
-        data: { bloomDays },                                                                                                                                         
-      });                                   
-    }                                                                                                                                                                
+        data: { bloomDays },
+      }),
+      this.db.garden.update({
+        where: { id: gardenId },
+        data: { savedSpecies: { connect: { id: species.id } } },
+      }),
+    ]);
 
-    const soilDefaults = getSoilDefaults(SoilType.LOAM);                                                                                                             
-    const soil = await this.db.soil.create({
-      data: { type: SoilType.LOAM, ...soilDefaults },                                                                                                                
-    });                                     
-
-    const plantInstance = await this.db.plantInstance.create({
-      data: {                                                                                                                                                        
-        gardenId,                           
-        speciesId: species.id,                                                                                                                                       
-        soilId: soil.id,
-        plantedDate: new Date(),                                                                                                                                     
-        currentGameDate: new Date(),
-        bloomState: false,                                                                                                                                           
-      },                                
-      include: { species: true, soil: true },
-    });                                                                                                                                                              
-
-    return {                                                                                                                                                         
-      message: 'Species added to garden',                                                                                                                            
-      plantInstance,
-      bloomDays,                                                                                                                                                     
-    };                                      
+    return {
+      message: 'Species saved to garden',
+      species: { ...updatedSpecies, bloomDays },
+    };
   }                                     
 
   // Fetch from DB or Perenual API, then create or upsert in DB                                                                                                      
@@ -101,21 +86,23 @@ export class SpeciesService {
     return { message: 'Species unsaved successfully' };
   }                                                                                                                                                                  
 
-  // Remove all plant instances of a species from a specific garden                                                                                                  
+  // Unpin a species from a garden's saved list. Does NOT touch PlantInstances —
+  // any real planted instances of this species in the garden remain untouched.
   async unsaveSpeciesFromGarden(userId: number, perenualId: number, gardenId: number) {
     const species = await this.db.species.findUnique({ where: { perenualId } });
-    if (!species) throw new NotFoundException('Species not found in database');                                                                                      
+    if (!species) throw new NotFoundException('Species not found in database');
 
-    const garden = await this.db.garden.findFirst({                                                                                                                  
-      where: { id: gardenId, ownerId: userId },                                                                                                                      
-    });                                     
-    if (!garden) throw new NotFoundException('Garden not found');                                                                                                    
+    const garden = await this.db.garden.findFirst({
+      where: { id: gardenId, ownerId: userId },
+    });
+    if (!garden) throw new NotFoundException('Garden not found');
 
-    const deleted = await this.db.plantInstance.deleteMany({                                                                                                         
-      where: { gardenId, speciesId: species.id },
-    });                                                                                                                                                              
+    await this.db.garden.update({
+      where: { id: gardenId },
+      data: { savedSpecies: { disconnect: { id: species.id } } },
+    });
 
-    return { message: `Removed ${deleted.count} plant(s) from garden` };
+    return { message: 'Species removed from garden' };
   }                                                                                                                                                                  
 
   // Compute 'modelCategory' dynamically for Unreal Engine and React clients.                                                                                        
@@ -185,27 +172,18 @@ export class SpeciesService {
     return this.mapSpeciesWithCategory(user.savedSpecies);                                                                                                           
   }             
 
-  // Get distinct species planted in a specific garden, with bloom days and modelCategory
+  // Get all species pinned to a specific garden's saved list, with bloom days
+  // and modelCategory. Reads the Garden ↔ Species relation directly — does NOT
+  // derive from PlantInstance.
   async getSavedSpeciesForGarden(userId: number, gardenId: number) {
     const garden = await this.db.garden.findFirst({
-      where: { id: gardenId, ownerId: userId },                                                                                                                      
-      include: {
-        plants: { include: { species: true } },                                                                                                                      
-      },                                
-    });                                                                                                                                                              
+      where: { id: gardenId, ownerId: userId },
+      include: { savedSpecies: true },
+    });
 
     if (!garden) throw new NotFoundException('Garden not found');
 
-    const seen = new Set<number>();
-    const distinctSpecies = garden.plants                                                                                                                            
-      .filter((p) => {
-        if (seen.has(p.speciesId)) return false;                                                                                                                     
-        seen.add(p.speciesId);          
-        return true;
-      })                                                                                                                                                             
-      .map((p) => p.species);
-
-    return this.mapSpeciesWithCategory(distinctSpecies);
+    return this.mapSpeciesWithCategory(garden.savedSpecies);
   }
 
   // Standard CRUD operations
