@@ -7,7 +7,7 @@
 #include "GardenSessionSubsystem.h"
 #include "PlantSelect.h"
 #include "PlantObject.h"
-#include "GardenExit.h"
+#include "GardenHUD.h"
 #include "UserDrone.h"
 #include "Plant.h"
 #include "GameFramework/PlayerController.h"
@@ -52,8 +52,8 @@ void AGardenDirector::Tick(float DeltaTime)
 void AGardenDirector::AddButtons()
 {
 	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	UGardenExit* GardenExit = CreateWidget<UGardenExit>(PlayerController, GardenExitClass);
-	GardenExit->AddToViewport();
+	UGardenHUD* GardenHUD = CreateWidget<UGardenHUD>(PlayerController, GardenHUDClass);
+	GardenHUD->AddToViewport();
 }
 
 void AGardenDirector::SpawnLoadedPlants()

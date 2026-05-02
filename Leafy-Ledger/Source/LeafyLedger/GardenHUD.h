@@ -6,13 +6,13 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
 #include "GardenSessionSubsystem.h"
-#include "GardenExit.generated.h"
+#include "GardenHUD.generated.h"
 
 class UBackendApiSubsystem;
 class UEditableTextBox;
 
 UCLASS()
-class LEAFYLEDGER_API UGardenExit : public UUserWidget
+class LEAFYLEDGER_API UGardenHUD : public UUserWidget
 {
 	GENERATED_BODY()
 	

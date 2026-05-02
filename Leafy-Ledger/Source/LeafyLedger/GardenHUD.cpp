@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "GardenExit.h"
+#include "GardenHUD.h"
 #include "BackendApiSubsystem.h"
 #include "BloomDateUtils.h"
 #include "Components/EditableTextBox.h"
@@ -68,30 +68,30 @@ namespace
 	}
 }
 
-bool UGardenExit::Initialize()
+bool UGardenHUD::Initialize()
 {
     if (!Super::Initialize()) return false;
 
     if (BTN_Save)
     {
-        BTN_Save->OnClicked.AddDynamic(this, &UGardenExit::OnPressSave);
+        BTN_Save->OnClicked.AddDynamic(this, &UGardenHUD::OnPressSave);
     }
 
     if (BTN_Exit)
     {
-        BTN_Exit->OnClicked.AddDynamic(this, &UGardenExit::OnPressExit);
+        BTN_Exit->OnClicked.AddDynamic(this, &UGardenHUD::OnPressExit);
     }
 
     return true;
 }
 
-void UGardenExit::NativeConstruct()
+void UGardenHUD::NativeConstruct()
 {
 	Super::NativeConstruct();
 	EnsureBloomDateInput();
 }
 
-void UGardenExit::OnPressSave()
+void UGardenHUD::OnPressSave()
 {
 	if (!GetGameInstance())
 	{
@@ -160,7 +160,7 @@ void UGardenExit::OnPressSave()
 	}
 
 	const FEditableGardenState Draft = GardenSession->GetDraftCopy();
-	TWeakObjectPtr<UGardenExit> WeakThis(this);
+	TWeakObjectPtr<UGardenHUD> WeakThis(this);
 
 	if (Draft.BackendGardenId > 0)
 	{
@@ -229,7 +229,7 @@ void UGardenExit::OnPressSave()
 	);
 }
 
-void UGardenExit::SavePendingPlants(int32 GardenId, const FString& BloomDate, bool bRefreshPlantedDates, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex)
+void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, bool bRefreshPlantedDates, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex)
 {
 	if (!GetGameInstance())
 	{
@@ -264,7 +264,7 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const FString& BloomDate, bo
 			continue;
 		}
 
-		TWeakObjectPtr<UGardenExit> WeakThis(this);
+		TWeakObjectPtr<UGardenHUD> WeakThis(this);
 		const FString PlantedDate = CalculatePlantedDate(BloomDate, Plant.SpeciesModelCategory);
 		const bool bShouldUpdateExistingPlant = Plant.bPendingUpdate || (bRefreshPlantedDates && Plant.BackendPlantInstanceId > 0);
 
@@ -394,7 +394,7 @@ void UGardenExit::SavePendingPlants(int32 GardenId, const FString& BloomDate, bo
 	UE_LOG(LogTemp, Log, TEXT("All pending plants saved"));
 }
 
-void UGardenExit::OnPressExit()
+void UGardenHUD::OnPressExit()
 {
 	if (!GetGameInstance()) return;
 
@@ -410,18 +410,18 @@ void UGardenExit::OnPressExit()
 	UGameplayStatics::OpenLevel(GetWorld(), FName("Login"));
 }
 
-void UGardenExit::EnsureBloomDateInput()
+void UGardenHUD::EnsureBloomDateInput()
 {
 	if (!ET_BloomDate)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("GardenExit: ET_BloomDate is not bound on the widget"));
+		UE_LOG(LogTemp, Warning, TEXT("GardenHUD: ET_BloomDate is not bound on the widget"));
 		return;
 	}
 
 	if (!bBloomDateTextEventsBound)
 	{
-		ET_BloomDate->OnTextChanged.AddDynamic(this, &UGardenExit::HandleBloomDateTextChanged);
-		ET_BloomDate->OnTextCommitted.AddDynamic(this, &UGardenExit::HandleBloomDateTextCommitted);
+		ET_BloomDate->OnTextChanged.AddDynamic(this, &UGardenHUD::HandleBloomDateTextChanged);
+		ET_BloomDate->OnTextCommitted.AddDynamic(this, &UGardenHUD::HandleBloomDateTextCommitted);
 		bBloomDateTextEventsBound = true;
 	}
 
@@ -429,7 +429,7 @@ void UGardenExit::EnsureBloomDateInput()
 	ApplyDraftBloomDate();
 }
 
-void UGardenExit::ApplyDraftBloomDate()
+void UGardenHUD::ApplyDraftBloomDate()
 {
 	if (!ET_BloomDate || !GetGameInstance())
 	{
@@ -465,7 +465,7 @@ void UGardenExit::ApplyDraftBloomDate()
 	}
 }
 
-void UGardenExit::ValidateBloomDateText(bool bBroadcastOnSuccess)
+void UGardenHUD::ValidateBloomDateText(bool bBroadcastOnSuccess)
 {
 	if (!ET_BloomDate) return;
 
@@ -499,12 +499,12 @@ void UGardenExit::ValidateBloomDateText(bool bBroadcastOnSuccess)
 	}
 }
 
-FString UGardenExit::GetRawBloomDateText() const
+FString UGardenHUD::GetRawBloomDateText() const
 {
 	return ET_BloomDate ? ET_BloomDate->GetText().ToString().TrimStartAndEnd() : TEXT("");
 }
 
-void UGardenExit::HandleBloomDateTextChanged(const FText& NewText)
+void UGardenHUD::HandleBloomDateTextChanged(const FText& NewText)
 {
 	if (bSuppressBloomDateCallbacks)
 	{
@@ -515,7 +515,7 @@ void UGardenExit::HandleBloomDateTextChanged(const FText& NewText)
 	ValidateBloomDateText(true);
 }
 
-void UGardenExit::HandleBloomDateTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod)
+void UGardenHUD::HandleBloomDateTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod)
 {
 	if (bSuppressBloomDateCallbacks)
 	{

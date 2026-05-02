@@ -7,7 +7,7 @@
 #include "GardenDirector.generated.h"
 
 class UPlantSelect;
-class UGardenExit;
+class UGardenHUD;
 struct FEditablePlantPlacement;
 
 UCLASS()
@@ -44,5 +44,5 @@ public:
 	TSubclassOf<UPlantSelect> PlantSelectClass;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
-	TSubclassOf<UGardenExit> GardenExitClass;
+	TSubclassOf<UGardenHUD> GardenHUDClass;
 };
