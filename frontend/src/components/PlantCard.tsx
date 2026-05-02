@@ -8,7 +8,7 @@ interface PlantCardProps {
     image_url?: string;
     family_common_name?: string;
     modelCategory?: string;
-    daysToBloom?: number;
+    bloomDays?: number;
   };
   onClick: () => void;
 }
@@ -22,9 +22,9 @@ const PlantCard: React.FC<PlantCardProps> = ({ plant, onClick }) => {
             {plant.modelCategory}
           </div>
         )}
-        {plant.daysToBloom && (
+        {plant.bloomDays && (
           <div className="plant-category-pill" style={{ background: 'rgba(56, 189, 248, 0.9)', right: '0.5rem', left: 'auto' }}>
-            {plant.daysToBloom} Days
+            ~{plant.bloomDays} Days
           </div>
         )}
         {plant.image_url ? (

@@ -184,7 +184,7 @@ const BrowseSpecies: React.FC = () => {
           scientific_name: Array.isArray(p.scientific_name) ? p.scientific_name[0] : p.scientific_name,
           image_url: p.default_image?.regular_url || p.default_image?.original_url,
           modelCategory: p.modelCategory,
-          daysToBloom: p.daysToBloom
+          bloomDays: p.bloomDays,
         }));
         setResults(mappedResults);
       } else {

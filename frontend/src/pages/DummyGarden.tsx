@@ -38,7 +38,7 @@ const MOCK_GARDEN = {
         indoor: false,
         invasive: false,
         imgSrcUrls: { regular: "https://s3.us-central-1.wasabisys.com/perenual/species_image/5022_lycopersicon_esculentum_big_beef/regular/52614055517_dca623a496_b.jpg" },
-        daysToBloom: 30
+        bloomDays: 30
       },
       soil: { type: "LOAM" }
     },
@@ -62,7 +62,7 @@ const MOCK_GARDEN = {
         indoor: false,
         invasive: false,
         imgSrcUrls: { regular: "https://s3.us-central-1.wasabisys.com/perenual/species_image/351_malus_akane/regular/800px-Akane-Pomme-20141026.jpg" },
-        daysToBloom: 50
+        bloomDays: 50
       },
       soil: { type: "LOAM" }
     },
@@ -86,7 +86,7 @@ const MOCK_GARDEN = {
         indoor: false,
         invasive: true,
         imgSrcUrls: { regular: "https://s3.us-central-1.wasabisys.com/perenual/species_image/575_agapanthus_group/regular/2742717111_04f3b1bee3_b.jpg" },
-        daysToBloom: 20
+        bloomDays: 20
       },
       soil: { type: "SANDY" }
     }
