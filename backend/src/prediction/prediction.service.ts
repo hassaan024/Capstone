@@ -195,6 +195,37 @@ export class PredictionService {
           ? new Date(plantedDate.getTime() + daysNeeded * 86400000).toISOString().split('T')[0]
           : null;
 
+        // Derive suitability from the already-computed stress factors.
+        // No extra API calls — we aggregate what the ML model already returned.
+        const suitabilityReasons: string[] = [];
+        if (timeline.length > 0) {
+          const avg = (fn: (e: TimelineEntry) => number) =>
+            timeline.reduce((sum, e) => sum + fn(e), 0) / timeline.length;
+
+          const avgTempStress    = avg(e => e.stressFactors.temperature);
+          const avgSunStress     = avg(e => e.stressFactors.sunlight);
+          const avgWaterStress   = avg(e => e.stressFactors.water);
+          const avgOverallStress = avg(e => e.stressFactors.overall);
+
+          if (avgTempStress < 0.25)
+            suitabilityReasons.push(
+              `Temperature is outside the comfortable range for ${plant.species.commonName} throughout most of the growth period.`,
+            );
+          if (avgSunStress < 0.25)
+            suitabilityReasons.push(
+              `Available sunlight is consistently below what ${plant.species.commonName} needs to grow well.`,
+            );
+          if (avgWaterStress < 0.25)
+            suitabilityReasons.push(
+              `Soil moisture and precipitation are too low for ${plant.species.commonName} during this period.`,
+            );
+          if (avgOverallStress < 0.10)
+            suitabilityReasons.push(
+              `Combined growing conditions are too poor for meaningful growth — consider a different planting window.`,
+            );
+        }
+        const suitable = suitabilityReasons.length === 0;
+
         return {
           plantInstanceId: plant.id,
           speciesName: plant.species.commonName,
@@ -205,6 +236,8 @@ export class PredictionService {
               `The slider will show partial growth (~${Math.round((730 / daysNeeded) * 100)}% of max height). ` +
               `Earliest feasible bloom date: ${earliestFeasibleBloomDate}.`
             : null,
+          suitable,
+          suitabilityReasons,
           plantedDate: plantedDate.toISOString().split('T')[0],
           daysToMature,
           maxHeightCm,
