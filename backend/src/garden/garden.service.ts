@@ -26,6 +26,8 @@ export class GardenService {
 
     if (typeStr.includes('flower')) return 'flower';
 
+    if (typeStr.includes('tree')) return 'tree';
+
     if (
       typeStr.includes('vegetable') ||
       species.edibleFruit ||
@@ -38,9 +40,7 @@ export class GardenService {
       return 'vegetable';
     }
 
-    if (species.scientificName?.includes('Malus')) {
-      return 'tree';
-    }
+    if (species.scientificName?.includes('Malus')) return 'tree';
 
     return 'flower';
   }

@@ -9,7 +9,7 @@ import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
 const MOCK_GARDEN = {
   id: 0,
   name: "Emerald Sanctuary",
-  description: "A lush, experimental garden showcasing different biomes and plant species. This is a preview of how your synchronized Unreal Engine garden will appear.",
+  description: "A lush, experimental garden showcasing different biomes and plant species. This is a preview of how your synchronized garden will appear in the app.",
   latitude: 34.0522,
   longitude: -118.2437,
   timezone: "America/Los_Angeles",

@@ -245,7 +245,7 @@ const CreateGardenModal: React.FC<CreateGardenModalProps> = ({
               {/* Bloom Date */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-                  Target Bloom Date (optional)
+                  Target Bloom Date *
                 </label>
                 <input
                   type="date"

@@ -36,11 +36,11 @@ export class PerenualService {
       const typeStr = (p.type || p.cycle || '').toLowerCase();
       let modelCategory = 'flower';
 
-      // If Perenual explicitly tagged it as a flower, trust that over edible flags
       if (typeStr.includes('flower')) {
         modelCategory = 'flower';
+      } else if (typeStr.includes('tree')) {
+        modelCategory = 'tree';
       } else if (
-        // Vegetable: edible signals or explicit vegetable/herb/fruit type
         typeStr.includes('vegetable') ||
         p.edible_fruit ||
         p.edible_leaf ||
@@ -51,7 +51,6 @@ export class PerenualService {
       ) {
         modelCategory = 'vegetable';
       } else if (p.scientific_name?.[0]?.includes('Malus')) {
-        // Tree: only via scientific-name hints so behavior matches the list endpoint
         modelCategory = 'tree';
       }
 

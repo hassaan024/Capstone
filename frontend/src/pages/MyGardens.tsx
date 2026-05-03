@@ -428,7 +428,7 @@ const MyGardens: React.FC = () => {
             <FaSeedling style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }} />
             <p style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>No gardens yet</p>
             <p style={{ lineHeight: 1.6 }}>
-              Create a garden to start organizing and saving plants. You can also create gardens in <strong>Unreal Engine</strong> and sync them to your account.
+              Create a garden to start organizing and saving plants. You can also create gardens in <strong>the app</strong> and sync them to your account.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
               <button 
@@ -735,7 +735,7 @@ const MyGardens: React.FC = () => {
                   <>
                     {detail.plants.length === 0 ? (
                       <p style={{ color: 'rgba(255,255,255,0.5)' }}>
-                        No plants in this garden yet. Add them from Unreal.
+                        No plants in this garden yet. Add them from the app.
                       </p>
                     ) : (
                       <>
@@ -788,7 +788,7 @@ const MyGardens: React.FC = () => {
                         <FaBookmark style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }} />
                         <p>No plants saved to <strong>{detail.name}</strong> yet.</p>
                         <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
-                          Browse species and save them to this garden so they're ready when you open Unreal.
+                          Browse species and save them to this garden so they're ready when you open the app.
                         </p>
                         <button 
                           className="browse-chip active"
@@ -857,7 +857,7 @@ const MyGardens: React.FC = () => {
                     
                     {detail.plants.length === 0 ? (
                       <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
-                        No plants to track. Add plants from Unreal first.
+                        No plants to track. Add plants from the app first.
                       </p>
                     ) : (
                       <div className="browse-grid">

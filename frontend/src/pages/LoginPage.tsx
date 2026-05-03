@@ -147,34 +147,33 @@ const LoginPage: React.FC = () => {
 
           <div className="leafy-login-hero-copy">
             <h1 className="leafy-login-hero-title">
-              Grow <span>smarter gardens</span> with Leafy AI.
+              Plant at the <span>right time.</span> Watch your garden bloom.
             </h1>
             <p className="leafy-login-hero-subtitle">
-              LeafyLedger provides an intelligent chatbot, comprehensive plant databases, 
-              localized climate tracking, and beautiful simulations to help you visualize your garden before planting.
+              Set a target bloom date. LeafyLedger predicts the perfect planting date for every species — then lets you visualize the whole garden as a live 3D digital twin.
             </p>
 
             <div className="leafy-login-icon-row">
               <div className="leafy-login-icon-pill">
-                <span><FaRobot /></span>
-                <span>Context-Aware AI</span>
+                <span><FaLeaf /></span>
+                <span>Bloom Prediction</span>
               </div>
               <div className="leafy-login-icon-pill">
                 <span><FaCloudSun /></span>
-                <span>Live Weather Sync</span>
+                <span>Weather-Informed</span>
               </div>
               <div className="leafy-login-icon-pill">
                 <span><FaSeedling /></span>
-                <span>3D Visuals</span>
+                <span>Digital Twin</span>
               </div>
             </div>
 
             <div className="leafy-login-growth-card">
               <div className="leafy-login-growth-header">
                 <div className="leafy-login-growth-title">
-                  Growth timeline preview
+                  Planting schedule preview
                 </div>
-                <div className="leafy-login-growth-badge">Live simulation</div>
+                <div className="leafy-login-growth-badge">Prediction model</div>
               </div>
 
               <div className="leafy-login-growth-bar-shell">
@@ -183,20 +182,20 @@ const LoginPage: React.FC = () => {
 
               <div className="leafy-login-growth-stages">
                 <div className="leafy-login-growth-stage">
-                  <div className="leafy-login-growth-stage-label">Start</div>
-                  <div>Seeded</div>
+                  <div className="leafy-login-growth-stage-label">You set</div>
+                  <div>Bloom date</div>
                 </div>
                 <div className="leafy-login-growth-stage">
-                  <div className="leafy-login-growth-stage-label">Mid</div>
-                  <div>Leafy growth</div>
+                  <div className="leafy-login-growth-stage-label">We check</div>
+                  <div>Local weather</div>
                 </div>
                 <div className="leafy-login-growth-stage">
-                  <div className="leafy-login-growth-stage-label">Peak</div>
-                  <div>Bloom window</div>
+                  <div className="leafy-login-growth-stage-label">We predict</div>
+                  <div>Plant by date</div>
                 </div>
                 <div className="leafy-login-growth-stage">
-                  <div className="leafy-login-growth-stage-label">End</div>
-                  <div>Wither / Harvest</div>
+                  <div className="leafy-login-growth-stage-label">Result</div>
+                  <div>Garden blooms</div>
                 </div>
               </div>
             </div>

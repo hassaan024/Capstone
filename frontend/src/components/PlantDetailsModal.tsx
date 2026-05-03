@@ -276,7 +276,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                               >
                                   <FaTimes />
                               </button>
-                              Save plants for later to easily access and add them when you open the garden planner in Unreal Engine.
+                              Save plants for later to easily access and add them when you open the garden planner in the app.
                               {hasGardens && ' You can save globally or to a specific garden.'}
                           </div>
                       )}

@@ -3,7 +3,6 @@ import * as React from "react";
 import { PieChart, pieArcLabelClasses } from "@mui/x-charts/PieChart";
 import { useDrawingArea } from "@mui/x-charts/hooks";
 import { styled } from "@mui/material/styles";
-import type { Theme } from "@mui/material/styles";
 
 export interface FeatureDatum {
   id: string;
@@ -11,23 +10,35 @@ export interface FeatureDatum {
   color: string;
 }
 
-const StyledText = styled("text")(() => ({
-  fill: "#ffffff",
+const CenterTitle = styled("text")(() => ({
+  fill: "rgba(255,255,255,0.95)",
   textAnchor: "middle",
   dominantBaseline: "central",
-  fontSize: 18,
+  fontSize: 13,
+  fontWeight: 700,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
 }));
 
-interface PieCenterLabelProps {
-  children: React.ReactNode;
-}
+const CenterSub = styled("text")(() => ({
+  fill: "rgba(148,163,184,0.8)",
+  textAnchor: "middle",
+  dominantBaseline: "central",
+  fontSize: 10,
+  letterSpacing: "0.06em",
+}));
 
-function PieCenterLabel({ children }: PieCenterLabelProps): React.ReactElement {
+function PieCenterLabel(): React.ReactElement {
   const { width, height, left, top } = useDrawingArea();
+  const cx = left + width / 2;
+  const cy = top + height / 2;
+
   return (
-    <StyledText x={left + width / 2} y={top + height / 2}>
-      {children}
-    </StyledText>
+    <g>
+      <circle cx={cx} cy={cy} r={52} fill="none" stroke="rgba(148,163,184,0.15)" strokeWidth={1.5} />
+      <CenterTitle x={cx} y={cy - 8}>FEATURES</CenterTitle>
+      <CenterSub x={cx} y={cy + 12}>tap a slice</CenterSub>
+    </g>
   );
 }
 
@@ -42,45 +53,52 @@ export default function FeaturePieChart(
 ): React.ReactElement {
   const { features, selectedId, onSelect } = props;
 
-  // Equal slice values for now
+  const innerRadius = 52;
+  const outerRadius = 182;
+  const selectedOuterRadius = outerRadius + 14;
+
   const data = features.map((f) => ({
     id: f.id,
     label: f.label,
     value: 1,
     color: f.color,
+    outerRadius: f.id === selectedId ? selectedOuterRadius : outerRadius,
   }));
 
   const total = data.reduce((acc, d) => acc + d.value, 0);
 
-  const innerRadius = 70;
-  const outerRadius = 170;
-
   return (
     <div className="leafy-feature-chart-shell">
       <PieChart
-        height={400}
+        height={440}
         series={[
           {
             innerRadius,
-            outerRadius,
+            paddingAngle: 3,
+            cornerRadius: 9,
             data,
             arcLabel: (item) => (item.label as string) ?? "",
             valueFormatter: ({ value }) =>
               `${value} of ${total} feature${total === 1 ? "" : "s"}`,
-            highlightScope: { fade: "global", highlight: "item" },
-            highlighted: { additionalRadius: 3 },
-            cornerRadius: 3,
+            highlightScope: { fade: "none", highlight: "none" },
           },
         ]}
         sx={{
           [`& .${pieArcLabelClasses.root}`]: {
             fontSize: "11px",
+            fontWeight: "600",
             fill: "#ffffff",
+            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.8))",
           },
           "& .MuiChartsPieArc-root": {
             cursor: "pointer",
+            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.4))",
+            transition: "filter 200ms ease",
           },
-        }}        
+          "& .MuiChartsPieArc-root:hover": {
+            filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))",
+          },
+        }}
         hideLegend
         onItemClick={(_event, params: any) => {
           const index = params?.dataIndex as number;
@@ -89,8 +107,7 @@ export default function FeaturePieChart(
           }
         }}
       >
-        {/* Center label: “Features” */}
-        <PieCenterLabel>Features</PieCenterLabel>
+        <PieCenterLabel />
       </PieChart>
     </div>
   );
