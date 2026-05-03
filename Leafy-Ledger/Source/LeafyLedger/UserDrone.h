@@ -62,6 +62,12 @@ private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
 	void TrackPlacedPlant(APlant* PlantActor);
+	FString FindPredictedPlantedDateForSpecies(int32 SpeciesId) const;
+	bool HasPredictedPlantingDates() const;
+	bool TryDateToDayIndex(const FString& DateText, int32& OutDayIndex) const;
+	void HideGardenDateSlider() const;
+	void MoveGardenToBloomDate() const;
+	void ApplyPlacementSchedule(APlant* PlantActor, const FString& PlantedDate) const;
 public:
 	UFUNCTION(BlueprintCallable)
 	bool SpawnPlant(APlant*& Plant);

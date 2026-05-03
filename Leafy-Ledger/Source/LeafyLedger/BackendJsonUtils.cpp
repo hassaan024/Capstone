@@ -657,3 +657,67 @@ bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGar
 
 	return true;
 }
+
+bool FBackendJsonUtils::ParseGardenTimeline(const FString& JsonString, FBackendGardenTimelineDto& OutTimeline)
+{
+	OutTimeline = FBackendGardenTimelineDto{};
+
+	TSharedPtr<FJsonObject> Obj;
+	if (!ParseObject(JsonString, Obj) || !Obj.IsValid())
+	{
+		return false;
+	}
+
+	double NumberValue = 0.0;
+	if (Obj->TryGetNumberField(TEXT("gardenId"), NumberValue))
+	{
+		OutTimeline.GardenId = static_cast<int32>(NumberValue);
+	}
+
+	Obj->TryGetStringField(TEXT("bloomDate"), OutTimeline.BloomDate);
+
+	const TArray<TSharedPtr<FJsonValue>>* PlantsArray = nullptr;
+	if (!Obj->TryGetArrayField(TEXT("plants"), PlantsArray))
+	{
+		return true;
+	}
+
+	for (const TSharedPtr<FJsonValue>& PlantValue : *PlantsArray)
+	{
+		if (!PlantValue.IsValid() || PlantValue->Type != EJson::Object)
+		{
+			continue;
+		}
+
+		const TSharedPtr<FJsonObject> PlantObj = PlantValue->AsObject();
+		if (!PlantObj.IsValid())
+		{
+			continue;
+		}
+
+		FBackendGardenTimelinePlantDto Plant;
+		if (PlantObj->TryGetNumberField(TEXT("plantInstanceId"), NumberValue))
+		{
+			Plant.PlantInstanceId = static_cast<int32>(NumberValue);
+		}
+
+		PlantObj->TryGetStringField(TEXT("speciesName"), Plant.SpeciesName);
+		PlantObj->TryGetBoolField(TEXT("feasible"), Plant.bFeasible);
+		PlantObj->TryGetStringField(TEXT("feasibilityNote"), Plant.FeasibilityNote);
+		PlantObj->TryGetStringField(TEXT("plantedDate"), Plant.PlantedDate);
+
+		if (PlantObj->TryGetNumberField(TEXT("daysToMature"), NumberValue))
+		{
+			Plant.DaysToMature = static_cast<int32>(NumberValue);
+		}
+
+		if (PlantObj->TryGetNumberField(TEXT("maxHeightCm"), NumberValue))
+		{
+			Plant.MaxHeightCm = static_cast<float>(NumberValue);
+		}
+
+		OutTimeline.Plants.Add(MoveTemp(Plant));
+	}
+
+	return true;
+}

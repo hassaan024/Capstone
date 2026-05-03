@@ -115,37 +115,34 @@ void APlant::UpdateForDay(int32 DayIndex)
 
 	if (DayIndex < PlantingDayIndex)
 	{
-		DesiredMesh = SeedMesh;
-		DesiredScale = FVector(1.f);
+		PreviewMesh->SetVisibility(false, true);
+		PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SetActorEnableCollision(false);
+		SetActorScale3D(DesiredScale);
+		return;
 	}
-	else if (DayIndex < BloomDayIndex)
-	{
-		if (SeedMesh && SaplingMesh)
-		{
-			const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
-			const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
 
-			if (GrowthAlpha < 0.5f)
-			{
-				DesiredMesh = SeedMesh;
-			}
-			else
-			{
-				DesiredMesh = SaplingMesh;
-			}
-		}
-		else if (SaplingMesh)
+	PreviewMesh->SetVisibility(true, true);
+	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SetActorEnableCollision(true);
+
+	if (DayIndex < WitherDayIndex)
+	{
+		const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
+		const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
+
+		if (DayIndex == BloomDayIndex)
 		{
-			DesiredMesh = SaplingMesh;
+			DesiredMesh = BloomedMesh ? BloomedMesh : (SaplingMesh ? SaplingMesh : SeedMesh);
+		}
+		else if (GrowthAlpha < 0.33f)
+		{
+			DesiredMesh = SeedMesh ? SeedMesh : SaplingMesh;
 		}
 		else
 		{
-			DesiredMesh = SeedMesh;
+			DesiredMesh = SaplingMesh ? SaplingMesh : SeedMesh;
 		}
-	}
-	else if (DayIndex < WitherDayIndex)
-	{
-		DesiredMesh = BloomedMesh;
 	}
 	else
 	{

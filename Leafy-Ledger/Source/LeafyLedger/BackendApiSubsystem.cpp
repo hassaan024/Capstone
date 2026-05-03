@@ -1344,7 +1344,7 @@ void UBackendApiSubsystem::EnsureGenericSoil(const FBackendSoilIdResponse& Callb
 	}
 }
 
-void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, int32 SoilId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, const FString& SoilType, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (GardenId <= 0)
 	{
@@ -1358,16 +1358,17 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 		return;
 	}
 
-	if (SoilId <= 0)
+	const FString NormalizedSoilType = SoilType.TrimStartAndEnd().ToUpper();
+	if (NormalizedSoilType.IsEmpty())
 	{
-		Callback.ExecuteIfBound(false, TEXT("SoilId must be > 0"), FBackendPlantInstanceDto{});
+		Callback.ExecuteIfBound(false, TEXT("SoilType is empty"), FBackendPlantInstanceDto{});
 		return;
 	}
 
 	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
 	BodyObj->SetNumberField(TEXT("gardenId"), GardenId);
 	BodyObj->SetNumberField(TEXT("speciesId"), SpeciesId);
-	BodyObj->SetNumberField(TEXT("soilId"), SoilId);
+	BodyObj->SetStringField(TEXT("soilType"), NormalizedSoilType);
 	BodyObj->SetNumberField(TEXT("locationX"), Location.X);
 	BodyObj->SetNumberField(TEXT("locationY"), Location.Y);
 	BodyObj->SetNumberField(TEXT("locationZ"), Location.Z);
@@ -1381,11 +1382,6 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 	if (HeightCm)
 	{
 		BodyObj->SetNumberField(TEXT("heightCm"), *HeightCm);
-	}
-
-	if (AgeDays)
-	{
-		BodyObj->SetNumberField(TEXT("ageDays"), *AgeDays);
 	}
 
 	if (HealthStatus && !HealthStatus->IsEmpty())
@@ -1566,7 +1562,6 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 	BodyObj->SetNumberField(TEXT("scaleY"), Scale.Y);
 	BodyObj->SetNumberField(TEXT("scaleZ"), Scale.Z);
 	BodyObj->SetNumberField(TEXT("heightCm"), HeightCm);
-	BodyObj->SetNumberField(TEXT("ageDays"), AgeDays);
 	BodyObj->SetStringField(TEXT("healthStatus"), HealthStatus);
 	BodyObj->SetStringField(TEXT("lastWatered"), LastWateredIso8601);
 
@@ -1717,5 +1712,67 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 	if (!Req->ProcessRequest())
 	{
 		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendPlantInstanceDto{});
+	}
+}
+
+void UBackendApiSubsystem::GenerateGardenTimeline(int32 GardenId, const FString& BloomDate, const FBackendGardenTimelineResponse& Callback)
+{
+	if (GardenId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("GardenId must be > 0"), FBackendGardenTimelineDto{});
+		return;
+	}
+
+	const FString NormalizedBloomDate = BloomDate.TrimStartAndEnd();
+	if (NormalizedBloomDate.IsEmpty())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Bloom date is empty"), FBackendGardenTimelineDto{});
+		return;
+	}
+
+	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
+	BodyObj->SetStringField(TEXT("bloomDate"), NormalizedBloomDate);
+
+	const FString BodyStr = FBackendJsonUtils::StringifyObject(BodyObj);
+	const FString Route = FString::Printf(TEXT("/prediction/garden/%d/timeline"), GardenId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("POST"), BodyStr);
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess)
+		{
+			FBackendGardenTimelineDto Timeline;
+
+			if (!bSuccess || !Response.IsValid())
+			{
+				Callback.ExecuteIfBound(false, TEXT("No response"), Timeline);
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to generate garden timeline")),
+					Timeline
+				);
+				return;
+			}
+
+			const FString Body = Response->GetContentAsString();
+			//UE_LOG(LogTemp, Warning, TEXT("GenerateGardenTimeline response from backend/model to Unreal (HTTP %d): %s"), Response->GetResponseCode(), *Body);
+
+			if (!FBackendJsonUtils::ParseGardenTimeline(Body, Timeline))
+			{
+				Callback.ExecuteIfBound(false, TEXT("Invalid garden timeline JSON"), Timeline);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Garden timeline generated"), Timeline);
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"), FBackendGardenTimelineDto{});
 	}
 }

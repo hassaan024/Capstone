@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
+#include "Components/Slider.h"
+#include "Components/TextBlock.h"
 #include "GardenSessionSubsystem.h"
 #include "GardenHUD.generated.h"
 
 class UBackendApiSubsystem;
 class UEditableTextBox;
+struct FBackendGardenTimelineDto;
 
 UCLASS()
 class LEAFYLEDGER_API UGardenHUD : public UUserWidget
@@ -26,11 +29,38 @@ public:
     UFUNCTION()
     void OnPressExit();
 
+	UFUNCTION()
+	void OnPressPredict();
+
+    UFUNCTION()
+	void OnValueChanged(float Value);
+
+	UFUNCTION(BlueprintCallable)
+	void ConfigureDateSlider(const FString& FirstPlantDate, const FString& BloomDate, int32 LongestTimeToBloom);
+
+	UFUNCTION(BlueprintCallable)
+	void HideDateSlider();
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_Save;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_Exit;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_Predict;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	USlider* SLDR_Date;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UTextBlock* TXT_CurrentDate;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_StartDate;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_EndDate;
 
 private:
 	void EnsureBloomDateInput();
@@ -45,6 +75,10 @@ private:
 	void HandleBloomDateTextCommitted(const FText& NewText, ETextCommit::Type CommitMethod);
 
 	void SavePendingPlants(int32 GardenId, const FString& BloomDate, bool bRefreshPlantedDates, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
+	void RestoreDateSliderFromDraft();
+	void ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Timeline);
+	void UpdateSliderDateText(float Value);
+	void ApplySliderDay(float Value);
 
 	UPROPERTY(Transient, meta = (BindWidget))
 	UEditableTextBox* ET_BloomDate = nullptr;
@@ -52,7 +86,18 @@ private:
 	FString LastValidBloomDateDisplay;
 	FString LastValidBloomDateBackend;
 	FString BloomDateValidationError;
+	float SliderWidth;
 	bool bBloomDateTextEventsBound = false;
 	bool bSuppressBloomDateCallbacks = false;
 	bool bBloomDateWasEdited = false;
+	bool bSliderWidthSet = false;
+	bool bDateSliderReady = false;
+	bool bSuppressSliderCallbacks = false;
+	bool bPredictionInFlight = false;
+	bool bRunPredictionAfterSave = false;
+	FDateTime SliderStartDate = FDateTime::MinValue();
+	FDateTime SliderBloomDate = FDateTime::MinValue();
+	int32 SliderStartDayIndex = 0;
+	int32 SliderBloomDayIndex = 0;
+	int32 SliderLongestTimeToBloom = 0;
 };
