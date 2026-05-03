@@ -84,7 +84,7 @@ const SaveDestinationModal: React.FC<SaveDestinationModalProps> = ({
             </div>
             <div className="save-dest-option-text">
               <span className="save-dest-option-name">Save Globally</span>
-              <span className="save-dest-option-desc">Available across all gardens in Unreal</span>
+              <span className="save-dest-option-desc">Available across all gardens in the app</span>
             </div>
             <input
               type="checkbox"
@@ -132,7 +132,7 @@ const SaveDestinationModal: React.FC<SaveDestinationModalProps> = ({
           {gardens.length === 0 && (
             <div className="save-dest-empty">
               <FaSeedling style={{ fontSize: '1.5rem', opacity: 0.4, marginBottom: '0.5rem' }} />
-              <p>No gardens yet. Create one in Unreal Engine to save plants to specific gardens.</p>
+              <p>No gardens yet. Create one in the app to save plants to specific gardens.</p>
             </div>
           )}
         </div>

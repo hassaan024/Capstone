@@ -16,6 +16,32 @@ interface Feature {
 
 const features: Feature[] = [
   {
+    id: "simulation",
+    label: "Planting Prediction",
+    short: "Know exactly when to plant each species.",
+    description:
+      "Set a target bloom date for your garden and LeafyLedger works backwards — factoring in each species' growth profile and local weather conditions to tell you the optimal planting date for every plant.",
+    bullets: [
+      "Per-species planting date based on your bloom target",
+      "Weather-informed growth estimates, not just averages",
+      "Never guess when to start your seeds again"
+    ],
+    color: "#f97316",
+  },
+  {
+    id: "gardens",
+    label: "Garden Digital Twin",
+    short: "A living 3D mirror of your real garden.",
+    description:
+      "Your garden exists both in the real world and inside the app as an interactive 3D environment. Plant species in the app, watch them grow through simulated stages, and use it as a planning canvas before touching a single seed.",
+    bullets: [
+      "3D visualization synced to your real garden layout",
+      "Growth stages from Seeded → Leafy → Bloom → Harvest",
+      "Experiment with plant combinations before buying seeds"
+    ],
+    color: "#38bdf8",
+  },
+  {
     id: "chatbot",
     label: "AI Chatbot Assistant",
     short: "Your context-aware gardening coach.",
@@ -27,19 +53,6 @@ const features: Feature[] = [
       "Customizable popup behaviors in Account Settings"
     ],
     color: "#22c55e",
-  },
-  {
-    id: "gardens",
-    label: "Garden Management",
-    short: "Organize your plant collections.",
-    description:
-      "Create virtual layouts for your different plots, link specific saved plants, and bind coordinates for hyper-accurate tracking.",
-    bullets: [
-      "Create multiple custom gardens",
-      "Assign precise geographical locations",
-      "Seamlessly link plants from your saved species"
-    ],
-    color: "#38bdf8",
   },
   {
     id: "database",
@@ -55,28 +68,15 @@ const features: Feature[] = [
     color: "#a855f7",
   },
   {
-    id: "simulation",
-    label: "Growth Simulation",
-    short: "Watch your garden evolve.",
-    description:
-      "Experience our Demo Garden to visualize how different combinations of tree, flower, and vegetable models visually transition through growth stages.",
-    bullets: [
-      "Dynamic Unreal Engine model categorizations",
-      "Visualize Seeded, Leafy, Bloom, and Peak stages",
-      "Experiment with layouts before buying seeds"
-    ],
-    color: "#f97316",
-  },
-  {
     id: "weather",
     label: "Weather Sync",
     short: "Hyper-local climate conditions.",
     description:
-      "Automatically map your garden locations to the Open-Meteo API to bring in real-time temperature, humidity, and atmospheric data.",
+      "Automatically map your garden locations to the Open-Meteo API to bring in real-time temperature, humidity, and atmospheric data that feeds directly into planting predictions.",
     bullets: [
       "Automated coordinate to weather-station mapping",
       "Live tracking of extreme temperature risks",
-      "Ensures your garden layout fits your local climate"
+      "Weather data feeds the planting prediction model"
     ],
     color: "#eab308",
   },
@@ -84,7 +84,7 @@ const features: Feature[] = [
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedId, setSelectedId] = useState<FeatureId>("chatbot");
+  const [selectedId, setSelectedId] = useState<FeatureId>("simulation");
 
   const selectedFeature =
     features.find((f) => f.id === selectedId) ?? features[0];
@@ -128,17 +128,16 @@ const LandingPage: React.FC = () => {
           <div className="leafy-landing-hero-inner leafy-landing-shell">
             <div className="leafy-hero-glow" />
             <h1 className="leafy-landing-title">
-              Grow <span>smarter gardens</span> with Leafy AI.
+              Plant at the <span>right time.</span> Watch your garden bloom.
             </h1>
             <p className="leafy-landing-subtitle">
-              LeafyLedger provides an intelligent chatbot, comprehensive plant databases, 
-              localized climate tracking, and beautiful simulations to help you visualize your garden before planting.
+              LeafyLedger predicts the optimal planting date for every species in your garden so everything blooms together — on your schedule. Pair that with a live 3D digital twin and AI-powered guidance.
             </p>
 
             <div className="leafy-landing-tag-row">
-              <div className="ll-pill">AI Assistance</div>
-              <div className="ll-pill">Weather Syncing</div>
-              <div className="ll-pill">Growth Simulation</div>
+              <div className="ll-pill">Bloom Date Prediction</div>
+              <div className="ll-pill">Garden Digital Twin</div>
+              <div className="ll-pill">Weather-Informed</div>
             </div>
 
             {/* <div className="leafy-landing-stats-row leafy-landing-stats-row--center">
@@ -221,10 +220,13 @@ const LandingPage: React.FC = () => {
                         type="button"
                         className={
                           "leafy-landing-feature-chip" +
-                          (isActive
-                            ? " leafy-landing-feature-chip--active"
-                            : "")
+                          (isActive ? " leafy-landing-feature-chip--active" : "")
                         }
+                        style={isActive ? {
+                          borderColor: feature.color,
+                          background: `${feature.color}22`,
+                          color: feature.color,
+                        } : {}}
                         onClick={() => setSelectedId(feature.id)}
                       >
                         {feature.label}
@@ -234,7 +236,10 @@ const LandingPage: React.FC = () => {
                 </div>
 
                 <div className="leafy-landing-feature-main">
-                  <div className="leafy-landing-feature-heading">
+                  <div
+                    className="leafy-landing-feature-heading"
+                    style={{ color: selectedFeature.color }}
+                  >
                     {selectedFeature.label}
                   </div>
                   <div className="leafy-landing-feature-short">
@@ -245,7 +250,7 @@ const LandingPage: React.FC = () => {
                   </p>
                   <ul className="leafy-landing-feature-list">
                     {selectedFeature.bullets.map((b) => (
-                      <li key={b}>{b}</li>
+                      <li key={b} style={{ marginBottom: "4px" }}>{b}</li>
                     ))}
                   </ul>
                 </div>

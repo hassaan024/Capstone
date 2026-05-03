@@ -15,6 +15,7 @@ interface SavedPlant {
   imgSrcUrls: { regular: string | null };
   family?: string;
   modelCategory?: string;
+  bloomDays?: number;
 }
 
 interface GardenSummary {
@@ -162,7 +163,8 @@ const SavedSpecies: React.FC = () => {
     scientific_name: plant.scientificName,
     image_url: plant.imgSrcUrls?.regular || '',
     family_common_name: plant.family,
-    modelCategory: plant.modelCategory
+    modelCategory: plant.modelCategory,
+    bloomDays: plant.bloomDays,
   });
 
   const activeGardenName = activeTab === 'global'
@@ -268,10 +270,11 @@ const SavedSpecies: React.FC = () => {
       </div>
 
       {/* Details Modal — with full garden-aware save management */}
-      <PlantDetailsModal 
-        isOpen={!!selectedPlantId} 
-        plantId={selectedPlantId!} 
+      <PlantDetailsModal
+        isOpen={!!selectedPlantId}
+        plantId={selectedPlantId!}
         onClose={() => setSelectedPlantId(null)}
+        bloomDays={savedPlants.find(p => p.perenualId === selectedPlantId)?.bloomDays}
         isSaved={selectedPlantId ? globalSavedIds.has(selectedPlantId) : false}
         onToggleSave={() => {
           if (!selectedPlantId || !user) return;

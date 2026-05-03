@@ -19,6 +19,8 @@ interface PlantDetailsModalProps {
   gardens?: Garden[];
   gardenSaveStates?: Record<number, boolean>;
   onSaveToDestinations?: (saveGlobal: boolean, gardenIds: number[]) => void;
+  // Pre-computed bloom days from the DB (shown if Perenual doesn't return one)
+  bloomDays?: number;
 }
 
 interface PlantDetails {
@@ -45,7 +47,7 @@ interface PlantDetails {
   edible_leaf?: boolean;
   invasive?: boolean;
   modelCategory?: string;
-  daysToBloom?: number;
+  bloomDays?: number;
 }
 
 import { FaSun, FaTint, FaThermometerHalf, FaFlask, FaInfoCircle, FaCheck, FaBookmark, FaRegBookmark, FaTimes } from 'react-icons/fa';
@@ -54,6 +56,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
   plantId, isOpen, onClose,
   isSaved, onToggleSave,
   gardens, gardenSaveStates, onSaveToDestinations,
+  bloomDays: bloomDaysProp,
 }) => {
   const { user } = useAuth();
   const [details, setDetails] = useState<PlantDetails | null>(null);
@@ -168,10 +171,10 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         <div className="modal-stat-value">{details.type}</div>
                       </div>
                     )}
-                    {details.daysToBloom && (
+                    {(details.bloomDays || bloomDaysProp) && (
                       <div className="modal-stat-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
-                        <div className="modal-stat-label" style={{ color: '#38bdf8' }}><FaInfoCircle /> Est. Days to Bloom</div>
-                        <div className="modal-stat-value" style={{ color: '#38bdf8' }}>{details.daysToBloom} Days</div>
+                        <div className="modal-stat-label" style={{ color: '#38bdf8' }}><FaInfoCircle /> Est. Time to Grow</div>
+                        <div className="modal-stat-value" style={{ color: '#38bdf8' }}>~{details.bloomDays ?? bloomDaysProp} Days</div>
                       </div>
                     )}
                     {details.cycle && (
@@ -273,7 +276,7 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                               >
                                   <FaTimes />
                               </button>
-                              Save plants for later to easily access and add them when you open the garden planner in Unreal Engine.
+                              Save plants for later to easily access and add them when you open the garden planner in the app.
                               {hasGardens && ' You can save globally or to a specific garden.'}
                           </div>
                       )}
