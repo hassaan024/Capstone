@@ -8,6 +8,7 @@ import { validatePostalCode } from "../utils/helper_functions";
 import { fetchLongLatFromZipAndCountry, api } from "../utils/api";
 import { sendLocationToBackend } from "../utils/backend_api";
 import { WeatherInfo } from "../components/WeatherInfoCard";
+import NotificationPanel from "../components/NotificationPanel";
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -268,6 +269,7 @@ export const Dashboard: React.FC = () => {
             <span className="dashboard-logo-text">LeafyLedger</span>
           </div>
           <div className="dashboard-header-actions">
+            <NotificationPanel />
             <button 
               onClick={() => navigate("/settings")} 
               className="ll-btn ll-btn-ghost dashboard-btn"
