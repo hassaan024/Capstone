@@ -59,6 +59,8 @@ private:
 	void CachePlantDetails(const TArray<FBackendPlantDto>& Plants);
 	static bool HasCompletePopupDetails(const FBackendPlantDto& Plant);
 	static FBackendPlantDto MergePlantDetails(const FBackendPlantDto& CachedPlant, const FBackendPlantDto& LoadedPlant);
+	static int32 GetStablePlantKey(const FBackendPlantDto& Plant);
+	static TArray<FBackendPlantDto> MergePlantsPreservingOrder(const TArray<FBackendPlantDto>& ExistingPlants, const TArray<FBackendPlantDto>& RefreshedPlants);
 	FString GetPreferredImageUrl(const FBackendPlantDto& Plant) const;
 	TArray<FString> GetImageUrlCandidates(const FBackendPlantDto& Plant) const;
 	void LogCachedPlants(const FString& CacheName, const TArray<FBackendPlantDto>& Plants) const;

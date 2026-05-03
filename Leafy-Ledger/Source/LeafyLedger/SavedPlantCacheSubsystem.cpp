@@ -57,7 +57,7 @@ void USavedPlantCacheSubsystem::RefreshSavedPlants(const FOnSavedPlantsRefreshed
 					return;
 				}
 
-				CachedPlants = Plants;
+				CachedPlants = MergePlantsPreservingOrder(CachedPlants, Plants);
 				bHasLoadedSavedPlants = true;
 				CachePlantDetails(CachedPlants);
 
@@ -130,12 +130,17 @@ void USavedPlantCacheSubsystem::RefreshGardenSavedPlants(int32 GardenId, const F
 					return;
 				}
 
-				CachedGardenPlants.Add(GardenId, Plants);
-				CachePlantDetails(Plants);
-				LogCachedPlants(FString::Printf(TEXT("Garden %d"), GardenId), Plants);
-				PrefetchPlantImages(Plants);
+				const TArray<FBackendPlantDto>* ExistingPlants = CachedGardenPlants.Find(GardenId);
+				const TArray<FBackendPlantDto> OrderedPlants = ExistingPlants
+					? MergePlantsPreservingOrder(*ExistingPlants, Plants)
+					: Plants;
 
-				ExecutePendingGardenRefreshCallbacks(GardenId, true, TEXT("Garden saved plants refreshed"), Plants);
+				CachedGardenPlants.Add(GardenId, OrderedPlants);
+				CachePlantDetails(OrderedPlants);
+				LogCachedPlants(FString::Printf(TEXT("Garden %d"), GardenId), OrderedPlants);
+				PrefetchPlantImages(OrderedPlants);
+
+				ExecutePendingGardenRefreshCallbacks(GardenId, true, TEXT("Garden saved plants refreshed"), OrderedPlants);
 			}
 		)
 	);
@@ -293,6 +298,63 @@ FBackendPlantDto USavedPlantCacheSubsystem::MergePlantDetails(const FBackendPlan
 	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Thumbnail, CachedPlant.ImgSrcUrls.Thumbnail);
 
 	return MergedPlant;
+}
+
+int32 USavedPlantCacheSubsystem::GetStablePlantKey(const FBackendPlantDto& Plant)
+{
+	return Plant.PerenualId > 0 ? Plant.PerenualId : Plant.Id;
+}
+
+TArray<FBackendPlantDto> USavedPlantCacheSubsystem::MergePlantsPreservingOrder(const TArray<FBackendPlantDto>& ExistingPlants, const TArray<FBackendPlantDto>& RefreshedPlants)
+{
+	if (ExistingPlants.Num() == 0 || RefreshedPlants.Num() <= 1)
+	{
+		return RefreshedPlants;
+	}
+
+	TMap<int32, FBackendPlantDto> RefreshedByKey;
+	for (const FBackendPlantDto& Plant : RefreshedPlants)
+	{
+		const int32 Key = GetStablePlantKey(Plant);
+		if (Key > 0)
+		{
+			RefreshedByKey.Add(Key, Plant);
+		}
+	}
+
+	TArray<FBackendPlantDto> OrderedPlants;
+	OrderedPlants.Reserve(RefreshedPlants.Num());
+
+	TSet<int32> AddedKeys;
+	for (const FBackendPlantDto& ExistingPlant : ExistingPlants)
+	{
+		const int32 Key = GetStablePlantKey(ExistingPlant);
+		if (Key <= 0 || AddedKeys.Contains(Key))
+		{
+			continue;
+		}
+
+		if (const FBackendPlantDto* RefreshedPlant = RefreshedByKey.Find(Key))
+		{
+			OrderedPlants.Add(*RefreshedPlant);
+			AddedKeys.Add(Key);
+		}
+	}
+
+	for (const FBackendPlantDto& RefreshedPlant : RefreshedPlants)
+	{
+		const int32 Key = GetStablePlantKey(RefreshedPlant);
+		if (Key <= 0 || !AddedKeys.Contains(Key))
+		{
+			OrderedPlants.Add(RefreshedPlant);
+			if (Key > 0)
+			{
+				AddedKeys.Add(Key);
+			}
+		}
+	}
+
+	return OrderedPlants;
 }
 
 FString USavedPlantCacheSubsystem::GetPreferredImageUrl(const FBackendPlantDto& Plant) const
