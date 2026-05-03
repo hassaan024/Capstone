@@ -14,6 +14,7 @@ import {
   growthStageFromRatio,
   TIMELINE_INTERVAL_DAYS,
 } from 'utils/plant-growth';
+import { computeModelCategory } from 'utils/model-category';
 import { GrowthStage } from 'enums/table_enums';
 import { DEMO_SPECIES, getDemoSpecies } from 'utils/demo-species';
 
@@ -46,6 +47,7 @@ interface SpeciesPayloadData {
   droughtTolerant: boolean | null;
   tropical: boolean | null;
   cycle: string | null;
+  modelCategory: string | null;
 }
 
 @Injectable()
@@ -116,7 +118,7 @@ export class PredictionService {
 
         const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
         const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
-        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm);
+        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
         const daysToMature = Math.min(daysNeeded, 730);
         const feasible = daysNeeded <= 730;
         const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
@@ -229,7 +231,7 @@ export class PredictionService {
     const speciesData = this.resolveSpecies(species);
     const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
     const demoData = getDemoSpecies(species.commonName, species.scientificName);
-    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm);
+    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
     const daysToMature = Math.min(daysNeeded, 730);
     const feasible = daysNeeded <= 730;
 
@@ -337,6 +339,7 @@ export class PredictionService {
         tropical: demo.tropical,
         cycle: demo.cycle,
         type: demo.type,
+        modelCategory: computeModelCategory(demo),
         careLevel: demo.careLevel,
         family: demo.family,
         genus: demo.genus,
@@ -371,6 +374,7 @@ export class PredictionService {
   /**
    * Returns accurate hardcoded species data if this is a demo species,
    * otherwise returns the DB species record unchanged.
+   * Always ensures modelCategory is populated.
    */
   private resolveSpecies(dbSpecies: {
     commonName: string;
@@ -386,13 +390,24 @@ export class PredictionService {
     droughtTolerant: boolean | null;
     tropical: boolean | null;
     cycle: string | null;
+    modelCategory?: string | null;
+    type?: string | null;
+    edibleFruit?: boolean | null;
+    edibleLeaf?: boolean | null;
+    cuisine?: boolean | null;
   }): SpeciesPayloadData {
     const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
     if (demo) {
       this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
-      return demo; // demo has all fields fully populated
+      return {
+        ...demo,
+        modelCategory: computeModelCategory(demo),
+      };
     }
-    return dbSpecies;
+    return {
+      ...dbSpecies,
+      modelCategory: dbSpecies.modelCategory ?? computeModelCategory(dbSpecies),
+    };
   }
 
   private buildPayload(
@@ -439,6 +454,7 @@ export class PredictionService {
         droughtTolerant: species.droughtTolerant ?? false,
         tropical: species.tropical ?? false,
         cycle: species.cycle ?? null,
+        modelCategory: species.modelCategory ?? 'flower',
       },
       soil: {
         type: soil.type,

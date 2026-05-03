@@ -24,6 +24,7 @@ class SpeciesInput(BaseModel):
     droughtTolerant: bool = False
     tropical: bool = False
     cycle: Optional[str] = None
+    modelCategory: Optional[str] = 'flower'  # flower | tree | vegetable
 
 
 class SoilInput(BaseModel):

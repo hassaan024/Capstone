@@ -1,4 +1,5 @@
 import logging
+import math
 from fastapi import APIRouter
 from ..schema import PredictionRequest, PredictionResponse, StressFactors
 
@@ -132,15 +133,62 @@ def _health_modifier(status: str | None) -> float:
     }.get(status or "", 1.0)
 
 
+# Expected days to reach mature height at average conditions (stress≈0.6),
+# keyed by (modelCategory, cycleType) → [Low, Medium, High] days.
+# Mirrors the TypeScript table in utils/plant-growth.ts — keep them in sync.
+_EXPECTED_DAYS: dict[tuple[str, str], list[int]] = {
+    ('flower',    'annual'):    [200, 120,  80],
+    ('flower',    'biennial'):  [730, 548, 365],
+    ('flower',    'perennial'): [730, 400, 250],
+    ('vegetable', 'annual'):    [130,  95,  65],
+    ('vegetable', 'perennial'): [300, 200, 130],
+    ('tree',      'annual'):    [130,  95,  65],
+    ('tree',      'perennial'): [730, 730, 600],
+}
+
+_REFERENCE_HEIGHT_CM: dict[str, float] = {
+    'flower':    60.0,
+    'vegetable': 90.0,
+    'tree':     300.0,
+}
+
+_AVG_STRESS = 0.6
+
+
+def _cycle_key(cycle: str | None) -> str:
+    c = (cycle or '').lower()
+    if 'annual' in c and 'biennial' not in c:
+        return 'annual'
+    if 'biennial' in c:
+        return 'biennial'
+    return 'perennial'
+
+
 def _base_daily_growth_cm(species) -> float:
     """
-    Baseline cm/day for each growth rate tier, scaled toward the species'
-    mature height so taller plants grow faster in absolute terms.
+    Baseline cm/day derived from a type+cycle-aware expected-days table so that
+    different plant categories have biologically realistic growth timelines:
+      • Annual flowers  → 80–200 days to mature
+      • Vegetables      → 65–130 days
+      • Trees           → 600–730 days (capped timeline)
+    The base rate is calibrated so that at average stress (0.6) the plant
+    reaches maxHeightCm in approximately the expected days.
     """
-    tier = {1: 0.10, 2: 0.30, 3: 0.65}.get(int(round(species.growthRate)), 0.20)
-    # Tall species get a mild multiplier (root of max height in metres)
-    height_scale = (species.maxHeightCm / 100) ** 0.4
-    return tier * height_scale
+    cat = (species.modelCategory or 'flower').lower()
+    ck  = _cycle_key(species.cycle)
+
+    key   = (cat, ck)
+    tiers = _EXPECTED_DAYS.get(key, _EXPECTED_DAYS[('flower', 'perennial')])
+
+    tier_idx  = max(0, min(2, int(round(species.growthRate)) - 1))
+    base_days = tiers[tier_idx]
+
+    ref_h      = _REFERENCE_HEIGHT_CM.get(cat, 60.0)
+    height_adj = math.pow(max(species.maxHeightCm, 1.0) / ref_h, 0.3)
+    expected_days = base_days * height_adj
+
+    # base_daily × AVG_STRESS × expected_days = maxHeightCm  →  solve for base_daily
+    return species.maxHeightCm / (expected_days * _AVG_STRESS)
 
 
 def _confidence(weather, plant, species) -> float:

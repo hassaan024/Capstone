@@ -22,3 +22,9 @@ export enum GrowthStage {
   Fruiting = 'Fruiting',
   Dormant = 'Dormant',
 }
+
+export enum ModelCategory {
+  flower = 'flower',
+  tree = 'tree',
+  vegetable = 'vegetable',
+}
