@@ -54,6 +54,11 @@ namespace
 		Obj->TryGetStringField(TEXT("commonName"), OutPlant.CommonName);
 		Obj->TryGetStringField(TEXT("scientificName"), OutPlant.ScientificName);
 		Obj->TryGetStringField(TEXT("modelCategory"), OutPlant.ModelCategory);
+
+		if (Obj->TryGetNumberField(TEXT("bloomDays"), NumberValue) || Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
+		{
+			OutPlant.DaysToBloom = static_cast<int32>(NumberValue);
+		}
 	}
 }
 
@@ -140,7 +145,7 @@ bool FBackendJsonUtils::ParsePerenualPlantDetails(const FString& JsonString, FBa
 	Obj->TryGetStringField(TEXT("growth_rate"), OutPlant.GrowthRateText);
 	Obj->TryGetStringField(TEXT("modelCategory"), OutPlant.ModelCategory);
 
-	if (Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
+	if (Obj->TryGetNumberField(TEXT("bloomDays"), NumberValue) || Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
 	{
 		OutPlant.DaysToBloom = static_cast<int32>(NumberValue);
 	}
@@ -357,7 +362,7 @@ bool FBackendJsonUtils::ParsePlantArray(const FString& JsonString, TArray<FBacke
 
 		Obj->TryGetStringField(TEXT("modelCategory"), Plant.ModelCategory);
 
-		if (Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
+		if (Obj->TryGetNumberField(TEXT("bloomDays"), NumberValue) || Obj->TryGetNumberField(TEXT("daysToBloom"), NumberValue))
 		{
 			Plant.DaysToBloom = static_cast<int32>(NumberValue);
 		}

@@ -99,6 +99,7 @@ private:
     void ApplyPlantImageTexture(UTexture2D* Texture);
     void QueueDeferredPlantImageCrop(UTexture2D* Texture);
     void SetTextOrNA(UTextBlock* TextBlock, const FString& Value);
+    void SetBloomDays(int32 DaysToBloom);
     void ConfigureDetailTextWrapping();
     void ApplyWrapTextAt(UTextBlock* TextBlock);
     void RefreshTextLayout();

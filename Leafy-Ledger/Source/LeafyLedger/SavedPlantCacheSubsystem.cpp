@@ -237,6 +237,64 @@ void USavedPlantCacheSubsystem::CachePlantDetails(const TArray<FBackendPlantDto>
 	}
 }
 
+bool USavedPlantCacheSubsystem::HasCompletePopupDetails(const FBackendPlantDto& Plant)
+{
+	return !Plant.SunlightText.IsEmpty()
+		&& !Plant.WateringFreq.IsEmpty()
+		&& (!Plant.Maintenance.IsEmpty() || !Plant.CareLevel.IsEmpty())
+		&& !Plant.Type.IsEmpty()
+		&& !Plant.HardinessZones.IsEmpty()
+		&& Plant.DaysToBloom > 0
+		&& !Plant.Cycle.IsEmpty()
+		&& (!Plant.GrowthRateText.IsEmpty() || Plant.GrowthRate > 0);
+}
+
+FBackendPlantDto USavedPlantCacheSubsystem::MergePlantDetails(const FBackendPlantDto& CachedPlant, const FBackendPlantDto& LoadedPlant)
+{
+	FBackendPlantDto MergedPlant = LoadedPlant;
+
+	if (MergedPlant.Id <= 0)
+	{
+		MergedPlant.Id = CachedPlant.Id;
+	}
+	if (MergedPlant.PerenualId <= 0)
+	{
+		MergedPlant.PerenualId = CachedPlant.PerenualId;
+	}
+	if (MergedPlant.DaysToBloom <= 0)
+	{
+		MergedPlant.DaysToBloom = CachedPlant.DaysToBloom;
+	}
+	if (MergedPlant.ModelCategory.IsEmpty())
+	{
+		MergedPlant.ModelCategory = CachedPlant.ModelCategory;
+	}
+	if (MergedPlant.CommonName.IsEmpty())
+	{
+		MergedPlant.CommonName = CachedPlant.CommonName;
+	}
+	if (MergedPlant.ScientificName.IsEmpty())
+	{
+		MergedPlant.ScientificName = CachedPlant.ScientificName;
+	}
+
+	auto CopyImageIfEmpty = [](FString& Target, const FString& Source)
+	{
+		if (Target.IsEmpty())
+		{
+			Target = Source;
+		}
+	};
+
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Original, CachedPlant.ImgSrcUrls.Original);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Regular, CachedPlant.ImgSrcUrls.Regular);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Medium, CachedPlant.ImgSrcUrls.Medium);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Small, CachedPlant.ImgSrcUrls.Small);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Thumbnail, CachedPlant.ImgSrcUrls.Thumbnail);
+
+	return MergedPlant;
+}
+
 FString USavedPlantCacheSubsystem::GetPreferredImageUrl(const FBackendPlantDto& Plant) const
 {
 	if (!Plant.ImgSrcUrls.Regular.IsEmpty())
@@ -391,10 +449,16 @@ void USavedPlantCacheSubsystem::GetOrLoadPlantDetails(int32 PerenualId, const FB
 		return;
 	}
 
+	FBackendPlantDto CachedPlantSnapshot;
+	const bool bHasCachedPlant = PlantDetailsCache.Contains(PerenualId);
 	if (const FBackendPlantDto* CachedPlant = PlantDetailsCache.Find(PerenualId))
 	{
-		Callback.ExecuteIfBound(true, TEXT("Using cached plant details"), *CachedPlant);
-		return;
+		CachedPlantSnapshot = *CachedPlant;
+		if (HasCompletePopupDetails(*CachedPlant))
+		{
+			Callback.ExecuteIfBound(true, TEXT("Using cached plant details"), *CachedPlant);
+			return;
+		}
 	}
 
 	if (TArray<FBackendPlantDetailsResponse>* ExistingPending = PendingPlantDetailsCallbacks.Find(PerenualId))
@@ -421,7 +485,7 @@ void USavedPlantCacheSubsystem::GetOrLoadPlantDetails(int32 PerenualId, const FB
 	Api->GetPerenualPlantDetails(
 		PerenualId,
 		FBackendPlantDetailsResponse::CreateWeakLambda(this,
-			[this, PerenualId](bool bSuccess, const FString& Message, const FBackendPlantDto& Plant)
+			[this, PerenualId, bHasCachedPlant, CachedPlantSnapshot](bool bSuccess, const FString& Message, const FBackendPlantDto& Plant)
 			{
 				if (!bSuccess)
 				{
@@ -429,7 +493,7 @@ void USavedPlantCacheSubsystem::GetOrLoadPlantDetails(int32 PerenualId, const FB
 					return;
 				}
 
-				FinishPlantDetailsWithSuccess(PerenualId, Plant);
+				FinishPlantDetailsWithSuccess(PerenualId, bHasCachedPlant ? MergePlantDetails(CachedPlantSnapshot, Plant) : Plant);
 			}
 		)
 	);

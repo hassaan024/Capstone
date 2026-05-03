@@ -57,6 +57,8 @@ private:
 	void WarmAllGardenSavedPlantCaches();
 	void CachePlantDetails(const FBackendPlantDto& Plant);
 	void CachePlantDetails(const TArray<FBackendPlantDto>& Plants);
+	static bool HasCompletePopupDetails(const FBackendPlantDto& Plant);
+	static FBackendPlantDto MergePlantDetails(const FBackendPlantDto& CachedPlant, const FBackendPlantDto& LoadedPlant);
 	FString GetPreferredImageUrl(const FBackendPlantDto& Plant) const;
 	TArray<FString> GetImageUrlCandidates(const FBackendPlantDto& Plant) const;
 	void LogCachedPlants(const FString& CacheName, const TArray<FBackendPlantDto>& Plants) const;
