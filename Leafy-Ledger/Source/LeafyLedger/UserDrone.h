@@ -9,6 +9,14 @@ class APlant;
 class AUserDroneController;
 class UPlantObject;
 
+UENUM(BlueprintType)
+enum class EGardenEditMode : uint8
+{
+	Plant UMETA(DisplayName = "Plant"),
+	Paint UMETA(DisplayName = "Paint"),
+	Delete UMETA(DisplayName = "Delete")
+};
+
 UCLASS()
 class LEAFYLEDGER_API AUserDrone : public ACharacter
 {
@@ -49,6 +57,7 @@ private:
 	FVector MouseDragStart;
 	APlant* PreviewPlant = nullptr;
 	FTransform DragOriginalTransform;
+	EGardenEditMode CurrentEditMode = EGardenEditMode::Plant;
 #pragma endregion
 
 #pragma region Tick Functions
@@ -60,8 +69,11 @@ private:
 #pragma region Helper Functions
 private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
+	bool GetMousePlantHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
 	void TrackPlacedPlant(APlant* PlantActor);
+	void DeletePlant(APlant* PlantActor);
+	void CancelActivePlantInteraction();
 	FString FindPredictedPlantedDateForSpecies(int32 SpeciesId) const;
 	bool HasPredictedPlantingDates() const;
 	bool TryDateToDayIndex(const FString& DateText, int32& OutDayIndex) const;
@@ -79,6 +91,12 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetSelectedPlantData(UPlantObject* InPlantData);
+
+	UFUNCTION(BlueprintCallable)
+	void SetGardenEditMode(EGardenEditMode NewMode);
+
+	UFUNCTION(BlueprintCallable)
+	EGardenEditMode GetGardenEditMode() const { return CurrentEditMode; }
 
 	TSubclassOf<APlant> GetDefaultPlantClass() const { return DefaultPlantClass; }
 };

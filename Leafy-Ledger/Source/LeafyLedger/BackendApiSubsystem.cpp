@@ -1715,6 +1715,45 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 	}
 }
 
+void UBackendApiSubsystem::DeletePlantInstance(int32 PlantInstanceId, const FBackendOperationResponse& Callback)
+{
+	if (PlantInstanceId <= 0)
+	{
+		Callback.ExecuteIfBound(false, TEXT("PlantInstanceId must be > 0"));
+		return;
+	}
+
+	const FString Route = FString::Printf(TEXT("/plant-instance/%d"), PlantInstanceId);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = CreateRequest(Route, TEXT("DELETE"));
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[Callback](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+		{
+			if (!bWasSuccessful)
+			{
+				Callback.ExecuteIfBound(false, TEXT("Request failed"));
+				return;
+			}
+
+			if (!UBackendApiSubsystem::IsHttpSuccess(Response))
+			{
+				Callback.ExecuteIfBound(
+					false,
+					UBackendApiSubsystem::BuildErrorMessage(Response, TEXT("Failed to delete plant instance"))
+				);
+				return;
+			}
+
+			Callback.ExecuteIfBound(true, TEXT("Plant instance deleted"));
+		}
+	);
+
+	if (!Req->ProcessRequest())
+	{
+		Callback.ExecuteIfBound(false, TEXT("Failed to start request"));
+	}
+}
+
 void UBackendApiSubsystem::GenerateGardenTimeline(int32 GardenId, const FString& BloomDate, const FBackendGardenTimelineResponse& Callback)
 {
 	if (GardenId <= 0)

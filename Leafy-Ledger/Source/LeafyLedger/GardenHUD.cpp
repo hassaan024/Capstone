@@ -102,6 +102,21 @@ bool UGardenHUD::Initialize()
 		BTN_Predict->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPredict);
 	}
 
+	if (BTN_PlantMode)
+	{
+		BTN_PlantMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPlantMode);
+	}
+
+	if (BTN_PaintMode)
+	{
+		BTN_PaintMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPaintMode);
+	}
+
+	if (BTN_DeleteMode)
+	{
+		BTN_DeleteMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressDeleteMode);
+	}
+
 	if (SLDR_Date)
 	{
 		SLDR_Date->OnValueChanged.AddDynamic(this, &UGardenHUD::OnValueChanged);
@@ -424,7 +439,42 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 
 		if (Plant.bPendingDelete)
 		{
-			continue;
+			if (Plant.BackendPlantInstanceId <= 0)
+			{
+				continue;
+			}
+
+			TWeakObjectPtr<UGardenHUD> WeakThis(this);
+			BackendApi->DeletePlantInstance(
+				Plant.BackendPlantInstanceId,
+				FBackendOperationResponse::CreateLambda(
+					[WeakThis, GardenSession, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSuccess, const FString& Message)
+					{
+						if (!bSuccess)
+						{
+							UE_LOG(LogTemp, Error, TEXT("DeletePlantInstance failed: %s"), *Message);
+							return;
+						}
+
+						UE_LOG(
+							LogTemp,
+							Log,
+							TEXT("Plant instance deleted. LocalId=%s BackendPlantInstanceId=%d"),
+							*Plant.LocalId.ToString(),
+							Plant.BackendPlantInstanceId
+						);
+
+						GardenSession->MarkPlantDeleted(Plant.LocalId);
+
+						if (WeakThis.IsValid())
+						{
+							WeakThis->SavePendingPlants(GardenId, BloomDate, bRefreshPlantedDates, Plants, i + 1);
+						}
+					}
+				)
+			);
+
+			return;
 		}
 
 		if (Plant.bPendingCreate && Plant.SpeciesId <= 0)
@@ -712,21 +762,20 @@ void UGardenHUD::OnValueChanged(float Value)
 	ApplySliderDay(Value);
 	UpdateSliderDateText(Value);
 
-	if (!bSliderWidthSet)
-	{
-		SliderWidth = SLDR_Date->GetCachedGeometry().GetLocalSize().X;
+	//if (!bSliderWidthSet)
+	//{
+	//	SliderWidth = SLDR_Date->GetCachedGeometry().GetLocalSize().X;
 
-		if (SliderWidth > 0.0f)
-		{
-			bSliderWidthSet = true;
-		}
-	}
+	//	if (SliderWidth > 0.0f)
+	//	{
+	//		bSliderWidthSet = true;
+	//	}
+	//}
 
 	//float TextWidth = TXT_CurrentDate->GetCachedGeometry().GetLocalSize().X;
-
-	TXT_CurrentDate->SetRenderTranslation(FVector2D(Value * SliderWidth, 0.0f));
-
 	//TXT_CurrentDate->SetRenderTranslation(FVector2D((Value * SliderWidth) - (TextWidth * 0.5f), 0.0f));
+
+	//TXT_CurrentDate->SetRenderTranslation(FVector2D(Value * SliderWidth, 0.0f));
 }
 
 void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FString& BloomDate, int32 LongestTimeToBloom)
@@ -763,7 +812,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	}
 
 	bDateSliderReady = true;
-	bSliderWidthSet = false;
+	//bSliderWidthSet = false;
 
 	SLDR_Date->SetStepSize(1.0f / static_cast<float>(SliderLongestTimeToBloom));
 	SLDR_Date->SetIsEnabled(true);
@@ -802,7 +851,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 void UGardenHUD::HideDateSlider()
 {
 	bDateSliderReady = false;
-	bSliderWidthSet = false;
+	//bSliderWidthSet = false;
 	SliderLongestTimeToBloom = 0;
 
 	if (SLDR_Date)
@@ -1003,5 +1052,33 @@ void UGardenHUD::ApplySliderDay(float Value)
 	if (AGardenTimeManager* TimeManager = FindGardenTimeManager(GetWorld()))
 	{
 		TimeManager->SetCurrentDayIndex(DayIndex);
+	}
+}
+
+void UGardenHUD::OnPressPlantMode()
+{
+	SetGardenMode(EGardenEditMode::Plant);
+}
+
+void UGardenHUD::OnPressPaintMode()
+{
+	SetGardenMode(EGardenEditMode::Paint);
+}
+
+void UGardenHUD::OnPressDeleteMode()
+{
+	SetGardenMode(EGardenEditMode::Delete);
+}
+
+void UGardenHUD::SetGardenMode(EGardenEditMode NewMode)
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+	{
+		Drone->SetGardenEditMode(NewMode);
 	}
 }

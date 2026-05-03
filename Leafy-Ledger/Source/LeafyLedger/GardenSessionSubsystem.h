@@ -154,6 +154,9 @@ public:
 	void MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId, const FString& PlantedDate = TEXT(""));
 
 	UFUNCTION(BlueprintCallable)
+	void MarkPlantDeleted(const FGuid& LocalId);
+
+	UFUNCTION(BlueprintCallable)
 	bool SetPlantPlantedDateByBackendId(int32 BackendPlantInstanceId, const FString& PlantedDate);
 
 	FGuid AddPlantPlacement(
