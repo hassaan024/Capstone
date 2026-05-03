@@ -7,6 +7,7 @@ import { CreateGardenDto } from './dto/create-garden.dto';
 import { UpdateGardenDto } from './dto/update-garden.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
+import { computeBloomDays } from 'utils/plant-growth';
 
 @Injectable()
 export class GardenService {
@@ -25,6 +26,8 @@ export class GardenService {
 
     if (typeStr.includes('flower')) return 'flower';
 
+    if (typeStr.includes('tree')) return 'tree';
+
     if (
       typeStr.includes('vegetable') ||
       species.edibleFruit ||
@@ -37,19 +40,14 @@ export class GardenService {
       return 'vegetable';
     }
 
-    if (species.scientificName?.includes('Malus')) {
-      return 'tree';
-    }
+    if (species.scientificName?.includes('Malus')) return 'tree';
 
     return 'flower';
   }
 
   private mapSpeciesWithCategory(species: any) {
     const modelCategory = this.computeModelCategory(species);
-    let daysToBloom = 0;
-    if (modelCategory === 'flower') daysToBloom = 20;
-    else if (modelCategory === 'vegetable') daysToBloom = 30;
-    else if (modelCategory === 'tree') daysToBloom = 50;
+    const bloomDays = species.bloomDays ?? computeBloomDays(species);
 
     return {
       ...species,
@@ -57,7 +55,7 @@ export class GardenService {
         ? species.commonName.charAt(0).toUpperCase() + species.commonName.slice(1)
         : species.commonName,
       modelCategory,
-      daysToBloom,
+      bloomDays,
     };
   }
 

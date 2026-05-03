@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from 'database/database.service';
 import { SearchPlantsQueryDto } from './dto/search-plants-query.dto';
 import { celsiusToFahrenheit, cmToFeet, inchesToFeet, metersToFeet, mmToFeet } from 'utils/util-functions';
+import { computeBloomDays } from 'utils/plant-growth';
 
 const BASE_PERENUAL_URL = 'https://perenual.com/api/v2/';
 
@@ -35,11 +36,11 @@ export class PerenualService {
       const typeStr = (p.type || p.cycle || '').toLowerCase();
       let modelCategory = 'flower';
 
-      // If Perenual explicitly tagged it as a flower, trust that over edible flags
       if (typeStr.includes('flower')) {
         modelCategory = 'flower';
+      } else if (typeStr.includes('tree')) {
+        modelCategory = 'tree';
       } else if (
-        // Vegetable: edible signals or explicit vegetable/herb/fruit type
         typeStr.includes('vegetable') ||
         p.edible_fruit ||
         p.edible_leaf ||
@@ -50,16 +51,29 @@ export class PerenualService {
       ) {
         modelCategory = 'vegetable';
       } else if (p.scientific_name?.[0]?.includes('Malus')) {
-        // Tree: only via scientific-name hints so behavior matches the list endpoint
         modelCategory = 'tree';
       }
 
-      let daysToBloom = 0;
-      if (modelCategory === 'flower') daysToBloom = 20;
-      else if (modelCategory === 'vegetable') daysToBloom = 30;
-      else if (modelCategory === 'tree') daysToBloom = 50;
+      // Estimate bloom days via the growth model when Perenual provides the
+      // required fields. If they're missing (e.g. the search-list endpoint),
+      // omit it — the frontend will simply not show the pill.
+      const growthRate = Number(p.growth_rate);
+      const maxHeightFt = Number(
+        p.dimensions?.max_value ?? p.dimension?.max_value,
+      );
+      const bloomDays =
+        Number.isFinite(growthRate) && Number.isFinite(maxHeightFt)
+          ? computeBloomDays({
+              commonName: p.common_name ?? '',
+              scientificName: Array.isArray(p.scientific_name)
+                ? p.scientific_name[0] ?? ''
+                : p.scientific_name ?? '',
+              growthRate,
+              maxHeight: maxHeightFt,
+            })
+          : undefined;
 
-      return { ...p, modelCategory, daysToBloom };
+      return { ...p, modelCategory, bloomDays };
     };
 
     if (data.data && Array.isArray(data.data)) {

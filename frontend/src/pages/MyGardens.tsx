@@ -39,6 +39,7 @@ interface GardenDetailPlant {
     commonName: string;
     scientificName: string;
     cycle?: string | null;
+    bloomDays?: number | null;
   };
   soil: { type: string };
 }
@@ -129,29 +130,17 @@ const MyGardens: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Planted-date helper
   // If Unreal has set plantedDate, use it. Otherwise derive it as:
-  //   plantedDate = bloomDate - daysToBloom(category)
-  // where daysToBloom is: flower=20, vegetable=30, tree=50 days.
+  //   plantedDate = bloomDate - species.bloomDays
+  // where bloomDays is the per-species estimate from the growth model.
   // ---------------------------------------------------------------------------
-  const DAYS_TO_BLOOM: Record<string, number> = { flower: 20, vegetable: 30, tree: 50 };
-
   const computePlantedDate = (p: GardenDetailPlant): string | null => {
     // 1. Unreal explicitly set it
     if (p.plantedDate) return p.plantedDate;
 
-    // 2. Derive from bloomDate - daysToBloom
-    if (detail?.bloomDate) {
-      const category = mapPlantToVisualCategory({
-        type: p.species.type,
-        cycle: p.species.cycle,
-        scientificName: p.species.scientificName,
-        commonName: p.species.commonName,
-        cuisine: p.species.cuisine,
-        edibleFruit: p.species.edibleFruit,
-        edibleLeaf: p.species.edibleLeaf,
-      });
-      const days = DAYS_TO_BLOOM[category] ?? 20;
+    // 2. Derive from bloomDate - bloomDays
+    if (detail?.bloomDate && p.species.bloomDays) {
       const bloomMs = new Date(detail.bloomDate).getTime();
-      return new Date(bloomMs - days * 24 * 60 * 60 * 1000).toISOString();
+      return new Date(bloomMs - p.species.bloomDays * 24 * 60 * 60 * 1000).toISOString();
     }
 
     return null;
@@ -439,7 +428,7 @@ const MyGardens: React.FC = () => {
             <FaSeedling style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }} />
             <p style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>No gardens yet</p>
             <p style={{ lineHeight: 1.6 }}>
-              Create a garden to start organizing and saving plants. You can also create gardens in <strong>Unreal Engine</strong> and sync them to your account.
+              Create a garden to start organizing and saving plants. You can also create gardens in <strong>the app</strong> and sync them to your account.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
               <button 
@@ -746,7 +735,7 @@ const MyGardens: React.FC = () => {
                   <>
                     {detail.plants.length === 0 ? (
                       <p style={{ color: 'rgba(255,255,255,0.5)' }}>
-                        No plants in this garden yet. Add them from Unreal.
+                        No plants in this garden yet. Add them from the app.
                       </p>
                     ) : (
                       <>
@@ -799,7 +788,7 @@ const MyGardens: React.FC = () => {
                         <FaBookmark style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.4 }} />
                         <p>No plants saved to <strong>{detail.name}</strong> yet.</p>
                         <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.6 }}>
-                          Browse species and save them to this garden so they're ready when you open Unreal.
+                          Browse species and save them to this garden so they're ready when you open the app.
                         </p>
                         <button 
                           className="browse-chip active"
@@ -868,7 +857,7 @@ const MyGardens: React.FC = () => {
                     
                     {detail.plants.length === 0 ? (
                       <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '2rem' }}>
-                        No plants to track. Add plants from Unreal first.
+                        No plants to track. Add plants from the app first.
                       </p>
                     ) : (
                       <div className="browse-grid">
@@ -877,7 +866,7 @@ const MyGardens: React.FC = () => {
                             key={p.id}
                             plant={{
                               ...p,
-                              // Use Unreal's plantedDate if set; otherwise derive from bloomDate - daysToBloom
+                              // Use Unreal's plantedDate if set; otherwise derive from bloomDate - bloomDays
                               plantedDate: computePlantedDate(p),
                             }}
                             currentTimestamp={currentTimestamp}
