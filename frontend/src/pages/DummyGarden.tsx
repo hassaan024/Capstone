@@ -5,6 +5,7 @@ import GardenPlantCard from '../components/GardenPlantCard';
 import { FaSeedling, FaMapMarkerAlt, FaClock, FaGlobe, FaSearch, FaChartBar, FaExclamationTriangle, FaLeaf, FaTint, FaProjectDiagram } from 'react-icons/fa';
 import PlantStageTrackerCard from '../components/PlantStageTrackerCard';
 import { mapPlantToVisualCategory } from '../utils/plantVisualCategory';
+import PlantDetailsModal from '../components/PlantDetailsModal';
 
 const MOCK_GARDEN = {
   id: 0,
@@ -26,8 +27,10 @@ const MOCK_GARDEN = {
       lastWatered: new Date(Date.now() - 3600000 * 24 * 4).toISOString(),
       plantedDate: "2026-07-31T00:00:00.000Z", // bloomDate (Aug 30) - 30 days
       species: {
+        perenualId: 5022,
         commonName: "tomato",
         scientificName: "Lycopersicon esculentum 'Big Beef'",
+        family: "Solanaceae",
         type: "Fruit",
         flowers: true,
         cuisine: true,
@@ -50,8 +53,10 @@ const MOCK_GARDEN = {
       lastWatered: new Date(Date.now() - 3600000 * 24).toISOString(),
       plantedDate: "2026-07-11T00:00:00.000Z", // bloomDate (Aug 30) - 50 days
       species: {
+        perenualId: 351,
         commonName: "Akane Apple",
         scientificName: "Malus 'Akane'",
+        family: "Rosaceae",
         type: "tree",
         flowers: false,
         cuisine: true,
@@ -74,8 +79,10 @@ const MOCK_GARDEN = {
       lastWatered: new Date(Date.now() - 3600000 * 6).toISOString(),
       plantedDate: "2026-08-10T00:00:00.000Z", // bloomDate (Aug 30) - 20 days
       species: {
+        perenualId: 575,
         commonName: "lily of the Nile",
         scientificName: "Agapanthus (group)",
+        family: "Amaryllidaceae",
         type: "Bulb",
         flowers: true,
         cuisine: false,
@@ -98,6 +105,7 @@ const DummyGarden: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [subTab, setSubTab] = useState<'grid' | 'track'>('grid');
+  const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
   
   // Timeline dates for Track tab
   const timelineDates = useMemo(() => {
@@ -131,7 +139,7 @@ const DummyGarden: React.FC = () => {
     const plants = MOCK_GARDEN.plants;
     const uniqueSpecies = new Set(plants.map(p => p.species.commonName.toLowerCase())).size;
     const categories = plants.reduce((acc: any, p) => {
-      const cat = mapPlantToVisualCategory({
+      const cat = (p.species as any).modelCategory || mapPlantToVisualCategory({
         type: p.species.type,
         flowers: p.species.flowers,
         cuisine: p.species.cuisine,
@@ -411,7 +419,18 @@ const DummyGarden: React.FC = () => {
             ) : (
               <div className="browse-grid">
                 {filteredPlants.map((p) => (
-                  <GardenPlantCard key={p.id} plant={p as any} />
+                  <GardenPlantCard 
+                    key={p.id} 
+                    plant={p as any} 
+                    onClick={() => {
+                      if (p.species.perenualId) {
+                        // Dummy garden does not have the modal implemented in this file by default, 
+                        // but if we were to add it, we'd set a state here.
+                        // We will add the PlantDetailsModal to DummyGarden too.
+                        setSelectedPlantId(p.species.perenualId);
+                      }
+                    }}
+                  />
                 ))}
               </div>
             )}
@@ -473,6 +492,18 @@ const DummyGarden: React.FC = () => {
           </>
         )}
       </div>
+      {/* Details Modal */}
+      <PlantDetailsModal
+        isOpen={!!selectedPlantId}
+        plantId={selectedPlantId!}
+        onClose={() => setSelectedPlantId(null)}
+        isSaved={false} // dummy garden doesn't sync saves
+        onToggleSave={() => {}}
+        gardens={[]}
+        gardenSaveStates={{}}
+        onSaveToDestinations={() => {}}
+        bloomDays={MOCK_GARDEN.plants.find(p => p.species.perenualId === selectedPlantId)?.species.bloomDays}
+      />
     </div>
   );
 };

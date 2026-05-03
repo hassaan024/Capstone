@@ -87,7 +87,7 @@ const MyGardens: React.FC = () => {
     const plants = detail.plants;
     const uniqueSpecies = new Set(plants.map(p => p.species.commonName.toLowerCase())).size;
     const categories = plants.reduce((acc: any, p) => {
-      const cat = mapPlantToVisualCategory({
+      const cat = (p.species as any).modelCategory || mapPlantToVisualCategory({
         type: p.species.type,
         cycle: p.species.cycle,
         scientificName: p.species.scientificName,
@@ -770,7 +770,16 @@ const MyGardens: React.FC = () => {
                         ) : (
                           <div className="browse-grid">
                             {filteredPlants.map((p) => (
-                              <GardenPlantCard key={p.id} plant={{ ...p, plantedDate: p.creationTimestamp } as any} />
+                              <GardenPlantCard 
+                                key={p.id} 
+                                plant={{ ...p, plantedDate: p.plantedDate || p.creationTimestamp } as any} 
+                                onClick={() => {
+                                  if (p.species.perenualId) {
+                                    setSelectedSavedPlantId(p.species.perenualId);
+                                    setSelectedSavedPlantBloomDays(p.species.bloomDays ?? undefined);
+                                  }
+                                }}
+                              />
                             ))}
                           </div>
                         )}

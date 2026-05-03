@@ -31,7 +31,7 @@ const getStageEmojis = (category: string) => {
 const PlantStageTrackerCard: React.FC<PlantStageTrackerCardProps> = ({ plant, currentTimestamp, bloomTimestamp }) => {
   const { species, plantedDate } = plant;
   
-  const category = mapPlantToVisualCategory({
+  const category = (species as any).modelCategory || mapPlantToVisualCategory({
     type: species.type,
     cycle: species.cycle,
     scientificName: species.scientificName,
