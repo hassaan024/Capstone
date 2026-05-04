@@ -16,13 +16,13 @@ export const AVG_STRESS_FACTOR = 0.90;
 // adjust proportionally without swinging wildly.
 const EXPECTED_DAYS: Record<string, Record<string, [number, number, number]>> = {
   flower: {
-    annual:    [200, 120,  80],
-    biennial:  [730, 548, 365],
-    perennial: [730, 400, 250],
+    annual:    [105,  80,  65],  // anchored: Zinnia (High)=60, marigold/petunia (Med)=70-90
+    biennial:  [600, 450, 300],
+    perennial: [500, 210, 120],  // anchored: Louisiana Iris (Med)=210
   },
   vegetable: {
-    annual:    [130,  95,  65],
-    perennial: [300, 200, 130],
+    annual:    [120,  80,  55],  // anchored: Creole Tomato (Med)=80, Okra (High)=55
+    perennial: [270, 180, 110],
   },
   tree: {
     annual:    [130,  95,  65],
