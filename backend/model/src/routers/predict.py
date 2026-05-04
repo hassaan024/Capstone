@@ -167,7 +167,7 @@ _REFERENCE_HEIGHT_CM: dict[str, float] = {
 # formula below (weather * clamped-soil).  Lowered from 0.6 because sunlight
 # now uses type defaults (no longer 1.0 for species missing avgHoursSun) and
 # soil is clamped so it contributes less to the product.
-_AVG_STRESS = 0.38
+_AVG_STRESS = 0.65
 
 
 def _cycle_key(cycle: str | None) -> str:
