@@ -10,6 +10,7 @@ import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
 import { PerenualService } from 'perenual/perenual.service';
 import { computeBloomDays } from 'utils/plant-growth';
+import { computeModelCategory } from 'utils/model-category';
 
 @Injectable()
 export class SpeciesService {
@@ -116,45 +117,6 @@ export class SpeciesService {
     return { message: 'Species removed from garden' };
   }
 
-  // Compute 'modelCategory' dynamically for Unreal Engine and React clients.
-  // Rules are intentionally kept in sync with enrichWithModelCategory() in
-  // perenual.service.ts so browse-plants and saved-plants always agree.
-  private computeModelCategory(species: {
-    type?: string | null;
-    cycle?: string | null;
-    edibleFruit?: boolean | null;
-    edibleLeaf?: boolean | null;
-    cuisine?: boolean | null;
-    commonName?: string | null;
-    scientificName?: string | null;
-  }) {
-    const typeStr = (species.type || species.cycle || '').toLowerCase();
-
-    // Flower: Perenual explicitly tagged it as a flower
-    if (typeStr.includes('flower')) return 'flower';
-
-    // Tree: Perenual explicitly tagged it as a tree (takes priority over edible signals)
-    if (typeStr.includes('tree')) return 'tree';
-
-    // Vegetable: edible signals or explicit vegetable/herb/fruit type
-    if (
-      typeStr.includes('vegetable') ||
-      species.edibleFruit ||
-      species.edibleLeaf ||
-      species.cuisine ||
-      typeStr.includes('herb') ||
-      typeStr.includes('fruit') ||
-      species.commonName?.toLowerCase().includes('tomato')
-    ) {
-      return 'vegetable';
-    }
-
-    // Tree fallback: scientific-name hint
-    if (species.scientificName?.includes('Malus')) return 'tree';
-
-    return 'flower';
-  }
-
   private mapSpeciesWithCategory(speciesList: any[]) {
     return speciesList.map((species) => ({
       ...species,
@@ -162,7 +124,9 @@ export class SpeciesService {
         ? species.commonName.charAt(0).toUpperCase() +
           species.commonName.slice(1)
         : species.commonName,
-      modelCategory: this.computeModelCategory(species),
+      // Use the stored DB value; fall back to computing it for legacy records
+      // that were imported before modelCategory was added.
+      modelCategory: species.modelCategory ?? computeModelCategory(species),
       bloomDays: species.bloomDays ?? computeBloomDays(species),
     }));
   }

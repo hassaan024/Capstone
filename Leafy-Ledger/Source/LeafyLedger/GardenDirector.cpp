@@ -11,6 +11,7 @@
 #include "GardenHUD.h"
 #include "UserDrone.h"
 #include "Plant.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -49,6 +50,26 @@ namespace
 		}
 
 		return 30;
+	}
+
+	bool IsGardenDateSliderVisible(UWorld* World)
+	{
+		if (!World)
+		{
+			return false;
+		}
+
+		TArray<UUserWidget*> FoundWidgets;
+		UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, UGardenHUD::StaticClass(), false);
+		for (UUserWidget* Widget : FoundWidgets)
+		{
+			if (const UGardenHUD* GardenHUD = Cast<UGardenHUD>(Widget))
+			{
+				return GardenHUD->IsDateSliderVisible();
+			}
+		}
+
+		return false;
 	}
 }
 
@@ -108,6 +129,7 @@ void AGardenDirector::SpawnLoadedPlants()
 	TSubclassOf<APlant> PlantClass = UserDrone ? UserDrone->GetDefaultPlantClass() : APlant::StaticClass();
 
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
+	const bool bDateSliderVisible = IsGardenDateSliderVisible(GetWorld());
 	int32 BloomDayIndex = -1;
 	const bool bHasBloomDayIndex = TryDateToDayIndex(Draft.BloomDate, BloomDayIndex);
 	AGardenTimeManager* TimeManager = nullptr;
@@ -177,6 +199,8 @@ void AGardenDirector::SpawnLoadedPlants()
 		{
 			PlantActor->UpdateForDay(TimeManager->GetCurrentDayIndex());
 		}
+
+		PlantActor->SetPlantingDateTextVisible(bDateSliderVisible);
 	}
 }
 

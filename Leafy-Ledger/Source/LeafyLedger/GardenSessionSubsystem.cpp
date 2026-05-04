@@ -179,7 +179,7 @@ bool UGardenSessionSubsystem::UpdatePlantTransform(const FGuid& LocalId, const F
 		Plant.bPendingUpdate = true;
 	}
 
-	Draft.bHasUnsavedChanges = true;
+	RefreshDirtyState();
 	return true;
 }
 
@@ -200,7 +200,7 @@ bool UGardenSessionSubsystem::RemovePlantPlacement(const FGuid& LocalId)
 		Plant.bPendingUpdate = false;
 	}
 
-	Draft.bHasUnsavedChanges = true;
+	RefreshDirtyState();
 	return true;
 }
 
@@ -290,6 +290,15 @@ void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBacke
 	Plant.bPendingCreate = false;
 	Plant.bPendingUpdate = false;
 	Plant.bPendingDelete = false;
+	RefreshDirtyState();
+}
+
+void UGardenSessionSubsystem::MarkPlantDeleted(const FGuid& LocalId)
+{
+	const int32 Index = FindPlantIndexByLocalId(LocalId);
+	if (Index == INDEX_NONE) return;
+
+	Draft.Plants.RemoveAt(Index);
 	RefreshDirtyState();
 }
 

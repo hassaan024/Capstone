@@ -175,6 +175,64 @@ export class GardenService {
     }
   }
 
+  async getPlantingAlerts(userId: number) {
+    const gardens = await this.db.garden.findMany({
+      where: { ownerId: userId },
+      include: {
+        plants: {
+          include: {
+            species: true,
+          },
+        },
+      },
+    });
+
+    const alerts = [];
+    const now = new Date();
+    // Use start of today to ensure full 7 days inclusive check
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    for (const garden of gardens) {
+      for (const plant of garden.plants) {
+        let plantedDate: Date | null = null;
+        if (plant.plantedDate) {
+          plantedDate = new Date(plant.plantedDate);
+        } else if (garden.bloomDate && plant.species.bloomDays) {
+          const bloomMs = new Date(garden.bloomDate).getTime();
+          plantedDate = new Date(bloomMs - plant.species.bloomDays * 24 * 60 * 60 * 1000);
+        }
+
+        if (plantedDate) {
+          // Check if plantedDate is between today and 7 days from now (inclusive)
+          // We also include past dates up to 1 day if they missed it, or just strictly future?
+          // The user said: "if a plant date is approaching... notify a user 7 days before"
+          // Let's just do: today <= plantedDate <= 7 days from now
+          const pDateMidnight = new Date(plantedDate.getFullYear(), plantedDate.getMonth(), plantedDate.getDate());
+          if (pDateMidnight >= today && pDateMidnight <= sevenDaysFromNow) {
+            
+            // To ensure modelCategory is attached, we can optionally reuse the computeModelCategory logic
+            // from SpeciesService, but frontend also has mapPlantToVisualCategory as fallback.
+            // Let's just return what we have.
+            alerts.push({
+              plantInstanceId: plant.id,
+              gardenId: garden.id,
+              gardenName: garden.name,
+              species: plant.species,
+              plantedDate: plantedDate.toISOString(),
+              notificationDate: now.toISOString(),
+            });
+          }
+        }
+      }
+    }
+
+    // Sort alerts by plantedDate ascending (most urgent first)
+    alerts.sort((a, b) => new Date(a.plantedDate).getTime() - new Date(b.plantedDate).getTime());
+
+    return alerts;
+  }
+
   async remove(id: number) {
     try {
       return await this.db.garden.delete({

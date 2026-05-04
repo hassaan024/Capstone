@@ -14,6 +14,11 @@ void AGardenTimeManager::SetCurrentDayIndex(int32 NewDayIndex)
 	OnDayChanged.Broadcast(CurrentDayIndex);
 }
 
+void AGardenTimeManager::RefreshCurrentDay()
+{
+	OnDayChanged.Broadcast(CurrentDayIndex);
+}
+
 int32 AGardenTimeManager::GetCurrentDayIndex() const
 {
 	return CurrentDayIndex;

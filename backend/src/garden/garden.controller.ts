@@ -26,6 +26,11 @@ export class GardenController {
     return this.gardenService.findAll();
   }
 
+  @Get('alerts/:userId')
+  getAlerts(@Param('userId') userId: string) {
+    return this.gardenService.getPlantingAlerts(+userId);
+  }
+
   /** List gardens for a user (read-only web). Must be before @Get(':id'). */
   @Get('by-user/:userId')
   findByUser(@Param('userId') userId: string) {

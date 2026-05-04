@@ -64,12 +64,18 @@ void AUserDrone::UpdatePan()
 	if (!GetMouseGroundHit(CurrentHit)) return;
 
 	FVector CurrentLoc = CurrentHit.Location;
-	const FVector Delta = MouseDragStart - CurrentLoc;
+	FVector Delta = MouseDragStart - CurrentLoc;
+	Delta.Z = 0.0f;
 	AddActorWorldOffset(Delta, true);
 }
 
 void AUserDrone::UpdatePreviewPlant()
 {
+	if (CurrentEditMode != EGardenEditMode::Plant)
+	{
+		return;
+	}
+
 	if (!PreviewPlant) return;
 
 	FHitResult Hit;
@@ -92,6 +98,21 @@ void AUserDrone::UpdatePreviewPlant()
 
 void AUserDrone::LeftMousePressed()
 {
+	if (CurrentEditMode == EGardenEditMode::Delete)
+	{
+		FHitResult PlantHit;
+		if (GetMousePlantHit(PlantHit))
+		{
+			DeletePlant(Cast<APlant>(PlantHit.Actor));
+		}
+		return;
+	}
+
+	if (CurrentEditMode != EGardenEditMode::Plant)
+	{
+		return;
+	}
+
 	float MouseX, MouseY;
 	PC->GetMousePosition(MouseX, MouseY);
 
@@ -225,8 +246,49 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
 	Params.AddIgnoredActor(this);
 	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
 
+	TArray<AActor*> FoundPlants;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+	for (AActor* PlantActor : FoundPlants)
+	{
+		Params.AddIgnoredActor(PlantActor);
+	}
+
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
 	if (!bHit) return false;
+
+	OutHit = Hit;
+	return true;
+}
+
+bool AUserDrone::GetMousePlantHit(FHitResult& OutHit)
+{
+	if (!PC || !GetWorld())
+	{
+		return false;
+	}
+
+	float MouseX, MouseY;
+	PC->GetMousePosition(MouseX, MouseY);
+
+	FVector WorldLocation, WorldDirection;
+	PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
+
+	const FVector End = WorldLocation + WorldDirection * 100000.f;
+
+	FCollisionQueryParams Params;
+	Params.bReturnPhysicalMaterial = true;
+	Params.AddIgnoredActor(this);
+	if (PreviewPlant)
+	{
+		Params.AddIgnoredActor(PreviewPlant);
+	}
+
+	FHitResult Hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_Pawn, Params);
+	if (!bHit || !Cast<APlant>(Hit.Actor))
+	{
+		return false;
+	}
 
 	OutHit = Hit;
 	return true;
@@ -296,12 +358,9 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 			}
 			else
 			{
-				Plant->BloomDayIndex = TM->GlobalBloomDate;
-				Plant->PlantingDayIndex = Plant->BloomDayIndex - Plant->DaysToBloom;
-				Plant->WitherDayIndex = Plant->BloomDayIndex + Plant->DaysToWither;
+				Plant->UpdatePlantingDateText();
+				Plant->SetPlantingDateTextVisible(IsGardenDateSliderVisible());
 			}
-
-			Plant->UpdateForDay(TM->GetCurrentDayIndex());
 		}
 	}
 
@@ -392,6 +451,67 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 	UE_LOG(LogTemp, Log, TEXT("Tracked placed plant. LocalId=%s PerenualId=%d"), *LocalId.ToString(), PlantActor->PerenualId);
 }
 
+void AUserDrone::DeletePlant(APlant* PlantActor)
+{
+	if (!PlantActor)
+	{
+		return;
+	}
+
+	if (PlantActor->bIsTrackedInGardenDraft && GetGameInstance())
+	{
+		if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
+		{
+			GardenSession->RemovePlantPlacement(PlantActor->LocalPlantId);
+		}
+	}
+
+	if (PreviewPlant == PlantActor)
+	{
+		PreviewPlant = nullptr;
+	}
+
+	PlantActor->Destroy();
+	bDraggingRealPlant = false;
+	bSelectedPlantSpawned = false;
+}
+
+void AUserDrone::CancelActivePlantInteraction()
+{
+	if (!PreviewPlant)
+	{
+		bDraggingRealPlant = false;
+		bSelectedPlantSpawned = false;
+		return;
+	}
+
+	APlant* PlantActor = PreviewPlant;
+	PreviewPlant = nullptr;
+
+	if (bDraggingRealPlant)
+	{
+		PlantActor->SetActorTransform(DragOriginalTransform);
+	}
+	else if (bSelectedPlantSpawned)
+	{
+		PlantActor->Destroy();
+	}
+
+	bDraggingRealPlant = false;
+	bSelectedPlantSpawned = false;
+}
+
+void AUserDrone::SetGardenEditMode(EGardenEditMode NewMode)
+{
+	if (CurrentEditMode == NewMode)
+	{
+		return;
+	}
+
+	CancelActivePlantInteraction();
+	CurrentEditMode = NewMode;
+}
+
 FString AUserDrone::FindPredictedPlantedDateForSpecies(int32 SpeciesId) const
 {
 	if (SpeciesId <= 0 || !GetGameInstance())
@@ -480,6 +600,26 @@ void AUserDrone::HideGardenDateSlider() const
 	}
 }
 
+bool AUserDrone::IsGardenDateSliderVisible() const
+{
+	if (!GetWorld())
+	{
+		return false;
+	}
+
+	TArray<UUserWidget*> FoundWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(GetWorld(), FoundWidgets, UGardenHUD::StaticClass(), false);
+	for (UUserWidget* Widget : FoundWidgets)
+	{
+		if (const UGardenHUD* GardenHUD = Cast<UGardenHUD>(Widget))
+		{
+			return GardenHUD->IsDateSliderVisible();
+		}
+	}
+
+	return false;
+}
+
 void AUserDrone::MoveGardenToBloomDate() const
 {
 	if (!GetWorld())
@@ -529,6 +669,9 @@ void AUserDrone::ApplyPlacementSchedule(APlant* PlantActor, const FString& Plant
 	PlantActor->PlantingDayIndex = PlantingDayIndex;
 	PlantActor->BloomDayIndex = TimeManager->GlobalBloomDate;
 	PlantActor->DaysToBloom = FMath::Max(1, PlantActor->BloomDayIndex - PlantActor->PlantingDayIndex);
-	PlantActor->WitherDayIndex = PlantActor->BloomDayIndex + PlantActor->DaysToWither;
+	PlantActor->WitherDayIndex = PlantActor->DaysToWither > 0
+		? PlantActor->BloomDayIndex + PlantActor->DaysToWither
+		: MAX_int32;
 	PlantActor->UpdateForDay(TimeManager->GetCurrentDayIndex());
+	PlantActor->SetPlantingDateTextVisible(IsGardenDateSliderVisible());
 }

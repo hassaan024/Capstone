@@ -102,6 +102,21 @@ bool UGardenHUD::Initialize()
 		BTN_Predict->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPredict);
 	}
 
+	if (BTN_PlantMode)
+	{
+		BTN_PlantMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPlantMode);
+	}
+
+	if (BTN_PaintMode)
+	{
+		BTN_PaintMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPaintMode);
+	}
+
+	if (BTN_DeleteMode)
+	{
+		BTN_DeleteMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressDeleteMode);
+	}
+
 	if (SLDR_Date)
 	{
 		SLDR_Date->OnValueChanged.AddDynamic(this, &UGardenHUD::OnValueChanged);
@@ -389,13 +404,12 @@ void UGardenHUD::OnPressPredict()
 					return;
 				}
 
+				HUD->ApplyTimelineToPlantActors(Timeline);
 				HUD->ConfigureDateSlider(
 					FBloomDateUtils::FormatForBackend(EarliestPlantDate),
 					Timeline.BloomDate,
 					LongestTimeToBloom
 				);
-
-				HUD->ApplyTimelineToPlantActors(Timeline);
 			}
 		)
 	);
@@ -424,7 +438,42 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 
 		if (Plant.bPendingDelete)
 		{
-			continue;
+			if (Plant.BackendPlantInstanceId <= 0)
+			{
+				continue;
+			}
+
+			TWeakObjectPtr<UGardenHUD> WeakThis(this);
+			BackendApi->DeletePlantInstance(
+				Plant.BackendPlantInstanceId,
+				FBackendOperationResponse::CreateLambda(
+					[WeakThis, GardenSession, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSuccess, const FString& Message)
+					{
+						if (!bSuccess)
+						{
+							UE_LOG(LogTemp, Error, TEXT("DeletePlantInstance failed: %s"), *Message);
+							return;
+						}
+
+						UE_LOG(
+							LogTemp,
+							Log,
+							TEXT("Plant instance deleted. LocalId=%s BackendPlantInstanceId=%d"),
+							*Plant.LocalId.ToString(),
+							Plant.BackendPlantInstanceId
+						);
+
+						GardenSession->MarkPlantDeleted(Plant.LocalId);
+
+						if (WeakThis.IsValid())
+						{
+							WeakThis->SavePendingPlants(GardenId, BloomDate, bRefreshPlantedDates, Plants, i + 1);
+						}
+					}
+				)
+			);
+
+			return;
 		}
 
 		if (Plant.bPendingCreate && Plant.SpeciesId <= 0)
@@ -712,21 +761,20 @@ void UGardenHUD::OnValueChanged(float Value)
 	ApplySliderDay(Value);
 	UpdateSliderDateText(Value);
 
-	if (!bSliderWidthSet)
-	{
-		SliderWidth = SLDR_Date->GetCachedGeometry().GetLocalSize().X;
+	//if (!bSliderWidthSet)
+	//{
+	//	SliderWidth = SLDR_Date->GetCachedGeometry().GetLocalSize().X;
 
-		if (SliderWidth > 0.0f)
-		{
-			bSliderWidthSet = true;
-		}
-	}
+	//	if (SliderWidth > 0.0f)
+	//	{
+	//		bSliderWidthSet = true;
+	//	}
+	//}
 
 	//float TextWidth = TXT_CurrentDate->GetCachedGeometry().GetLocalSize().X;
-
-	TXT_CurrentDate->SetRenderTranslation(FVector2D(Value * SliderWidth, 0.0f));
-
 	//TXT_CurrentDate->SetRenderTranslation(FVector2D((Value * SliderWidth) - (TextWidth * 0.5f), 0.0f));
+
+	//TXT_CurrentDate->SetRenderTranslation(FVector2D(Value * SliderWidth, 0.0f));
 }
 
 void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FString& BloomDate, int32 LongestTimeToBloom)
@@ -763,7 +811,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	}
 
 	bDateSliderReady = true;
-	bSliderWidthSet = false;
+	//bSliderWidthSet = false;
 
 	SLDR_Date->SetStepSize(1.0f / static_cast<float>(SliderLongestTimeToBloom));
 	SLDR_Date->SetIsEnabled(true);
@@ -790,6 +838,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	{
 		TimeManager->GlobalBloomDate = SliderBloomDayIndex;
 		TimeManager->SetCurrentDayIndex(SliderStartDayIndex);
+		TimeManager->RefreshCurrentDay();
 	}
 
 	bSuppressSliderCallbacks = true;
@@ -797,12 +846,13 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	bSuppressSliderCallbacks = false;
 
 	UpdateSliderDateText(0.0f);
+	SetPlantingDateTextVisibilityForAllPlants(true);
 }
 
 void UGardenHUD::HideDateSlider()
 {
 	bDateSliderReady = false;
-	bSliderWidthSet = false;
+	//bSliderWidthSet = false;
 	SliderLongestTimeToBloom = 0;
 
 	if (SLDR_Date)
@@ -825,6 +875,13 @@ void UGardenHUD::HideDateSlider()
 	{
 		TXT_EndDate->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	SetPlantingDateTextVisibilityForAllPlants(false);
+}
+
+bool UGardenHUD::IsDateSliderVisible() const
+{
+	return bDateSliderReady && SLDR_Date && SLDR_Date->GetVisibility() == ESlateVisibility::Visible;
 }
 
 void UGardenHUD::RestoreDateSliderFromDraft()
@@ -973,8 +1030,29 @@ void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Tim
 		PlantActor->PlantingDayIndex = PlantingDayIndex;
 		PlantActor->BloomDayIndex = BloomDayIndex;
 		PlantActor->DaysToBloom = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
-		PlantActor->WitherDayIndex = BloomDayIndex + FMath::Max(1, PlantActor->DaysToWither);
-		PlantActor->UpdateForDay(SliderStartDayIndex);
+		PlantActor->WitherDayIndex = PlantActor->DaysToWither > 0
+			? BloomDayIndex + PlantActor->DaysToWither
+			: MAX_int32;
+		PlantActor->PlantingDate = FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex);
+		PlantActor->UpdatePlantingDateText();
+	}
+}
+
+void UGardenHUD::SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	TArray<AActor*> FoundPlants;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+	for (AActor* Actor : FoundPlants)
+	{
+		if (APlant* PlantActor = Cast<APlant>(Actor))
+		{
+			PlantActor->SetPlantingDateTextVisible(bVisible);
+		}
 	}
 }
 
@@ -1003,5 +1081,33 @@ void UGardenHUD::ApplySliderDay(float Value)
 	if (AGardenTimeManager* TimeManager = FindGardenTimeManager(GetWorld()))
 	{
 		TimeManager->SetCurrentDayIndex(DayIndex);
+	}
+}
+
+void UGardenHUD::OnPressPlantMode()
+{
+	SetGardenMode(EGardenEditMode::Plant);
+}
+
+void UGardenHUD::OnPressPaintMode()
+{
+	SetGardenMode(EGardenEditMode::Paint);
+}
+
+void UGardenHUD::OnPressDeleteMode()
+{
+	SetGardenMode(EGardenEditMode::Delete);
+}
+
+void UGardenHUD::SetGardenMode(EGardenEditMode NewMode)
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+	{
+		Drone->SetGardenEditMode(NewMode);
 	}
 }

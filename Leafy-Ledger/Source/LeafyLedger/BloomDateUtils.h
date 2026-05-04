@@ -19,6 +19,7 @@ struct FBloomDateUtils
 	static FString FormatForDisplay(const FDateTime& Date);
 	static FString FormatForBackend(const FDateTime& Date);
 	static FString NormalizeBackendDateString(const FString& InputText);
+	static FString DayIndexToDisplayDate(int32 DayIndex);
 
 private:
 	static bool TryParseDisplayDate(const FString& InputText, FDateTime& OutDate);

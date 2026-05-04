@@ -3,15 +3,13 @@
 #include "PlantSelect.h"
 #include "PlantObject.h"
 
-void UPlantSelect::AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Name, int32 DaysToBloom, int32 DaysToWither, FString ModelCategory, bool bIsDropdownToggle, bool bIsGlobalPlant)
+void UPlantSelect::AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Name, FString ModelCategory, bool bIsDropdownToggle, bool bIsGlobalPlant)
 {
 	UPlantObject* PlantObject = NewObject<UPlantObject>(this);
 
 	PlantObject->PerenualId = PerenualId;
 	PlantObject->SpeciesId = SpeciesId;
 	PlantObject->CommonName = Name;
-	PlantObject->DaysToBloom = DaysToBloom;
-	PlantObject->DaysToWither = DaysToWither;
 	PlantObject->ModelCategory = ModelCategory;
 	PlantObject->bIsDropdownToggle = bIsDropdownToggle;
 	PlantObject->bIsGlobalPlant = bIsGlobalPlant;
@@ -53,8 +51,6 @@ void UPlantSelect::RebuildPlantShelf()
 			Plant.PerenualId,
 			Plant.Id,
 			Plant.CommonName,
-			4,
-			6,
 			Plant.ModelCategory
 		);
 	}
@@ -74,8 +70,6 @@ void UPlantSelect::RebuildPlantShelf()
 		-1,
 		-1,
 		bAreGlobalPlantsVisible ? TEXT("Hide global plants") : TEXT("Show global plants"),
-		0,
-		0,
 		TEXT(""),
 		true,
 		false
@@ -91,8 +85,6 @@ void UPlantSelect::RebuildPlantShelf()
 			Plant.PerenualId,
 			Plant.Id,
 			Plant.CommonName,
-			4,
-			6,
 			Plant.ModelCategory,
 			false,
 			true

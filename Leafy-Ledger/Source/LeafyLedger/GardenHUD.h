@@ -8,6 +8,7 @@
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "GardenSessionSubsystem.h"
+#include "UserDrone.h"
 #include "GardenHUD.generated.h"
 
 class UBackendApiSubsystem;
@@ -32,6 +33,15 @@ public:
 	UFUNCTION()
 	void OnPressPredict();
 
+	UFUNCTION()
+	void OnPressPlantMode();
+
+	UFUNCTION()
+	void OnPressPaintMode();
+
+	UFUNCTION()
+	void OnPressDeleteMode();
+
     UFUNCTION()
 	void OnValueChanged(float Value);
 
@@ -41,6 +51,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void HideDateSlider();
 
+	bool IsDateSliderVisible() const;
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_Save;
 
@@ -49,6 +61,15 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_Predict;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_PlantMode;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_PaintMode;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_DeleteMode;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USlider* SLDR_Date;
@@ -79,6 +100,8 @@ private:
 	void ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Timeline);
 	void UpdateSliderDateText(float Value);
 	void ApplySliderDay(float Value);
+	void SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const;
+	void SetGardenMode(EGardenEditMode NewMode);
 
 	UPROPERTY(Transient, meta = (BindWidget))
 	UEditableTextBox* ET_BloomDate = nullptr;
@@ -90,7 +113,7 @@ private:
 	bool bBloomDateTextEventsBound = false;
 	bool bSuppressBloomDateCallbacks = false;
 	bool bBloomDateWasEdited = false;
-	bool bSliderWidthSet = false;
+	//bool bSliderWidthSet = false;
 	bool bDateSliderReady = false;
 	bool bSuppressSliderCallbacks = false;
 	bool bPredictionInFlight = false;

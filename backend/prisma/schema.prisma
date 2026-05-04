@@ -101,8 +101,11 @@ model Species {
   cycle          String?  
   // Life cycle (e.g., "Herbaceous Perennial")
 
-  type           String?  
-  // Plant type (e.g., "Fruit", "Herb"); reference
+  type           String?
+  // Plant type (e.g., "Fruit", "Herb"); raw value from Perenual
+
+  modelCategory  ModelCategory?
+  // Canonical ML category derived from type/edible flags — always flower | tree | vegetable
 
   maintenance    String?  
   // Maintenance level (e.g., "Moderate"); reference
@@ -286,4 +289,10 @@ enum SoilType {
   SILT
   PEAT
   CHALK
+}
+
+enum ModelCategory {
+  flower
+  tree
+  vegetable
 }
