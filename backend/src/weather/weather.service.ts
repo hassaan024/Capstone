@@ -106,22 +106,6 @@ export class WeatherService {
     this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
   }
 
-  private lastApiCallTime = 0;
-  private readonly MIN_API_INTERVAL_MS = 50;
-
-  private async rateLimitedFetch(url: string, retries = 3): Promise<Response> {
-    const wait = this.lastApiCallTime + this.MIN_API_INTERVAL_MS - Date.now();
-    if (wait > 0) await new Promise(r => setTimeout(r, wait));
-    this.lastApiCallTime = Date.now();
-    const res = await this.rateLimitedFetch(url);
-    if (res.status === 429 && retries > 0) {
-      this.logger.warn(`Rate limited by Open-Meteo, retrying in 3s (${retries} retries left)`);
-      await new Promise(r => setTimeout(r, 3000));
-      return this.rateLimitedFetch(url, retries - 1);
-    }
-    return res;
-  }
-
   // weather.service.ts
   async getWeatherForGameDate(
     latitude: number,
@@ -130,15 +114,15 @@ export class WeatherService {
     days: number,
   ): Promise<WeatherInfoDto[]> {
 
-    // Anchor to 1 year before the game date for seasonal accuracy.
-    // Cap end_date to yesterday — the Open-Meteo archive API does not serve future dates.
+    // Always fetch a full 730-day window anchored 1 year before the game date.
+    // This means one large request per garden location rather than many small ones.
     const gameDateStr = gameDate.toISOString().split('T')[0];
     const oneYearBeforeGame = goBackDays(gameDateStr, 365);
     const yesterday = goBackDays(new Date().toISOString().split('T')[0], 1);
-    const rawEndDate = goForwardDays(oneYearBeforeGame, days);
+    const rawEndDate = goForwardDays(oneYearBeforeGame, 730);
     const end_date = rawEndDate > yesterday ? yesterday : rawEndDate;
 
-    const cacheKey = `gameDate:${latitude},${longitude},${oneYearBeforeGame},${end_date}`;
+    const cacheKey = `gameDate:${latitude},${longitude},${oneYearBeforeGame}`;
     const cached = this.getCached<WeatherInfoDto[]>(cacheKey);
     if (cached) {
       this.logger.log(`Cache hit: ${cacheKey}`);
@@ -166,7 +150,7 @@ export class WeatherService {
       `&hourly=${hourly_args.join(',')}` +
       `&timezone=auto`;
 
-    const res = await this.rateLimitedFetch(url);
+    const res = await fetch(url);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -207,7 +191,7 @@ export class WeatherService {
     this.logger.log(`URL: ${url}`)
     this.logger.log(`Fetching current weather for ${latitude}, ${longitude}`);
 
-    const res = await this.rateLimitedFetch(url);
+    const res = await fetch(url);
 
     if (!res.ok) {
       const errorText = await res.text(); // or res.json()
@@ -298,7 +282,7 @@ export class WeatherService {
       `&start_date=${start_date}&end_date=${end_date}` +
       `&timezone=auto`;
 
-    const res = await this.rateLimitedFetch(url);
+    const res = await fetch(url);
     
     if (!res.ok) {
       const errorText = await res.text();
@@ -379,7 +363,7 @@ export class WeatherService {
       `&hourly=${hourly_args.join(',')}` +
       `&timezone=auto`;
 
-    const res = await this.rateLimitedFetch(url);
+    const res = await fetch(url);
     
     if (!res.ok) {
       const errorText = await res.text();
