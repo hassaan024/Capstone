@@ -233,6 +233,15 @@ export class PredictionService {
         }
         const suitable = suitabilityReasons.length === 0;
 
+        // Project how long full maturity would actually take given the observed
+        // growth rate from the simulation.  If conditions are poor (e.g. Okra in
+        // January) the plant barely grows, so weatherAdjustedDays will be much
+        // larger than daysToMature.  null means conditions are too poor to estimate.
+        const avgDailyGrowthCm = daysToMature > 0 ? currentHeight / daysToMature : 0;
+        const weatherAdjustedDays = avgDailyGrowthCm > 0.05
+          ? Math.min(Math.round(maxHeightCm / avgDailyGrowthCm), 730)
+          : null;
+
         return {
           plantInstanceId: plant.id,
           speciesName: plant.species.commonName,
@@ -247,6 +256,7 @@ export class PredictionService {
           suitabilityReasons,
           plantedDate: plantedDate.toISOString().split('T')[0],
           daysToMature,
+          weatherAdjustedDays,
           maxHeightCm,
           timeline,
         };
