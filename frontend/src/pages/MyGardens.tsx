@@ -56,6 +56,7 @@ interface SavedPlant {
   imgSrcUrls: { regular: string | null };
   family?: string;
   modelCategory?: string;
+  bloomDays?: number;
 }
 
 type GardenSubTab = 'plants' | 'saved' | 'track';
@@ -74,6 +75,7 @@ const MyGardens: React.FC = () => {
   const [gardenSavedPlants, setGardenSavedPlants] = useState<SavedPlant[]>([]);
   const [savedLoading, setSavedLoading] = useState(false);
   const [selectedSavedPlantId, setSelectedSavedPlantId] = useState<number | null>(null);
+  const [selectedSavedPlantBloomDays, setSelectedSavedPlantBloomDays] = useState<number | undefined>(undefined);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [globalSavedIds, setGlobalSavedIds] = useState<Set<number>>(new Set());
   const [savedPlantGardenStates, setSavedPlantGardenStates] = useState<Record<number, boolean>>({});
@@ -85,7 +87,7 @@ const MyGardens: React.FC = () => {
     const plants = detail.plants;
     const uniqueSpecies = new Set(plants.map(p => p.species.commonName.toLowerCase())).size;
     const categories = plants.reduce((acc: any, p) => {
-      const cat = mapPlantToVisualCategory({
+      const cat = (p.species as any).modelCategory || mapPlantToVisualCategory({
         type: p.species.type,
         cycle: p.species.cycle,
         scientificName: p.species.scientificName,
@@ -375,7 +377,8 @@ const MyGardens: React.FC = () => {
     scientific_name: plant.scientificName,
     image_url: plant.imgSrcUrls?.regular || '',
     family_common_name: plant.family,
-    modelCategory: plant.modelCategory
+    modelCategory: plant.modelCategory,
+    bloomDays: plant.bloomDays,
   });
 
   return (
@@ -767,7 +770,16 @@ const MyGardens: React.FC = () => {
                         ) : (
                           <div className="browse-grid">
                             {filteredPlants.map((p) => (
-                              <GardenPlantCard key={p.id} plant={{ ...p, plantedDate: p.creationTimestamp } as any} />
+                              <GardenPlantCard 
+                                key={p.id} 
+                                plant={{ ...p, plantedDate: p.plantedDate || p.creationTimestamp } as any} 
+                                onClick={() => {
+                                  if (p.species.perenualId) {
+                                    setSelectedSavedPlantId(p.species.perenualId);
+                                    setSelectedSavedPlantBloomDays(p.species.bloomDays ?? undefined);
+                                  }
+                                }}
+                              />
                             ))}
                           </div>
                         )}
@@ -804,7 +816,10 @@ const MyGardens: React.FC = () => {
                           <PlantCard
                             key={plant.id}
                             plant={mapSavedToCardProps(plant)}
-                            onClick={() => setSelectedSavedPlantId(plant.perenualId)}
+                            onClick={() => {
+                              setSelectedSavedPlantId(plant.perenualId);
+                              setSelectedSavedPlantBloomDays(plant.bloomDays);
+                            }}
                           />
                         ))}
                       </div>
@@ -895,6 +910,7 @@ const MyGardens: React.FC = () => {
         onSaveToDestinations={(saveGlobal, gardenIds) =>
           selectedSavedPlantId && handleSaveToDestinations(selectedSavedPlantId, saveGlobal, gardenIds)
         }
+        bloomDays={selectedSavedPlantBloomDays}
       />
 
       {/* Create Garden Modal */}

@@ -23,8 +23,10 @@ export function mapPlantToVisualCategory(species: PlantVisualInput): VisualCateg
   const t = ((species.type ?? '') + ' ' + (species.cycle ?? '')).toLowerCase().trim();
 
   // If Perenual explicitly tagged it as a flower, trust that over edible flags
-  // (e.g. sunflowers are edible but are flower models, not vegetable models)
   if (t.includes('flower')) return 'flower';
+
+  // Tree: Perenual explicitly tagged it as a tree (takes priority over edible signals)
+  if (t.includes('tree')) return 'tree';
 
   // Vegetable: edible signals OR vegetable/herb/fruit in type string
   const cuisine = Boolean(species.cuisine);
@@ -35,7 +37,7 @@ export function mapPlantToVisualCategory(species: PlantVisualInput): VisualCateg
   const isTomato = (species.commonName ?? '').toLowerCase().includes('tomato');
   if (vegByFlags || vegByType || isTomato) return 'vegetable';
 
-  // Tree: only via scientific name (Malus = apple trees)
+  // Tree fallback: only via scientific name (Malus = apple trees)
   if ((species.scientificName ?? '').includes('Malus')) return 'tree';
 
   // Default: flower

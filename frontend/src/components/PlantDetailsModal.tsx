@@ -171,12 +171,6 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                         <div className="modal-stat-value">{details.type}</div>
                       </div>
                     )}
-                    {(details.bloomDays || bloomDaysProp) && (
-                      <div className="modal-stat-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
-                        <div className="modal-stat-label" style={{ color: '#38bdf8' }}><FaInfoCircle /> Est. Time to Grow</div>
-                        <div className="modal-stat-value" style={{ color: '#38bdf8' }}>~{details.bloomDays ?? bloomDaysProp} Days</div>
-                      </div>
-                    )}
                     {details.cycle && (
                       <div className="modal-stat-box">
                         <div className="modal-stat-label"><FaCheck /> Life Cycle</div>
@@ -187,6 +181,12 @@ const PlantDetailsModal: React.FC<PlantDetailsModalProps> = ({
                       <div className="modal-stat-box">
                         <div className="modal-stat-label"><FaCheck /> Growth Rate</div>
                         <div className="modal-stat-value">{details.growth_rate}</div>
+                      </div>
+                    )}
+                    {(details.bloomDays || bloomDaysProp) && (
+                      <div className="modal-stat-box" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
+                        <div className="modal-stat-label" style={{ color: '#38bdf8' }}><FaInfoCircle /> Est. Time to Bloom</div>
+                        <div className="modal-stat-value" style={{ color: '#38bdf8' }}>~{details.bloomDays ?? bloomDaysProp} Days</div>
                       </div>
                     )}
                   </div>
