@@ -3,6 +3,7 @@ import { DatabaseService } from 'database/database.service';
 import { SearchPlantsQueryDto } from './dto/search-plants-query.dto';
 import { celsiusToFahrenheit, cmToFeet, inchesToFeet, metersToFeet, mmToFeet } from 'utils/util-functions';
 import { computeBloomDays } from 'utils/plant-growth';
+import { computeModelCategory } from 'utils/model-category';
 
 const BASE_PERENUAL_URL = 'https://perenual.com/api/v2/';
 
@@ -29,38 +30,21 @@ export class PerenualService {
   private enrichWithModelCategory(data: any) {
     if (!data) return data;
 
-    // NOTE: The search-list endpoint does NOT return a `type` field, so plants
-    // without explicit edible/vegetable signals fall through to 'flower' by default.
-    // We keep the same rule for the detail endpoint for consistency with saved plants.
     const enrichPlant = (p: any) => {
-      const typeStr = (p.type || p.cycle || '').toLowerCase();
-      let modelCategory = 'flower';
+      const modelCategory = computeModelCategory({
+        type: p.type,
+        cycle: p.cycle,
+        edibleFruit: p.edible_fruit,
+        edibleLeaf: p.edible_leaf,
+        cuisine: p.cuisine,
+        commonName: p.common_name,
+        scientificName: Array.isArray(p.scientific_name)
+          ? p.scientific_name[0]
+          : p.scientific_name,
+      });
 
-      if (typeStr.includes('flower')) {
-        modelCategory = 'flower';
-      } else if (typeStr.includes('tree')) {
-        modelCategory = 'tree';
-      } else if (
-        typeStr.includes('vegetable') ||
-        p.edible_fruit ||
-        p.edible_leaf ||
-        p.cuisine ||
-        typeStr.includes('herb') ||
-        typeStr.includes('fruit') ||
-        p.common_name?.toLowerCase().includes('tomato')
-      ) {
-        modelCategory = 'vegetable';
-      } else if (p.scientific_name?.[0]?.includes('Malus')) {
-        modelCategory = 'tree';
-      }
-
-      // Estimate bloom days via the growth model when Perenual provides the
-      // required fields. If they're missing (e.g. the search-list endpoint),
-      // omit it — the frontend will simply not show the pill.
       const growthRate = Number(p.growth_rate);
-      const maxHeightFt = Number(
-        p.dimensions?.max_value ?? p.dimension?.max_value,
-      );
+      const maxHeightFt = Number(p.dimensions?.max_value ?? p.dimension?.max_value);
       const bloomDays =
         Number.isFinite(growthRate) && Number.isFinite(maxHeightFt)
           ? computeBloomDays({
@@ -70,6 +54,8 @@ export class PerenualService {
                 : p.scientific_name ?? '',
               growthRate,
               maxHeight: maxHeightFt,
+              modelCategory,
+              cycle: p.cycle,
             })
           : undefined;
 
@@ -169,6 +155,16 @@ export class PerenualService {
       data.type,
     );
 
+    const modelCategory = computeModelCategory({
+      type: data.type,
+      cycle: data.cycle,
+      edibleFruit: data.edible_fruit,
+      edibleLeaf: data.edible_leaf,
+      cuisine: data.cuisine,
+      commonName: data.common_name,
+      scientificName: data.scientific_name?.[0],
+    });
+
     const speciesData = {
       commonName: data.common_name || 'Unknown',
       scientificName: data.scientific_name?.[0] || 'Unknown',
@@ -179,6 +175,7 @@ export class PerenualService {
       origin: data.origin || [],
       type: data.type || null,
       cycle: data.cycle || null,
+      modelCategory,
       growthRate: this.mapGrowthRate(data.growth_rate) ?? 2,
 
       wateringFreq: data.watering || null,

@@ -14,6 +14,7 @@ import {
   growthStageFromRatio,
   TIMELINE_INTERVAL_DAYS,
 } from 'utils/plant-growth';
+import { computeModelCategory } from 'utils/model-category';
 import { GrowthStage } from 'enums/table_enums';
 import { DEMO_SPECIES, getDemoSpecies } from 'utils/demo-species';
 
@@ -46,6 +47,7 @@ interface SpeciesPayloadData {
   droughtTolerant: boolean | null;
   tropical: boolean | null;
   cycle: string | null;
+  modelCategory: string | null;
 }
 
 @Injectable()
@@ -116,7 +118,7 @@ export class PredictionService {
 
         const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
         const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
-        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm);
+        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
         const daysToMature = Math.min(daysNeeded, 730);
         const feasible = daysNeeded <= 730;
         const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
@@ -193,6 +195,37 @@ export class PredictionService {
           ? new Date(plantedDate.getTime() + daysNeeded * 86400000).toISOString().split('T')[0]
           : null;
 
+        // Derive suitability from the already-computed stress factors.
+        // No extra API calls — we aggregate what the ML model already returned.
+        const suitabilityReasons: string[] = [];
+        if (timeline.length > 0) {
+          const avg = (fn: (e: TimelineEntry) => number) =>
+            timeline.reduce((sum, e) => sum + fn(e), 0) / timeline.length;
+
+          const avgTempStress    = avg(e => e.stressFactors.temperature);
+          const avgSunStress     = avg(e => e.stressFactors.sunlight);
+          const avgWaterStress   = avg(e => e.stressFactors.water);
+          const avgOverallStress = avg(e => e.stressFactors.overall);
+
+          if (avgTempStress < 0.25)
+            suitabilityReasons.push(
+              `Temperature is outside the comfortable range for ${plant.species.commonName} throughout most of the growth period.`,
+            );
+          if (avgSunStress < 0.25)
+            suitabilityReasons.push(
+              `Available sunlight is consistently below what ${plant.species.commonName} needs to grow well.`,
+            );
+          if (avgWaterStress < 0.25)
+            suitabilityReasons.push(
+              `Soil moisture and precipitation are too low for ${plant.species.commonName} during this period.`,
+            );
+          if (avgOverallStress < 0.10)
+            suitabilityReasons.push(
+              `Combined growing conditions are too poor for meaningful growth — consider a different planting window.`,
+            );
+        }
+        const suitable = suitabilityReasons.length === 0;
+
         return {
           plantInstanceId: plant.id,
           speciesName: plant.species.commonName,
@@ -203,6 +236,8 @@ export class PredictionService {
               `The slider will show partial growth (~${Math.round((730 / daysNeeded) * 100)}% of max height). ` +
               `Earliest feasible bloom date: ${earliestFeasibleBloomDate}.`
             : null,
+          suitable,
+          suitabilityReasons,
           plantedDate: plantedDate.toISOString().split('T')[0],
           daysToMature,
           maxHeightCm,
@@ -229,7 +264,7 @@ export class PredictionService {
     const speciesData = this.resolveSpecies(species);
     const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
     const demoData = getDemoSpecies(species.commonName, species.scientificName);
-    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm);
+    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
     const daysToMature = Math.min(daysNeeded, 730);
     const feasible = daysNeeded <= 730;
 
@@ -337,6 +372,7 @@ export class PredictionService {
         tropical: demo.tropical,
         cycle: demo.cycle,
         type: demo.type,
+        modelCategory: computeModelCategory(demo),
         careLevel: demo.careLevel,
         family: demo.family,
         genus: demo.genus,
@@ -371,6 +407,7 @@ export class PredictionService {
   /**
    * Returns accurate hardcoded species data if this is a demo species,
    * otherwise returns the DB species record unchanged.
+   * Always ensures modelCategory is populated.
    */
   private resolveSpecies(dbSpecies: {
     commonName: string;
@@ -386,13 +423,24 @@ export class PredictionService {
     droughtTolerant: boolean | null;
     tropical: boolean | null;
     cycle: string | null;
+    modelCategory?: string | null;
+    type?: string | null;
+    edibleFruit?: boolean | null;
+    edibleLeaf?: boolean | null;
+    cuisine?: boolean | null;
   }): SpeciesPayloadData {
     const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
     if (demo) {
       this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
-      return demo; // demo has all fields fully populated
+      return {
+        ...demo,
+        modelCategory: computeModelCategory(demo),
+      };
     }
-    return dbSpecies;
+    return {
+      ...dbSpecies,
+      modelCategory: dbSpecies.modelCategory ?? computeModelCategory(dbSpecies),
+    };
   }
 
   private buildPayload(
@@ -439,6 +487,7 @@ export class PredictionService {
         droughtTolerant: species.droughtTolerant ?? false,
         tropical: species.tropical ?? false,
         cycle: species.cycle ?? null,
+        modelCategory: species.modelCategory ?? 'flower',
       },
       soil: {
         type: soil.type,
