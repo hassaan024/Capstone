@@ -64,7 +64,8 @@ void AUserDrone::UpdatePan()
 	if (!GetMouseGroundHit(CurrentHit)) return;
 
 	FVector CurrentLoc = CurrentHit.Location;
-	const FVector Delta = MouseDragStart - CurrentLoc;
+	FVector Delta = MouseDragStart - CurrentLoc;
+	Delta.Z = 0.0f;
 	AddActorWorldOffset(Delta, true);
 }
 
@@ -245,6 +246,13 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
 	Params.AddIgnoredActor(this);
 	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
 
+	TArray<AActor*> FoundPlants;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+	for (AActor* PlantActor : FoundPlants)
+	{
+		Params.AddIgnoredActor(PlantActor);
+	}
+
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
 	if (!bHit) return false;
 
@@ -350,12 +358,9 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 			}
 			else
 			{
-				Plant->BloomDayIndex = TM->GlobalBloomDate;
-				Plant->PlantingDayIndex = Plant->BloomDayIndex - Plant->DaysToBloom;
-				Plant->WitherDayIndex = Plant->BloomDayIndex + Plant->DaysToWither;
+				Plant->UpdatePlantingDateText();
+				Plant->SetPlantingDateTextVisible(IsGardenDateSliderVisible());
 			}
-
-			Plant->UpdateForDay(TM->GetCurrentDayIndex());
 		}
 	}
 
@@ -595,6 +600,26 @@ void AUserDrone::HideGardenDateSlider() const
 	}
 }
 
+bool AUserDrone::IsGardenDateSliderVisible() const
+{
+	if (!GetWorld())
+	{
+		return false;
+	}
+
+	TArray<UUserWidget*> FoundWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(GetWorld(), FoundWidgets, UGardenHUD::StaticClass(), false);
+	for (UUserWidget* Widget : FoundWidgets)
+	{
+		if (const UGardenHUD* GardenHUD = Cast<UGardenHUD>(Widget))
+		{
+			return GardenHUD->IsDateSliderVisible();
+		}
+	}
+
+	return false;
+}
+
 void AUserDrone::MoveGardenToBloomDate() const
 {
 	if (!GetWorld())
@@ -644,6 +669,9 @@ void AUserDrone::ApplyPlacementSchedule(APlant* PlantActor, const FString& Plant
 	PlantActor->PlantingDayIndex = PlantingDayIndex;
 	PlantActor->BloomDayIndex = TimeManager->GlobalBloomDate;
 	PlantActor->DaysToBloom = FMath::Max(1, PlantActor->BloomDayIndex - PlantActor->PlantingDayIndex);
-	PlantActor->WitherDayIndex = PlantActor->BloomDayIndex + PlantActor->DaysToWither;
+	PlantActor->WitherDayIndex = PlantActor->DaysToWither > 0
+		? PlantActor->BloomDayIndex + PlantActor->DaysToWither
+		: MAX_int32;
 	PlantActor->UpdateForDay(TimeManager->GetCurrentDayIndex());
+	PlantActor->SetPlantingDateTextVisible(IsGardenDateSliderVisible());
 }

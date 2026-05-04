@@ -51,6 +51,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void HideDateSlider();
 
+	bool IsDateSliderVisible() const;
+
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
     UButton* BTN_Save;
 
@@ -98,6 +100,7 @@ private:
 	void ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Timeline);
 	void UpdateSliderDateText(float Value);
 	void ApplySliderDay(float Value);
+	void SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const;
 	void SetGardenMode(EGardenEditMode NewMode);
 
 	UPROPERTY(Transient, meta = (BindWidget))

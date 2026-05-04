@@ -404,13 +404,12 @@ void UGardenHUD::OnPressPredict()
 					return;
 				}
 
+				HUD->ApplyTimelineToPlantActors(Timeline);
 				HUD->ConfigureDateSlider(
 					FBloomDateUtils::FormatForBackend(EarliestPlantDate),
 					Timeline.BloomDate,
 					LongestTimeToBloom
 				);
-
-				HUD->ApplyTimelineToPlantActors(Timeline);
 			}
 		)
 	);
@@ -839,6 +838,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	{
 		TimeManager->GlobalBloomDate = SliderBloomDayIndex;
 		TimeManager->SetCurrentDayIndex(SliderStartDayIndex);
+		TimeManager->RefreshCurrentDay();
 	}
 
 	bSuppressSliderCallbacks = true;
@@ -846,6 +846,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	bSuppressSliderCallbacks = false;
 
 	UpdateSliderDateText(0.0f);
+	SetPlantingDateTextVisibilityForAllPlants(true);
 }
 
 void UGardenHUD::HideDateSlider()
@@ -874,6 +875,13 @@ void UGardenHUD::HideDateSlider()
 	{
 		TXT_EndDate->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	SetPlantingDateTextVisibilityForAllPlants(false);
+}
+
+bool UGardenHUD::IsDateSliderVisible() const
+{
+	return bDateSliderReady && SLDR_Date && SLDR_Date->GetVisibility() == ESlateVisibility::Visible;
 }
 
 void UGardenHUD::RestoreDateSliderFromDraft()
@@ -1022,8 +1030,29 @@ void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Tim
 		PlantActor->PlantingDayIndex = PlantingDayIndex;
 		PlantActor->BloomDayIndex = BloomDayIndex;
 		PlantActor->DaysToBloom = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
-		PlantActor->WitherDayIndex = BloomDayIndex + FMath::Max(1, PlantActor->DaysToWither);
-		PlantActor->UpdateForDay(SliderStartDayIndex);
+		PlantActor->WitherDayIndex = PlantActor->DaysToWither > 0
+			? BloomDayIndex + PlantActor->DaysToWither
+			: MAX_int32;
+		PlantActor->PlantingDate = FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex);
+		PlantActor->UpdatePlantingDateText();
+	}
+}
+
+void UGardenHUD::SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	TArray<AActor*> FoundPlants;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+	for (AActor* Actor : FoundPlants)
+	{
+		if (APlant* PlantActor = Cast<APlant>(Actor))
+		{
+			PlantActor->SetPlantingDateTextVisible(bVisible);
+		}
 	}
 }
 

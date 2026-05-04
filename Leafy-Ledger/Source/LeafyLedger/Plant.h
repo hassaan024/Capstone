@@ -6,6 +6,7 @@
 
 class UStaticMesh;
 class UStaticMeshComponent;
+class UTextRenderComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UPlantObject;
@@ -15,8 +16,8 @@ class LEAFYLEDGER_API APlant : public AActor
 {
 	GENERATED_BODY()
 
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-		UStaticMeshComponent* PreviewMesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* PreviewMesh;
 
 public:
 	APlant();
@@ -50,6 +51,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
 		FString PlantingDate;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Planting Date")
+		float PlantingDateTextPadding = 30.f;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Planting Date")
+		bool bPlantingDateTextEnabled = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 		int32 WitherDayIndex = 0;
@@ -142,4 +149,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		UStaticMeshComponent* GetPreviewMesh() const { return PreviewMesh; }
+
+	UFUNCTION(BlueprintCallable)
+		void UpdatePlantingDateText();
+
+	UFUNCTION(BlueprintCallable)
+		void SetPlantingDateTextVisible(bool bVisible);
+
+	void RefreshPlantingDateTextVisibility();
+
+	UTextRenderComponent* GetPlantingDateTextRender() const;
 };

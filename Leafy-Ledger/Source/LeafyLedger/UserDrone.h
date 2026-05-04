@@ -78,6 +78,7 @@ private:
 	bool HasPredictedPlantingDates() const;
 	bool TryDateToDayIndex(const FString& DateText, int32& OutDayIndex) const;
 	void HideGardenDateSlider() const;
+	bool IsGardenDateSliderVisible() const;
 	void MoveGardenToBloomDate() const;
 	void ApplyPlacementSchedule(APlant* PlantActor, const FString& PlantedDate) const;
 public:

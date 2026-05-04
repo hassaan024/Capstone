@@ -19,7 +19,7 @@ class LEAFYLEDGER_API UPlantSelect : public UUserWidget
 	GENERATED_BODY()
 	
 public:
-	void AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Name, int32 DaysToBloom, int32 DaysToWither, FString ModelCategory, bool bIsDropdownToggle = false, bool bIsGlobalPlant = false);
+	void AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Name, FString ModelCategory, bool bIsDropdownToggle = false, bool bIsGlobalPlant = false);
 	void SetGardenPlants(const TArray<FBackendPlantDto>& Plants);
 	void SetGlobalPlants(const TArray<FBackendPlantDto>& Plants);
 	void HandlePlantItemClicked(const UPlantObject* ClickedPlant);
