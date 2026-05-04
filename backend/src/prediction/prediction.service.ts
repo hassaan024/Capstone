@@ -227,19 +227,19 @@ export class PredictionService {
           const avgWaterStress   = avg(e => e.stressFactors.water);
           const avgOverallStress = avg(e => e.stressFactors.overall);
 
-          if (avgTempStress < 0.5)
+          if (avgTempStress < 0.7)
             suitabilityReasons.push(
               `Temperature is outside the comfortable range for ${plant.species.commonName} throughout most of the growth period.`,
             );
-          if (avgSunStress < 0.5)
+          if (avgSunStress < 0.7)
             suitabilityReasons.push(
               `Available sunlight is consistently below what ${plant.species.commonName} needs to grow well.`,
             );
-          if (avgWaterStress < 0.5)
+          if (avgWaterStress < 0.7)
             suitabilityReasons.push(
               `Soil moisture and precipitation are too low for ${plant.species.commonName} during this period.`,
             );
-          if (avgOverallStress < 0.3)
+          if (avgOverallStress < 0.5)
             suitabilityReasons.push(
               `Combined growing conditions are too poor for meaningful growth — consider a different planting window.`,
             );
