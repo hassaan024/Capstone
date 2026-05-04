@@ -107,7 +107,7 @@ export class WeatherService {
   }
 
   private lastApiCallTime = 0;
-  private readonly MIN_API_INTERVAL_MS = 1100;
+  private readonly MIN_API_INTERVAL_MS = 50;
 
   private async rateLimitedFetch(url: string, retries = 3): Promise<Response> {
     const wait = this.lastApiCallTime + this.MIN_API_INTERVAL_MS - Date.now();
