@@ -111,37 +111,44 @@ export class PredictionService {
     if (!garden) throw new NotFoundException(`Garden ${gardenId} not found`);
     if (!garden.plants.length) throw new BadRequestException(`Garden ${gardenId} has no plants`);
 
+    // Pre-compute per-plant metadata synchronously so we can determine the
+    // full weather window needed before making any API calls.
+    const plantMeta = garden.plants.map((plant) => {
+      const speciesData = this.resolveSpecies(plant.species);
+      const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
+      const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
+      const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
+      const daysToMature = Math.min(daysNeeded, 730);
+      const feasible = daysNeeded <= 730;
+      const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
+      return { plant, speciesData, maxHeightCm, demoData, daysNeeded, daysToMature, feasible, plantedDate };
+    });
+
+    // All plants share the same bloomDate so all weather windows end at the
+    // same date (bloomDate - 365). Only the start differs. Fetch once from
+    // the earliest start (the plant with the longest timeline) and every
+    // plant slices its own section with an offset into the shared array.
+    const maxDaysToMature = Math.max(...plantMeta.map((m) => m.daysToMature));
+    const earliestPlantedDate = new Date(bloomDate.getTime() - maxDaysToMature * 86400000);
+
+    const sharedWeather = await this.weatherService.getWeatherForGameDate(
+      garden.latitude,
+      garden.longitude,
+      earliestPlantedDate,
+      maxDaysToMature + TIMELINE_INTERVAL_DAYS,
+    );
+
     const plantResults = await Promise.all(
-      garden.plants.map(async (plant) => {
-        // Use accurate hardcoded data for demo species if available
-        const speciesData = this.resolveSpecies(plant.species);
-
-        const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
-        const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
-        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
-        const daysToMature = Math.min(daysNeeded, 730);
-        const feasible = daysNeeded <= 730;
-        const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
-
-        // Persist the calculated planted date and reset game date to bloom date
+      plantMeta.map(async ({ plant, speciesData, maxHeightCm, demoData, daysNeeded, daysToMature, feasible, plantedDate }) => {
         await this.db.plantInstance.update({
           where: { id: plant.id },
           data: { plantedDate, currentGameDate: bloomDate },
         });
 
-        // Fetch the full growth-period weather in a single API call.
-        // getWeatherForGameDate anchors to 1 year before the game date, so
-        // the returned array covers plantedDate-365 → bloomDate-365 (same
-        // seasonal window, different year), giving realistic conditions across
-        // the entire timeline.
-        const allWeather = await this.weatherService.getWeatherForGameDate(
-          garden.latitude,
-          garden.longitude,
-          plantedDate,
-          daysToMature + TIMELINE_INTERVAL_DAYS, // small buffer for the last window
-        );
+        // Plants with shorter timelines start later in the shared array.
+        // offset = days between the earliest plantedDate and this plant's plantedDate.
+        const plantOffset = maxDaysToMature - daysToMature;
 
-        // Clear any previously generated history before writing the new one
         await this.db.plantHistory.deleteMany({ where: { plantId: plant.id } });
 
         let currentHeight = 0;
@@ -152,7 +159,7 @@ export class PredictionService {
           const heightRatio = maxHeightCm > 0 ? currentHeight / maxHeightCm : 0;
           const growthStage = growthStageFromRatio(heightRatio);
 
-          const weatherSlice = allWeather.slice(dayIndex, dayIndex + TIMELINE_INTERVAL_DAYS);
+          const weatherSlice = sharedWeather.slice(plantOffset + dayIndex, plantOffset + dayIndex + TIMELINE_INTERVAL_DAYS);
           if (!weatherSlice.length) break;
 
           const soilMoisture = estimateSoilMoisture(weatherSlice, plant.soil.type);
@@ -229,7 +236,7 @@ export class PredictionService {
         return {
           plantInstanceId: plant.id,
           speciesName: plant.species.commonName,
-          isDemo: !!getDemoSpecies(plant.species.commonName, plant.species.scientificName),
+          isDemo: !!demoData,
           feasible,
           feasibilityNote: !feasible
             ? `${plant.species.commonName} needs ~${daysNeeded} days to reach full height but the timeline is capped at 730. ` +
