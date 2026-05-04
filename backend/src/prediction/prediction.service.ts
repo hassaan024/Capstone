@@ -116,8 +116,9 @@ export class PredictionService {
     const plantMeta = garden.plants.map((plant) => {
       const speciesData = this.resolveSpecies(plant.species);
       const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
-      const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
-      const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
+      // const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
+      const demoData = null;
+      const daysNeeded = rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
       const daysToMature = Math.min(daysNeeded, 730);
       const feasible = daysNeeded <= 730;
       const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
@@ -280,8 +281,8 @@ export class PredictionService {
 
     const speciesData = this.resolveSpecies(species);
     const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
-    const demoData = getDemoSpecies(species.commonName, species.scientificName);
-    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
+    // const demoData = getDemoSpecies(species.commonName, species.scientificName);
+    const daysNeeded = rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
     const daysToMature = Math.min(daysNeeded, 730);
     const feasible = daysNeeded <= 730;
 
@@ -446,14 +447,14 @@ export class PredictionService {
     edibleLeaf?: boolean | null;
     cuisine?: boolean | null;
   }): SpeciesPayloadData {
-    const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
-    if (demo) {
-      this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
-      return {
-        ...demo,
-        modelCategory: computeModelCategory(demo),
-      };
-    }
+    // const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
+    // if (demo) {
+    //   this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
+    //   return {
+    //     ...demo,
+    //     modelCategory: computeModelCategory(demo),
+    //   };
+    // }
     return {
       ...dbSpecies,
       modelCategory: dbSpecies.modelCategory ?? computeModelCategory(dbSpecies),
