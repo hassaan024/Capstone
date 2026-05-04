@@ -81,9 +81,30 @@ const weatherCodeMap = {
   71: 'Snow',
 } as const;
 
+const TTL_MS = {
+  current: 15 * 60 * 1000,    // 15 minutes
+  forecast: 60 * 60 * 1000,   // 1 hour
+  archive: 24 * 60 * 60 * 1000, // 24 hours — historical data never changes
+};
+
 @Injectable()
 export class WeatherService {
   private readonly logger = new Logger(WeatherService.name);
+  private readonly cache = new Map<string, { data: any; expiresAt: number }>();
+
+  private getCached<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  }
+
+  private setCached(key: string, data: any, ttlMs: number): void {
+    this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+  }
 
   // weather.service.ts
   async getWeatherForGameDate(
@@ -100,6 +121,13 @@ export class WeatherService {
     const yesterday = goBackDays(new Date().toISOString().split('T')[0], 1);
     const rawEndDate = goForwardDays(oneYearBeforeGame, days);
     const end_date = rawEndDate > yesterday ? yesterday : rawEndDate;
+
+    const cacheKey = `gameDate:${latitude},${longitude},${oneYearBeforeGame},${end_date}`;
+    const cached = this.getCached<WeatherInfoDto[]>(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
 
     const daily_args = [
       'temperature_2m_max',
@@ -131,7 +159,9 @@ export class WeatherService {
     }
 
     const data = await res.json();
-    return this.mapWeatherApiDataToDto(data, true);
+    const result = this.mapWeatherApiDataToDto(data, true);
+    this.setCached(cacheKey, result, TTL_MS.archive);
+    return result;
   }
   
   // GET (current days weather) ##################################################################
@@ -141,6 +171,13 @@ export class WeatherService {
     latitude: number,
     longitude: number,
   ): Promise<WeatherInfoDto> {
+
+    const cacheKey = `current:${latitude},${longitude},${getTodaysDateAsString()}`;
+    const cached = this.getCached<WeatherInfoDto>(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
 
     const url =
     `${OPEN_METEO_CURRENT_FORCAST_URL}?latitude=${latitude}` +
@@ -212,12 +249,20 @@ export class WeatherService {
       description: description
     };
 
+    this.setCached(cacheKey, current_weather, TTL_MS.current);
     return current_weather;
   }
 
   // GET (current weeks weather) ##########################################################################################
   // FIXME: add soil_temperature_6cm
   async getWeeklyForecast(latitude: number, longitude: number): Promise<WeatherInfoDto[]> {
+    const cacheKey = `weekly:${latitude},${longitude},${getTodaysDateAsString()}`;
+    const cached = this.getCached<WeatherInfoDto[]>(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
+
     const dailyArgs = [
       'temperature_2m_max', 
       'temperature_2m_min',
@@ -257,7 +302,9 @@ export class WeatherService {
       );
     }
     const data = await res.json();
-    return this.mapWeatherApiDataToDto(data, false);
+    const result = this.mapWeatherApiDataToDto(data, false);
+    this.setCached(cacheKey, result, TTL_MS.forecast);
+    return result;
   }
 
   // GET (current historical weather)
@@ -265,6 +312,13 @@ export class WeatherService {
   async getPastForecast(
     latitude: number, longitude: number, days: number, offset: number
   ): Promise<any> {
+
+    const cacheKey = `past:${latitude},${longitude},${days},${offset}`;
+    const cached = this.getCached<WeatherInfoDto[]>(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
 
     this.logger.log(`
       Getting the forcast from the past ${days} days on page ${offset}.
@@ -328,7 +382,9 @@ export class WeatherService {
       );
     }
     const data = await res.json();
-    return this.mapWeatherApiDataToDto(data, true);
+    const result = this.mapWeatherApiDataToDto(data, true);
+    this.setCached(cacheKey, result, TTL_MS.archive);
+    return result;
   }
 
   private mapWeatherApiDataToDto(data: any, past: boolean): WeatherInfoDto[] {

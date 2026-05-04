@@ -11,7 +11,7 @@ const MAX_DAYS_TO_MATURE = 730;
 
 // Average real-world stress factor applied when estimating planting date.
 // Perfect conditions never occur, so we scale down base daily growth.
-const AVG_STRESS_FACTOR = 0.6;
+const AVG_STRESS_FACTOR = 0.75;
 
 /**
  * Raw (uncapped) estimate of days to reach maxHeightCm.
