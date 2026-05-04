@@ -8,7 +8,7 @@ const MAX_DAYS_TO_MATURE = 730;
 // Average real-world stress factor applied when estimating planting date.
 // Perfect conditions never occur, so we scale down base daily growth.
 // Expected days to reach mature display height at average stress (0.75),
-export const AVG_STRESS_FACTOR = 0.75;
+export const AVG_STRESS_FACTOR = 0.90;
 
 // indexed by [modelCategory][cycleType][growthRateTier 0=Low 1=Med 2=High].
 // Reference heights: flower=60cm, vegetable=90cm, tree=300cm.
