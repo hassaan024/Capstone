@@ -125,43 +125,42 @@ export class PredictionService {
       return { plant, speciesData, maxHeightCm, demoData, daysNeeded, daysToMature, feasible, plantedDate };
     });
 
-    // All plants share the same bloomDate so all weather windows end at the
-    // same date (bloomDate - 365). Only the start differs. Fetch once from
-    // the earliest start (the plant with the longest timeline) and every
-    // plant slices its own section with an offset into the shared array.
+    // Fetch base window + 365-day buffer so simulations can run longer than
+    // daysToMature when conditions are poor. Each plant's offset positions it
+    // within the shared array; the buffer sits after every plant's base end.
     const maxDaysToMature = Math.max(...plantMeta.map((m) => m.daysToMature));
-    const earliestPlantedDate = new Date(bloomDate.getTime() - maxDaysToMature * 86400000);
+    const bufferedDays = Math.min(maxDaysToMature + 365, 730);
+    const earliestPlantedDate = new Date(bloomDate.getTime() - bufferedDays * 86400000);
 
     const sharedWeather = await this.weatherService.getWeatherForGameDate(
       garden.latitude,
       garden.longitude,
       earliestPlantedDate,
-      maxDaysToMature + TIMELINE_INTERVAL_DAYS,
+      bufferedDays + TIMELINE_INTERVAL_DAYS,
     );
 
     const plantResults = await Promise.all(
       plantMeta.map(async ({ plant, speciesData, maxHeightCm, demoData, daysNeeded, daysToMature, feasible, plantedDate }) => {
-        await this.db.plantInstance.update({
-          where: { id: plant.id },
-          data: { plantedDate, currentGameDate: bloomDate },
-        });
-
-        // Plants with shorter timelines start later in the shared array.
-        // offset = days between the earliest plantedDate and this plant's plantedDate.
+        // plantOffset positions this plant's seasonal window within the shared array.
+        // The 365-day buffer sits after index maxDaysToMature, giving each plant
+        // room to run longer than daysToMature when conditions are poor.
         const plantOffset = maxDaysToMature - daysToMature;
 
         await this.db.plantHistory.deleteMany({ where: { plantId: plant.id } });
 
         let currentHeight = 0;
+        let dayIndex = 0;
         const timeline: TimelineEntry[] = [];
 
-        for (let dayIndex = 0; dayIndex <= daysToMature; dayIndex += TIMELINE_INTERVAL_DAYS) {
+        // Run until the plant reaches 90% of max height or weather data runs out.
+        // This makes the timeline duration weather-driven: bad conditions = longer timeline.
+        while (true) {
+          const weatherSlice = sharedWeather.slice(plantOffset + dayIndex, plantOffset + dayIndex + TIMELINE_INTERVAL_DAYS);
+          if (!weatherSlice.length) break;
+
           const gameDate = new Date(plantedDate.getTime() + dayIndex * 86400000);
           const heightRatio = maxHeightCm > 0 ? currentHeight / maxHeightCm : 0;
           const growthStage = growthStageFromRatio(heightRatio);
-
-          const weatherSlice = sharedWeather.slice(plantOffset + dayIndex, plantOffset + dayIndex + TIMELINE_INTERVAL_DAYS);
-          if (!weatherSlice.length) break;
 
           const soilMoisture = estimateSoilMoisture(weatherSlice, plant.soil.type);
 
@@ -197,7 +196,20 @@ export class PredictionService {
             stressFactors: prediction.stressFactors as TimelineEntry['stressFactors'],
             confidence: prediction.confidence as number,
           });
+
+          if (currentHeight >= maxHeightCm * 0.9) break;
+          dayIndex += TIMELINE_INTERVAL_DAYS;
         }
+
+        // plantedDate is now weather-driven: how far back from bloomDate the
+        // simulation actually needed to run to reach mature height.
+        const actualDaysToMature = dayIndex + TIMELINE_INTERVAL_DAYS;
+        const actualPlantedDate = new Date(bloomDate.getTime() - actualDaysToMature * 86400000);
+
+        await this.db.plantInstance.update({
+          where: { id: plant.id },
+          data: { plantedDate: actualPlantedDate, currentGameDate: bloomDate },
+        });
 
         const earliestFeasibleBloomDate = !feasible
           ? new Date(plantedDate.getTime() + daysNeeded * 86400000).toISOString().split('T')[0]
@@ -234,18 +246,6 @@ export class PredictionService {
         }
         const suitable = suitabilityReasons.length === 0;
 
-        // Project how long full maturity would actually take given the observed
-        // growth rate from the simulation.  If conditions are poor (e.g. Okra in
-        // January) the plant barely grows, so weatherAdjustedDays will be much
-        // larger than daysToMature.  null means conditions are too poor to estimate.
-        const avgDailyGrowthCm = daysToMature > 0 ? currentHeight / daysToMature : 0;
-        const weatherAdjustedDays = avgDailyGrowthCm > 0.05
-          ? Math.min(Math.round(maxHeightCm / avgDailyGrowthCm), 730)
-          : null;
-        const weatherAdjustedPlantedDate = weatherAdjustedDays !== null
-          ? new Date(bloomDate.getTime() - weatherAdjustedDays * 86400000).toISOString().split('T')[0]
-          : null;
-
         return {
           plantInstanceId: plant.id,
           speciesName: plant.species.commonName,
@@ -258,10 +258,8 @@ export class PredictionService {
             : null,
           suitable,
           suitabilityReasons,
-          plantedDate: plantedDate.toISOString().split('T')[0],
-          daysToMature,
-          weatherAdjustedDays,
-          weatherAdjustedPlantedDate,
+          plantedDate: actualPlantedDate.toISOString().split('T')[0],
+          daysToMature: actualDaysToMature,
           maxHeightCm,
           timeline,
         };
