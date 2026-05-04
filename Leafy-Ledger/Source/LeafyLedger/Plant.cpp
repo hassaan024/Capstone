@@ -4,6 +4,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GardenTimeManager.h"
 #include "PlantObject.h"
+#include "BloomDateUtils.h"
 
 APlant::APlant()
 {
@@ -103,6 +104,7 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 
 void APlant::UpdateForDay(int32 DayIndex)
 {
+	PlantingDate = FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex);
 	BlueprintDayUpdate(DayIndex);
 
 	if (!PreviewMesh)

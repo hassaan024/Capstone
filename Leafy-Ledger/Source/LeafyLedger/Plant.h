@@ -48,6 +48,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 		int32 PlantingDayIndex = 0;
 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+		FString PlantingDate;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 		int32 WitherDayIndex = 0;
 
