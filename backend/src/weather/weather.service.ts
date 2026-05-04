@@ -106,6 +106,22 @@ export class WeatherService {
     this.cache.set(key, { data, expiresAt: Date.now() + ttlMs });
   }
 
+  private lastApiCallTime = 0;
+  private readonly MIN_API_INTERVAL_MS = 1100;
+
+  private async rateLimitedFetch(url: string, retries = 3): Promise<Response> {
+    const wait = this.lastApiCallTime + this.MIN_API_INTERVAL_MS - Date.now();
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    this.lastApiCallTime = Date.now();
+    const res = await this.rateLimitedFetch(url);
+    if (res.status === 429 && retries > 0) {
+      this.logger.warn(`Rate limited by Open-Meteo, retrying in 3s (${retries} retries left)`);
+      await new Promise(r => setTimeout(r, 3000));
+      return this.rateLimitedFetch(url, retries - 1);
+    }
+    return res;
+  }
+
   // weather.service.ts
   async getWeatherForGameDate(
     latitude: number,
@@ -150,7 +166,7 @@ export class WeatherService {
       `&hourly=${hourly_args.join(',')}` +
       `&timezone=auto`;
 
-    const res = await fetch(url);
+    const res = await this.rateLimitedFetch(url);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -191,7 +207,7 @@ export class WeatherService {
     this.logger.log(`URL: ${url}`)
     this.logger.log(`Fetching current weather for ${latitude}, ${longitude}`);
 
-    const res = await fetch(url);
+    const res = await this.rateLimitedFetch(url);
 
     if (!res.ok) {
       const errorText = await res.text(); // or res.json()
@@ -282,7 +298,7 @@ export class WeatherService {
       `&start_date=${start_date}&end_date=${end_date}` +
       `&timezone=auto`;
 
-    const res = await fetch(url);
+    const res = await this.rateLimitedFetch(url);
     
     if (!res.ok) {
       const errorText = await res.text();
@@ -363,7 +379,7 @@ export class WeatherService {
       `&hourly=${hourly_args.join(',')}` +
       `&timezone=auto`;
 
-    const res = await fetch(url);
+    const res = await this.rateLimitedFetch(url);
     
     if (!res.ok) {
       const errorText = await res.text();
