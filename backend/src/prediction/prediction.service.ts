@@ -242,6 +242,9 @@ export class PredictionService {
         const weatherAdjustedDays = avgDailyGrowthCm > 0.05
           ? Math.min(Math.round(maxHeightCm / avgDailyGrowthCm), 730)
           : null;
+        const weatherAdjustedPlantedDate = weatherAdjustedDays !== null
+          ? new Date(bloomDate.getTime() - weatherAdjustedDays * 86400000).toISOString().split('T')[0]
+          : null;
 
         return {
           plantInstanceId: plant.id,
@@ -258,6 +261,7 @@ export class PredictionService {
           plantedDate: plantedDate.toISOString().split('T')[0],
           daysToMature,
           weatherAdjustedDays,
+          weatherAdjustedPlantedDate,
           maxHeightCm,
           timeline,
         };
