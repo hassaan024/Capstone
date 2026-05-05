@@ -195,7 +195,7 @@ void APlant::UpdatePlantingDateText()
 		return;
 	}
 
-	TextRender->SetText(FText::FromString(PlantingDate));
+	TextRender->SetText(FText::FromString(PlantName));
 
 	if (!PreviewMesh)
 	{

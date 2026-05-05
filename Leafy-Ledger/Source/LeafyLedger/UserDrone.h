@@ -71,9 +71,10 @@ private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
 	bool GetMousePlantHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
+	bool IsGardenModificationBlocked() const;
 	void TrackPlacedPlant(APlant* PlantActor);
 	void DeletePlant(APlant* PlantActor);
-	void CancelActivePlantInteraction();
+	//void CancelActivePlantInteraction();
 	FString FindPredictedPlantedDateForSpecies(int32 SpeciesId) const;
 	bool HasPredictedPlantingDates() const;
 	bool TryDateToDayIndex(const FString& DateText, int32& OutDayIndex) const;
@@ -95,6 +96,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetGardenEditMode(EGardenEditMode NewMode);
+
+	void CancelActivePlantInteraction();
 
 	UFUNCTION(BlueprintCallable)
 	EGardenEditMode GetGardenEditMode() const { return CurrentEditMode; }

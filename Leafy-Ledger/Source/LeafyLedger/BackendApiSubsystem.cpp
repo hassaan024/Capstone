@@ -1798,7 +1798,7 @@ void UBackendApiSubsystem::GenerateGardenTimeline(int32 GardenId, const FString&
 			}
 
 			const FString Body = Response->GetContentAsString();
-			//UE_LOG(LogTemp, Warning, TEXT("GenerateGardenTimeline response from backend/model to Unreal (HTTP %d): %s"), Response->GetResponseCode(), *Body);
+			UE_LOG(LogTemp, Warning, TEXT("GenerateGardenTimeline response from backend/model to Unreal (HTTP %d): %s"), Response->GetResponseCode(), *Body);
 
 			if (!FBackendJsonUtils::ParseGardenTimeline(Body, Timeline))
 			{
