@@ -241,10 +241,6 @@ void USavedPlants::PopulatePlants(const TArray<FBackendPlantDto>& Plants)
 		{
 			PlantObject->Sunlight = Plant.SunlightText;
 		}
-		else if (Plant.AvgHoursSun > 0)
-		{
-			PlantObject->Sunlight = FString::Printf(TEXT("%d hours"), Plant.AvgHoursSun);
-		}
 
 		//UE_LOG(LogTemp, Log, TEXT("PopulatePlants: %s Plant.Id=%d Plant.PerenualId=%d"), *Plant.CommonName, Plant.Id, Plant.PerenualId);
 

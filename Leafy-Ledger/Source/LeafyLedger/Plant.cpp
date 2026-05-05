@@ -1,9 +1,12 @@
 #include "Plant.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "GardenTimeManager.h"
 #include "PlantObject.h"
+#include "BloomDateUtils.h"
 
 APlant::APlant()
 {
@@ -12,6 +15,7 @@ APlant::APlant()
 	PreviewMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Preview Mesh"));
 	SetRootComponent(PreviewMesh);
 	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
 }
 
 void APlant::BeginPlay()
@@ -103,49 +107,70 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 
 void APlant::UpdateForDay(int32 DayIndex)
 {
-	BlueprintDayUpdate(DayIndex);
+	PlantingDate = PlantingDayIndex > 0 ? FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex) : TEXT("");
 
 	if (!PreviewMesh)
 	{
+		UpdatePlantingDateText();
+		BlueprintDayUpdate(DayIndex);
 		return;
 	}
 
 	UStaticMesh* DesiredMesh = nullptr;
 	FVector DesiredScale = FVector(1.f);
 
+	if (BloomDayIndex <= 0 || PlantingDayIndex <= 0)
+	{
+		PreviewMesh->SetVisibility(true, true);
+		PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		SetActorEnableCollision(true);
+		RefreshPlantingDateTextVisibility();
+
+		if (BloomedMesh)
+		{
+			PreviewMesh->SetStaticMesh(BloomedMesh);
+		}
+
+		SetActorScale3D(DesiredScale);
+		UpdatePlantingDateText();
+		BlueprintDayUpdate(DayIndex);
+		return;
+	}
+
 	if (DayIndex < PlantingDayIndex)
 	{
-		DesiredMesh = SeedMesh;
-		DesiredScale = FVector(1.f);
+		PreviewMesh->SetVisibility(false, true);
+		PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SetActorEnableCollision(false);
+		RefreshPlantingDateTextVisibility();
+		SetActorScale3D(DesiredScale);
+		UpdatePlantingDateText();
+		BlueprintDayUpdate(DayIndex);
+		return;
 	}
-	else if (DayIndex < BloomDayIndex)
-	{
-		if (SeedMesh && SaplingMesh)
-		{
-			const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
-			const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
 
-			if (GrowthAlpha < 0.5f)
-			{
-				DesiredMesh = SeedMesh;
-			}
-			else
-			{
-				DesiredMesh = SaplingMesh;
-			}
-		}
-		else if (SaplingMesh)
+	PreviewMesh->SetVisibility(true, true);
+	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SetActorEnableCollision(true);
+	RefreshPlantingDateTextVisibility();
+
+	if (DayIndex < WitherDayIndex)
+	{
+		const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
+		const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
+
+		if (DayIndex == BloomDayIndex)
 		{
-			DesiredMesh = SaplingMesh;
+			DesiredMesh = BloomedMesh ? BloomedMesh : (SaplingMesh ? SaplingMesh : SeedMesh);
+		}
+		else if (GrowthAlpha < 0.33f)
+		{
+			DesiredMesh = SeedMesh ? SeedMesh : SaplingMesh;
 		}
 		else
 		{
-			DesiredMesh = SeedMesh;
+			DesiredMesh = SaplingMesh ? SaplingMesh : SeedMesh;
 		}
-	}
-	else if (DayIndex < WitherDayIndex)
-	{
-		DesiredMesh = BloomedMesh;
 	}
 	else
 	{
@@ -158,4 +183,61 @@ void APlant::UpdateForDay(int32 DayIndex)
 	}
 
 	SetActorScale3D(DesiredScale);
+	UpdatePlantingDateText();
+	BlueprintDayUpdate(DayIndex);
+}
+
+void APlant::UpdatePlantingDateText()
+{
+	UTextRenderComponent* TextRender = GetPlantingDateTextRender();
+	if (!TextRender)
+	{
+		return;
+	}
+
+	TextRender->SetText(FText::FromString(PlantName));
+
+	if (!PreviewMesh)
+	{
+		return;
+	}
+
+	FVector Origin;
+	FVector BoxExtent;
+	float SphereRadius = 0.f;
+	UKismetSystemLibrary::GetComponentBounds(PreviewMesh, Origin, BoxExtent, SphereRadius);
+
+	TextRender->SetWorldLocation(FVector(Origin.X, Origin.Y, Origin.Z + BoxExtent.Z + PlantingDateTextPadding));
+	RefreshPlantingDateTextVisibility();
+}
+
+UTextRenderComponent* APlant::GetPlantingDateTextRender() const
+{
+	TArray<UTextRenderComponent*> TextRenderComponents;
+	GetComponents<UTextRenderComponent>(TextRenderComponents);
+
+	for (UTextRenderComponent* Component : TextRenderComponents)
+	{
+		if (Component && Component->GetName() == TEXT("TextRender"))
+		{
+			return Component;
+		}
+	}
+
+	return TextRenderComponents.Num() > 0 ? TextRenderComponents[0] : nullptr;
+}
+
+void APlant::SetPlantingDateTextVisible(bool bVisible)
+{
+	bPlantingDateTextEnabled = bVisible;
+	RefreshPlantingDateTextVisibility();
+}
+
+void APlant::RefreshPlantingDateTextVisibility()
+{
+	if (UTextRenderComponent* TextRender = GetPlantingDateTextRender())
+	{
+		const bool bMeshVisible = PreviewMesh && PreviewMesh->IsVisible();
+		TextRender->SetVisibility(bPlantingDateTextEnabled && bMeshVisible);
+	}
 }

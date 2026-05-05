@@ -4,6 +4,7 @@
 #include "BackendApiSubsystem.h"
 #include "PlantObject.h"
 #include "Components/Image.h"
+#include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/TextWidgetTypes.h"
 #include "SavedPlantCacheSubsystem.h"
@@ -119,9 +120,9 @@ void UPlantCardPopup::PopulateKnownDetails()
     SetTextOrNA(TXT_Maintenance, PlantCard->Maintenance);
     SetTextOrNA(TXT_Type, PlantCard->Type);
     SetTextOrNA(TXT_Hardiness, PlantCard->HardinessZones);
-    SetTextOrNA(TXT_BloomDays, PlantCard->DaysToBloom > 0 ? FString::Printf(TEXT("%d Days"), PlantCard->DaysToBloom) : TEXT(""));
     SetTextOrNA(TXT_LifeCycle, PlantCard->LifeCycle);
     SetTextOrNA(TXT_GrowthRate, PlantCard->GrowthRate);
+    SetBloomDays(PlantCard->DaysToBloom);
 
     RefreshTextLayout();
 }
@@ -132,8 +133,38 @@ void UPlantCardPopup::SetTextOrNA(UTextBlock* TextBlock, const FString& Value)
 
     const FString TrimmedValue = Value.TrimStartAndEnd();
     ApplyWrapTextAt(TextBlock);
-    TextBlock->SetText(FText::FromString(!TrimmedValue.IsEmpty() ? TrimmedValue : TEXT("N/A")));
+    //TextBlock->SetText(FText::FromString(!TrimmedValue.IsEmpty() ? TrimmedValue : TEXT("N/A")));
+    if (!TrimmedValue.IsEmpty())
+    {
+        TextBlock->SetText(FText::FromString(TrimmedValue));
+    }
     TextBlock->InvalidateLayoutAndVolatility();
+}
+
+void UPlantCardPopup::SetBloomDays(int32 DaysToBloom)
+{
+    if (!TXT_BloomDays)
+    {
+        return;
+    }
+
+    ApplyWrapTextAt(TXT_BloomDays);
+
+    UPanelWidget* BloomDaysOwner = TXT_BloomDays->GetParent();
+    if (DaysToBloom > 0)
+    {
+        TXT_BloomDays->SetText(FText::FromString(FString::Printf(TEXT("~%d Days"), DaysToBloom)));
+        TXT_BloomDays->InvalidateLayoutAndVolatility();
+
+        if (BloomDaysOwner)
+        {
+            BloomDaysOwner->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        }
+    }
+    else if (BloomDaysOwner)
+    {
+        BloomDaysOwner->SetVisibility(ESlateVisibility::Hidden);
+    }
 }
 
 void UPlantCardPopup::ConfigureDetailTextWrapping()
@@ -230,14 +261,50 @@ void UPlantCardPopup::ApplyPlantDetails(const FBackendPlantDto& Plant)
             PlantCard->ScientificName = Plant.ScientificName;
         }
 
-        PlantCard->Sunlight = Plant.SunlightText;
-        PlantCard->Watering = Plant.WateringFreq;
-        PlantCard->HardinessZones = Plant.HardinessZones;
-        PlantCard->Maintenance = !Plant.Maintenance.IsEmpty() ? Plant.Maintenance : Plant.CareLevel;
-        PlantCard->Type = Plant.Type;
-        PlantCard->LifeCycle = Plant.Cycle;
-        PlantCard->GrowthRate = Plant.GrowthRateText;
-        PlantCard->DaysToBloom = Plant.DaysToBloom;
+        if (!Plant.SunlightText.IsEmpty())
+        {
+            PlantCard->Sunlight = Plant.SunlightText;
+        }
+
+        if (!Plant.WateringFreq.IsEmpty())
+        {
+            PlantCard->Watering = Plant.WateringFreq;
+        }
+
+        if (!Plant.HardinessZones.IsEmpty())
+        {
+            PlantCard->HardinessZones = Plant.HardinessZones;
+        }
+
+        const FString MaintenanceText = !Plant.Maintenance.IsEmpty() ? Plant.Maintenance : Plant.CareLevel;
+        if (!MaintenanceText.IsEmpty())
+        {
+            PlantCard->Maintenance = MaintenanceText;
+        }
+
+        if (!Plant.Type.IsEmpty())
+        {
+            PlantCard->Type = Plant.Type;
+        }
+
+        if (!Plant.Cycle.IsEmpty())
+        {
+            PlantCard->LifeCycle = Plant.Cycle;
+        }
+
+        if (!Plant.GrowthRateText.IsEmpty())
+        {
+            PlantCard->GrowthRate = Plant.GrowthRateText;
+        }
+        else if (Plant.GrowthRate > 0)
+        {
+            PlantCard->GrowthRate = FString::FromInt(Plant.GrowthRate);
+        }
+
+        if (Plant.DaysToBloom > 0)
+        {
+            PlantCard->DaysToBloom = Plant.DaysToBloom;
+        }
 
         const FString ImageUrl = GetPreferredImageUrl(Plant);
         if (!ImageUrl.IsEmpty())

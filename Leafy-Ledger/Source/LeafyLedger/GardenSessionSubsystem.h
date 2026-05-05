@@ -58,6 +58,9 @@ struct FEditablePlantPlacement
 	FString LastWateredIso8601;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	FString Notes;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -148,7 +151,13 @@ public:
 	void MarkGardenSaved(int32 InBackendGardenId);
 
 	UFUNCTION(BlueprintCallable)
-	void MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId);
+	void MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId, const FString& PlantedDate = TEXT(""));
+
+	UFUNCTION(BlueprintCallable)
+	void MarkPlantDeleted(const FGuid& LocalId);
+
+	UFUNCTION(BlueprintCallable)
+	bool SetPlantPlantedDateByBackendId(int32 BackendPlantInstanceId, const FString& PlantedDate);
 
 	FGuid AddPlantPlacement(
 		int32 SpeciesId,
@@ -164,7 +173,8 @@ public:
 		const FString& SpeciesCommonName,
 		const FString& SpeciesScientificName,
 		const FString& SpeciesModelCategory,
-		const FString& Notes = TEXT("")
+		const FString& Notes = TEXT(""),
+		const FString& PlantedDate = TEXT("")
 	);
 
 	UFUNCTION(BlueprintCallable)

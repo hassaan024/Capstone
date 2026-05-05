@@ -48,6 +48,7 @@ void UGardenSessionSubsystem::LoadGardenDraft(const FBackendGardenDetailDto& Gar
 		Plant.AgeDays = SourcePlant.AgeDays;
 		Plant.HealthStatus = SourcePlant.HealthStatus;
 		Plant.LastWateredIso8601 = SourcePlant.LastWatered;
+		Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(SourcePlant.PlantedDate);
 		Plant.Notes = SourcePlant.Notes;
 		Plant.bPendingCreate = false;
 		Plant.bPendingUpdate = false;
@@ -129,7 +130,8 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	const FString& SpeciesCommonName,
 	const FString& SpeciesScientificName,
 	const FString& SpeciesModelCategory,
-	const FString& Notes
+	const FString& Notes,
+	const FString& PlantedDate
 )
 {
 	if (!Draft.bIsInitialized)
@@ -152,6 +154,7 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	Plant.AgeDays = AgeDays;
 	Plant.HealthStatus = HealthStatus;
 	Plant.LastWateredIso8601 = LastWateredIso8601;
+	Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(PlantedDate);
 	Plant.Notes = Notes;
 	Plant.bPendingCreate = true;
 
@@ -176,7 +179,7 @@ bool UGardenSessionSubsystem::UpdatePlantTransform(const FGuid& LocalId, const F
 		Plant.bPendingUpdate = true;
 	}
 
-	Draft.bHasUnsavedChanges = true;
+	RefreshDirtyState();
 	return true;
 }
 
@@ -197,7 +200,7 @@ bool UGardenSessionSubsystem::RemovePlantPlacement(const FGuid& LocalId)
 		Plant.bPendingUpdate = false;
 	}
 
-	Draft.bHasUnsavedChanges = true;
+	RefreshDirtyState();
 	return true;
 }
 
@@ -273,15 +276,47 @@ void UGardenSessionSubsystem::MarkGardenSaved(int32 InBackendGardenId)
 	RefreshDirtyState();
 }
 
-void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId)
+void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId, const FString& PlantedDate)
 {
 	const int32 Index = FindPlantIndexByLocalId(LocalId);
 	if (Index == INDEX_NONE) return;
 
 	FEditablePlantPlacement& Plant = Draft.Plants[Index];
 	Plant.BackendPlantInstanceId = InBackendPlantInstanceId;
+	if (!PlantedDate.IsEmpty())
+	{
+		Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(PlantedDate);
+	}
 	Plant.bPendingCreate = false;
 	Plant.bPendingUpdate = false;
 	Plant.bPendingDelete = false;
 	RefreshDirtyState();
+}
+
+void UGardenSessionSubsystem::MarkPlantDeleted(const FGuid& LocalId)
+{
+	const int32 Index = FindPlantIndexByLocalId(LocalId);
+	if (Index == INDEX_NONE) return;
+
+	Draft.Plants.RemoveAt(Index);
+	RefreshDirtyState();
+}
+
+bool UGardenSessionSubsystem::SetPlantPlantedDateByBackendId(int32 BackendPlantInstanceId, const FString& PlantedDate)
+{
+	if (BackendPlantInstanceId <= 0 || PlantedDate.IsEmpty())
+	{
+		return false;
+	}
+
+	for (FEditablePlantPlacement& Plant : Draft.Plants)
+	{
+		if (Plant.BackendPlantInstanceId == BackendPlantInstanceId)
+		{
+			Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(PlantedDate);
+			return true;
+		}
+	}
+
+	return false;
 }

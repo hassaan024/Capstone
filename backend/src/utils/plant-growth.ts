@@ -1,40 +1,80 @@
 import { GrowthStage } from 'enums/table_enums';
 import { getDemoSpecies } from './demo-species';
 
-// Matches the tier lookup in the ML model (PREDICTION_MODEL.md §1)
-const GROWTH_RATE_TIERS: Record<number, number> = { 1: 0.10, 2: 0.30, 3: 0.65 };
-
 export const TIMELINE_INTERVAL_DAYS = 7;
 
-// Cap growth timelines at 2 years to avoid unreasonably large weather fetches
 const MAX_DAYS_TO_MATURE = 730;
 
-// Average real-world stress factor applied when estimating planting date.
-// Perfect conditions never occur, so we scale down base daily growth.
-const AVG_STRESS_FACTOR = 0.6;
+// Average real-world stress factor used when estimating timeline lengths.
+export const AVG_STRESS_FACTOR = 0.6;
+
+// Expected days to reach mature display height at average stress (0.6),
+// indexed by [modelCategory][cycleType][growthRateTier 0=Low 1=Med 2=High].
+// Reference heights: flower=60cm, vegetable=90cm, tree=300cm.
+// Height scaling uses a mild ^0.3 exponent so unusually tall/short plants
+// adjust proportionally without swinging wildly.
+const EXPECTED_DAYS: Record<string, Record<string, [number, number, number]>> = {
+  flower: {
+    annual:    [200, 120,  80],
+    biennial:  [730, 548, 365],
+    perennial: [730, 400, 250],
+  },
+  vegetable: {
+    annual:    [130,  95,  65],
+    perennial: [300, 200, 130],
+  },
+  tree: {
+    annual:    [130,  95,  65],
+    perennial: [730, 730, 600],
+  },
+};
+
+const REFERENCE_HEIGHT_CM: Record<string, number> = {
+  flower:    60,
+  vegetable: 90,
+  tree:      300,
+};
+
+function cycleKey(cycle: string | null | undefined): 'annual' | 'biennial' | 'perennial' {
+  const c = (cycle || '').toLowerCase();
+  if (c.includes('annual') && !c.includes('biennial')) return 'annual';
+  if (c.includes('biennial')) return 'biennial';
+  return 'perennial';
+}
 
 /**
- * Raw (uncapped) estimate of days to reach maxHeightCm.
- * Use this when you need to know the true growth duration for feasibility
- * checks — e.g. a large slow tree might need 2000+ days.
+ * Raw (uncapped) estimate of days to reach maxHeightCm at average conditions.
+ * This is the value shown to users and used for timeline length before capping.
  */
-export function rawDaysToMature(growthRate: number, maxHeightCm: number): number {
-  const tier = GROWTH_RATE_TIERS[Math.round(growthRate)] ?? 0.30;
-  const heightScale = Math.pow(maxHeightCm / 100, 0.4);
-  const baseDailyGrowth = tier * heightScale;
-  const realisticDailyGrowth = baseDailyGrowth * AVG_STRESS_FACTOR;
-  return Math.ceil(maxHeightCm / realisticDailyGrowth);
+export function rawDaysToMature(
+  growthRate: number,
+  maxHeightCm: number,
+  modelCategory: string | null | undefined = 'flower',
+  cycle: string | null | undefined = '',
+): number {
+  const cat = (modelCategory || 'flower').toLowerCase();
+  const ck = cycleKey(cycle);
+
+  const tiers = EXPECTED_DAYS[cat]?.[ck] ?? EXPECTED_DAYS['flower']['perennial'];
+  const idx = Math.max(0, Math.min(2, Math.round(growthRate) - 1));
+  const baseDays = tiers[idx];
+
+  const refHeight = REFERENCE_HEIGHT_CM[cat] ?? 60;
+  const heightAdj = Math.pow(Math.max(maxHeightCm, 1) / refHeight, 0.3);
+
+  return Math.ceil(baseDays * heightAdj);
 }
 
 /**
  * Capped estimate — same as rawDaysToMature but never exceeds MAX_DAYS_TO_MATURE.
- * Use this when calculating planted dates and timeline lengths.
  */
 export function estimateDaysToMature(
   growthRate: number,
   maxHeightCm: number,
+  modelCategory: string | null | undefined = 'flower',
+  cycle: string | null | undefined = '',
 ): number {
-  return Math.min(rawDaysToMature(growthRate, maxHeightCm), MAX_DAYS_TO_MATURE);
+  return Math.min(rawDaysToMature(growthRate, maxHeightCm, modelCategory, cycle), MAX_DAYS_TO_MATURE);
 }
 
 /**
@@ -46,17 +86,17 @@ export function computeBloomDays(species: {
   scientificName: string;
   growthRate: number;
   maxHeight: number | null;
+  modelCategory?: string | null;
+  cycle?: string | null;
 }): number {
   const demo = getDemoSpecies(species.commonName, species.scientificName);
   if (demo) return demo.daysToFirstBloom;
   const maxHeightCm = (species.maxHeight ?? 1) * 30.48;
-  return estimateDaysToMature(species.growthRate, maxHeightCm);
+  return estimateDaysToMature(species.growthRate, maxHeightCm, species.modelCategory, species.cycle);
 }
 
 /**
  * Maps a height-to-maxHeight ratio to a GrowthStage enum value.
- * Thresholds are chosen to give each stage a meaningful share of the
- * growth timeline while matching typical plant biology.
  */
 export function growthStageFromRatio(heightRatio: number): GrowthStage {
   if (heightRatio < 0.15) return GrowthStage.Seedling;

@@ -23,4 +23,5 @@ struct FBackendJsonUtils
 	static bool ParseWeather(const FString& JsonString, FBackendWeatherDto& OutWeather);
 	static bool ParseGardenSummaryArray(const FString& JsonString, TArray<FBackendGardenSummaryDto>& OutGardens);
 	static bool ParseGardenDetail(const FString& JsonString, FBackendGardenDetailDto& OutGarden);
+	static bool ParseGardenTimeline(const FString& JsonString, FBackendGardenTimelineDto& OutTimeline);
 };

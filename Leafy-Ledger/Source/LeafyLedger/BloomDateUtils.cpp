@@ -78,6 +78,18 @@ FString FBloomDateUtils::NormalizeBackendDateString(const FString& InputText)
 	return TrimmedInput;
 }
 
+FString FBloomDateUtils::DayIndexToDisplayDate(int32 DayIndex)
+{
+	if (DayIndex < 0)
+	{
+		return TEXT("");
+	}
+
+	const FDateTime EpochDate(2000, 1, 1);
+	const FDateTime DisplayDate = EpochDate + FTimespan::FromDays(DayIndex);
+	return FormatForDisplay(DisplayDate);
+}
+
 bool FBloomDateUtils::TryParseDisplayDate(const FString& InputText, FDateTime& OutDate)
 {
 	TArray<FString> Parts;

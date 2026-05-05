@@ -57,7 +57,7 @@ void USavedPlantCacheSubsystem::RefreshSavedPlants(const FOnSavedPlantsRefreshed
 					return;
 				}
 
-				CachedPlants = Plants;
+				CachedPlants = MergePlantsPreservingOrder(CachedPlants, Plants);
 				bHasLoadedSavedPlants = true;
 				CachePlantDetails(CachedPlants);
 
@@ -130,12 +130,17 @@ void USavedPlantCacheSubsystem::RefreshGardenSavedPlants(int32 GardenId, const F
 					return;
 				}
 
-				CachedGardenPlants.Add(GardenId, Plants);
-				CachePlantDetails(Plants);
-				LogCachedPlants(FString::Printf(TEXT("Garden %d"), GardenId), Plants);
-				PrefetchPlantImages(Plants);
+				const TArray<FBackendPlantDto>* ExistingPlants = CachedGardenPlants.Find(GardenId);
+				const TArray<FBackendPlantDto> OrderedPlants = ExistingPlants
+					? MergePlantsPreservingOrder(*ExistingPlants, Plants)
+					: Plants;
 
-				ExecutePendingGardenRefreshCallbacks(GardenId, true, TEXT("Garden saved plants refreshed"), Plants);
+				CachedGardenPlants.Add(GardenId, OrderedPlants);
+				CachePlantDetails(OrderedPlants);
+				LogCachedPlants(FString::Printf(TEXT("Garden %d"), GardenId), OrderedPlants);
+				PrefetchPlantImages(OrderedPlants);
+
+				ExecutePendingGardenRefreshCallbacks(GardenId, true, TEXT("Garden saved plants refreshed"), OrderedPlants);
 			}
 		)
 	);
@@ -235,6 +240,121 @@ void USavedPlantCacheSubsystem::CachePlantDetails(const TArray<FBackendPlantDto>
 	{
 		CachePlantDetails(Plant);
 	}
+}
+
+bool USavedPlantCacheSubsystem::HasCompletePopupDetails(const FBackendPlantDto& Plant)
+{
+	return !Plant.SunlightText.IsEmpty()
+		&& !Plant.WateringFreq.IsEmpty()
+		&& (!Plant.Maintenance.IsEmpty() || !Plant.CareLevel.IsEmpty())
+		&& !Plant.Type.IsEmpty()
+		&& !Plant.HardinessZones.IsEmpty()
+		&& Plant.DaysToBloom > 0
+		&& !Plant.Cycle.IsEmpty()
+		&& (!Plant.GrowthRateText.IsEmpty() || Plant.GrowthRate > 0);
+}
+
+FBackendPlantDto USavedPlantCacheSubsystem::MergePlantDetails(const FBackendPlantDto& CachedPlant, const FBackendPlantDto& LoadedPlant)
+{
+	FBackendPlantDto MergedPlant = LoadedPlant;
+
+	if (MergedPlant.Id <= 0)
+	{
+		MergedPlant.Id = CachedPlant.Id;
+	}
+	if (MergedPlant.PerenualId <= 0)
+	{
+		MergedPlant.PerenualId = CachedPlant.PerenualId;
+	}
+	if (MergedPlant.DaysToBloom <= 0)
+	{
+		MergedPlant.DaysToBloom = CachedPlant.DaysToBloom;
+	}
+	if (MergedPlant.ModelCategory.IsEmpty())
+	{
+		MergedPlant.ModelCategory = CachedPlant.ModelCategory;
+	}
+	if (MergedPlant.CommonName.IsEmpty())
+	{
+		MergedPlant.CommonName = CachedPlant.CommonName;
+	}
+	if (MergedPlant.ScientificName.IsEmpty())
+	{
+		MergedPlant.ScientificName = CachedPlant.ScientificName;
+	}
+
+	auto CopyImageIfEmpty = [](FString& Target, const FString& Source)
+	{
+		if (Target.IsEmpty())
+		{
+			Target = Source;
+		}
+	};
+
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Original, CachedPlant.ImgSrcUrls.Original);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Regular, CachedPlant.ImgSrcUrls.Regular);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Medium, CachedPlant.ImgSrcUrls.Medium);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Small, CachedPlant.ImgSrcUrls.Small);
+	CopyImageIfEmpty(MergedPlant.ImgSrcUrls.Thumbnail, CachedPlant.ImgSrcUrls.Thumbnail);
+
+	return MergedPlant;
+}
+
+int32 USavedPlantCacheSubsystem::GetStablePlantKey(const FBackendPlantDto& Plant)
+{
+	return Plant.PerenualId > 0 ? Plant.PerenualId : Plant.Id;
+}
+
+TArray<FBackendPlantDto> USavedPlantCacheSubsystem::MergePlantsPreservingOrder(const TArray<FBackendPlantDto>& ExistingPlants, const TArray<FBackendPlantDto>& RefreshedPlants)
+{
+	if (ExistingPlants.Num() == 0 || RefreshedPlants.Num() <= 1)
+	{
+		return RefreshedPlants;
+	}
+
+	TMap<int32, FBackendPlantDto> RefreshedByKey;
+	for (const FBackendPlantDto& Plant : RefreshedPlants)
+	{
+		const int32 Key = GetStablePlantKey(Plant);
+		if (Key > 0)
+		{
+			RefreshedByKey.Add(Key, Plant);
+		}
+	}
+
+	TArray<FBackendPlantDto> OrderedPlants;
+	OrderedPlants.Reserve(RefreshedPlants.Num());
+
+	TSet<int32> AddedKeys;
+	for (const FBackendPlantDto& ExistingPlant : ExistingPlants)
+	{
+		const int32 Key = GetStablePlantKey(ExistingPlant);
+		if (Key <= 0 || AddedKeys.Contains(Key))
+		{
+			continue;
+		}
+
+		if (const FBackendPlantDto* RefreshedPlant = RefreshedByKey.Find(Key))
+		{
+			OrderedPlants.Add(*RefreshedPlant);
+			AddedKeys.Add(Key);
+		}
+	}
+
+	for (const FBackendPlantDto& RefreshedPlant : RefreshedPlants)
+	{
+		const int32 Key = GetStablePlantKey(RefreshedPlant);
+		if (Key <= 0 || !AddedKeys.Contains(Key))
+		{
+			OrderedPlants.Add(RefreshedPlant);
+			if (Key > 0)
+			{
+				AddedKeys.Add(Key);
+			}
+		}
+	}
+
+	return OrderedPlants;
 }
 
 FString USavedPlantCacheSubsystem::GetPreferredImageUrl(const FBackendPlantDto& Plant) const
@@ -391,10 +511,16 @@ void USavedPlantCacheSubsystem::GetOrLoadPlantDetails(int32 PerenualId, const FB
 		return;
 	}
 
+	FBackendPlantDto CachedPlantSnapshot;
+	const bool bHasCachedPlant = PlantDetailsCache.Contains(PerenualId);
 	if (const FBackendPlantDto* CachedPlant = PlantDetailsCache.Find(PerenualId))
 	{
-		Callback.ExecuteIfBound(true, TEXT("Using cached plant details"), *CachedPlant);
-		return;
+		CachedPlantSnapshot = *CachedPlant;
+		if (HasCompletePopupDetails(*CachedPlant))
+		{
+			Callback.ExecuteIfBound(true, TEXT("Using cached plant details"), *CachedPlant);
+			return;
+		}
 	}
 
 	if (TArray<FBackendPlantDetailsResponse>* ExistingPending = PendingPlantDetailsCallbacks.Find(PerenualId))
@@ -421,7 +547,7 @@ void USavedPlantCacheSubsystem::GetOrLoadPlantDetails(int32 PerenualId, const FB
 	Api->GetPerenualPlantDetails(
 		PerenualId,
 		FBackendPlantDetailsResponse::CreateWeakLambda(this,
-			[this, PerenualId](bool bSuccess, const FString& Message, const FBackendPlantDto& Plant)
+			[this, PerenualId, bHasCachedPlant, CachedPlantSnapshot](bool bSuccess, const FString& Message, const FBackendPlantDto& Plant)
 			{
 				if (!bSuccess)
 				{
@@ -429,7 +555,7 @@ void USavedPlantCacheSubsystem::GetOrLoadPlantDetails(int32 PerenualId, const FB
 					return;
 				}
 
-				FinishPlantDetailsWithSuccess(PerenualId, Plant);
+				FinishPlantDetailsWithSuccess(PerenualId, bHasCachedPlant ? MergePlantDetails(CachedPlantSnapshot, Plant) : Plant);
 			}
 		)
 	);

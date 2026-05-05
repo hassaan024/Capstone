@@ -26,6 +26,9 @@ public:
 		void SetCurrentDayIndex(int32 NewDayIndex);
 
 	UFUNCTION(BlueprintCallable)
+		void RefreshCurrentDay();
+
+	UFUNCTION(BlueprintCallable)
 		int32 GetCurrentDayIndex() const;
 
 	UFUNCTION(BlueprintCallable)

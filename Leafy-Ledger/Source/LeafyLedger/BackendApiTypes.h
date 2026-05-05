@@ -412,3 +412,45 @@ struct FBackendGardenDetailDto
 	UPROPERTY(BlueprintReadWrite)
 	TArray<FBackendGardenPlantInstanceDto> Plants;
 };
+
+USTRUCT(BlueprintType)
+struct FBackendGardenTimelinePlantDto
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 PlantInstanceId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString SpeciesName;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bFeasible = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString FeasibilityNote;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 DaysToMature = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	float MaxHeightCm = 0.f;
+};
+
+USTRUCT(BlueprintType)
+struct FBackendGardenTimelineDto
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 GardenId = 0;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
+
+	UPROPERTY(BlueprintReadWrite)
+	TArray<FBackendGardenTimelinePlantDto> Plants;
+};

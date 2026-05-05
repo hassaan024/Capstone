@@ -1,16 +1,77 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "GardenDirector.h"
 #include "BackendApiSubsystem.h"
+#include "BloomDateUtils.h"
 #include "SavedPlantCacheSubsystem.h"
 #include "GardenSessionSubsystem.h"
+#include "GardenTimeManager.h"
 #include "PlantSelect.h"
 #include "PlantObject.h"
-#include "GardenExit.h"
+#include "GardenHUD.h"
 #include "UserDrone.h"
 #include "Plant.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
+
+namespace
+{
+	bool TryDateToDayIndex(const FString& DateText, int32& OutDayIndex)
+	{
+		const FString NormalizedDate = FBloomDateUtils::NormalizeBackendDateString(DateText);
+		if (NormalizedDate.IsEmpty())
+		{
+			return false;
+		}
+
+		FDateTime ParsedDate;
+		if (!FDateTime::ParseIso8601(*NormalizedDate, ParsedDate))
+		{
+			return false;
+		}
+
+		const FDateTime DateOnly(ParsedDate.GetYear(), ParsedDate.GetMonth(), ParsedDate.GetDay());
+		const FDateTime EpochDate(2000, 1, 1);
+		OutDayIndex = static_cast<int32>((DateOnly - EpochDate).GetDays());
+		return OutDayIndex >= 0;
+	}
+
+	int32 GetFallbackDaysToBloom(const FString& Category)
+	{
+		if (Category.Equals(TEXT("flower"), ESearchCase::IgnoreCase))
+		{
+			return 20;
+		}
+
+		if (Category.Equals(TEXT("tree"), ESearchCase::IgnoreCase))
+		{
+			return 50;
+		}
+
+		return 30;
+	}
+
+	bool IsGardenDateSliderVisible(UWorld* World)
+	{
+		if (!World)
+		{
+			return false;
+		}
+
+		TArray<UUserWidget*> FoundWidgets;
+		UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, UGardenHUD::StaticClass(), false);
+		for (UUserWidget* Widget : FoundWidgets)
+		{
+			if (const UGardenHUD* GardenHUD = Cast<UGardenHUD>(Widget))
+			{
+				return GardenHUD->IsDateSliderVisible();
+			}
+		}
+
+		return false;
+	}
+}
 
 // Sets default values
 AGardenDirector::AGardenDirector()
@@ -52,8 +113,8 @@ void AGardenDirector::Tick(float DeltaTime)
 void AGardenDirector::AddButtons()
 {
 	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	UGardenExit* GardenExit = CreateWidget<UGardenExit>(PlayerController, GardenExitClass);
-	GardenExit->AddToViewport();
+	UGardenHUD* GardenHUD = CreateWidget<UGardenHUD>(PlayerController, GardenHUDClass);
+	GardenHUD->AddToViewport();
 }
 
 void AGardenDirector::SpawnLoadedPlants()
@@ -68,6 +129,17 @@ void AGardenDirector::SpawnLoadedPlants()
 	TSubclassOf<APlant> PlantClass = UserDrone ? UserDrone->GetDefaultPlantClass() : APlant::StaticClass();
 
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
+	const bool bDateSliderVisible = IsGardenDateSliderVisible(GetWorld());
+	int32 BloomDayIndex = -1;
+	const bool bHasBloomDayIndex = TryDateToDayIndex(Draft.BloomDate, BloomDayIndex);
+	AGardenTimeManager* TimeManager = nullptr;
+	TArray<AActor*> FoundTimeManagers;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGardenTimeManager::StaticClass(), FoundTimeManagers);
+	if (FoundTimeManagers.Num() > 0)
+	{
+		TimeManager = Cast<AGardenTimeManager>(FoundTimeManagers[0]);
+	}
+
 	for (const FEditablePlantPlacement& PlantPlacement : Draft.Plants)
 	{
 		if (PlantPlacement.BackendPlantInstanceId <= 0) continue;
@@ -90,9 +162,25 @@ void AGardenDirector::SpawnLoadedPlants()
 			PlantData->PerenualId = PlantPlacement.PerenualId;
 			PlantData->SpeciesId = PlantPlacement.SpeciesId;
 			PlantData->ModelCategory = PlantPlacement.SpeciesModelCategory;
-			PlantData->DaysToBloom = 4;
+			int32 PlantingDayIndex = -1;
+			if (bHasBloomDayIndex && TryDateToDayIndex(PlantPlacement.PlantedDate, PlantingDayIndex) && PlantingDayIndex <= BloomDayIndex)
+			{
+				PlantData->DaysToBloom = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
+			}
+			else
+			{
+				PlantData->DaysToBloom = GetFallbackDaysToBloom(PlantPlacement.SpeciesModelCategory);
+				PlantingDayIndex = bHasBloomDayIndex ? BloomDayIndex - PlantData->DaysToBloom : 0;
+			}
 			PlantData->DaysToWither = 6;
 			PlantActor->InitializeFromPlantData(PlantData);
+
+			if (bHasBloomDayIndex)
+			{
+				PlantActor->PlantingDayIndex = PlantingDayIndex;
+				PlantActor->BloomDayIndex = BloomDayIndex;
+				PlantActor->WitherDayIndex = BloomDayIndex + PlantData->DaysToWither;
+			}
 		}
 
 		PlantActor->SetActorRotation(PlantPlacement.Rotation);
@@ -106,12 +194,31 @@ void AGardenDirector::SpawnLoadedPlants()
 		PlantActor->LastWateredIso8601 = PlantPlacement.LastWateredIso8601;
 		PlantActor->Notes = PlantPlacement.Notes;
 		PlantActor->SetPlacedMaterial();
+
+		if (TimeManager)
+		{
+			PlantActor->UpdateForDay(TimeManager->GetCurrentDayIndex());
+		}
+
+		PlantActor->SetPlantingDateTextVisible(bDateSliderVisible);
 	}
 }
 
 void AGardenDirector::MakePlantList()
 {
 	APlayerController* PlayerController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!PlayerController)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MakePlantList: PlayerController is missing"));
+		return;
+	}
+
+	if (!PlantSelectClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("MakePlantList: PlantSelectClass is not set on GardenDirector"));
+		return;
+	}
+
 	UPlantSelect* PlantSelect = CreateWidget<UPlantSelect>(PlayerController, PlantSelectClass);
 	if (!PlantSelect)
 	{
