@@ -15,7 +15,6 @@ import {
   TIMELINE_INTERVAL_DAYS,
 } from 'utils/plant-growth';
 import { computeModelCategory } from 'utils/model-category';
-import { computeModelCategory } from 'utils/model-category';
 import { GrowthStage } from 'enums/table_enums';
 import { DEMO_SPECIES, getDemoSpecies } from 'utils/demo-species';
 
@@ -48,7 +47,6 @@ interface SpeciesPayloadData {
   droughtTolerant: boolean | null;
   tropical: boolean | null;
   cycle: string | null;
-  modelCategory: string | null;
   modelCategory: string | null;
 }
 
@@ -491,7 +489,6 @@ export class PredictionService {
         cycle: demo.cycle,
         type: demo.type,
         modelCategory: computeModelCategory(demo),
-        modelCategory: computeModelCategory(demo),
         careLevel: demo.careLevel,
         family: demo.family,
         genus: demo.genus,
@@ -542,7 +539,6 @@ export class PredictionService {
    * Returns accurate hardcoded species data if this is a demo species,
    * otherwise returns the DB species record unchanged.
    * Always ensures modelCategory is populated.
-   * Always ensures modelCategory is populated.
    */
   private resolveSpecies(dbSpecies: {
     commonName: string;
@@ -558,11 +554,6 @@ export class PredictionService {
     droughtTolerant: boolean | null;
     tropical: boolean | null;
     cycle: string | null;
-    modelCategory?: string | null;
-    type?: string | null;
-    edibleFruit?: boolean | null;
-    edibleLeaf?: boolean | null;
-    cuisine?: boolean | null;
     modelCategory?: string | null;
     type?: string | null;
     edibleFruit?: boolean | null;
@@ -627,7 +618,6 @@ export class PredictionService {
         droughtTolerant: species.droughtTolerant ?? false,
         tropical: species.tropical ?? false,
         cycle: species.cycle ?? null,
-        modelCategory: species.modelCategory ?? 'flower',
         modelCategory: species.modelCategory ?? 'flower',
       },
       soil: {
