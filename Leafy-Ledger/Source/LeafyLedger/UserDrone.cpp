@@ -71,6 +71,12 @@ void AUserDrone::UpdatePan()
 
 void AUserDrone::UpdatePreviewPlant()
 {
+	if (IsGardenModificationBlocked())
+	{
+		CancelActivePlantInteraction();
+		return;
+	}
+
 	if (CurrentEditMode != EGardenEditMode::Plant)
 	{
 		return;
@@ -98,6 +104,12 @@ void AUserDrone::UpdatePreviewPlant()
 
 void AUserDrone::LeftMousePressed()
 {
+	if (IsGardenModificationBlocked())
+	{
+		CancelActivePlantInteraction();
+		return;
+	}
+
 	if (CurrentEditMode == EGardenEditMode::Delete)
 	{
 		FHitResult PlantHit;
@@ -147,6 +159,12 @@ void AUserDrone::LeftMousePressed()
 
 void AUserDrone::LeftMouseReleased()
 {
+	if (IsGardenModificationBlocked())
+	{
+		CancelActivePlantInteraction();
+		return;
+	}
+
 	if (!PreviewPlant)
 	{
 		bDraggingRealPlant = false;
@@ -308,8 +326,33 @@ bool AUserDrone::ValidPlantPlacement()
 	return false;
 }
 
+bool AUserDrone::IsGardenModificationBlocked() const
+{
+	if (!GetWorld())
+	{
+		return false;
+	}
+
+	TArray<UUserWidget*> FoundWidgets;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(GetWorld(), FoundWidgets, UGardenHUD::StaticClass(), false);
+	for (UUserWidget* Widget : FoundWidgets)
+	{
+		if (const UGardenHUD* GardenHUD = Cast<UGardenHUD>(Widget))
+		{
+			return GardenHUD->IsPredictionRunning();
+		}
+	}
+
+	return false;
+}
+
 bool AUserDrone::SpawnPlant(APlant*& Plant)
 {
+	if (IsGardenModificationBlocked())
+	{
+		return false;
+	}
+
 	if (!SelectedPlantData) return false;
 	if (!ValidPlantPlacement()) return false;
 
@@ -370,6 +413,7 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 {
 	if (!PlantActor) return;
+	if (IsGardenModificationBlocked()) return;
 
 	if (!GetGameInstance())
 	{
@@ -453,6 +497,11 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 
 void AUserDrone::DeletePlant(APlant* PlantActor)
 {
+	if (IsGardenModificationBlocked())
+	{
+		return;
+	}
+
 	if (!PlantActor)
 	{
 		return;

@@ -51,6 +51,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void HideDateSlider();
 
+	UFUNCTION(BlueprintCallable)
+	bool IsPredictionRunning() const;
 	bool IsDateSliderVisible() const;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -102,6 +104,7 @@ private:
 	void ApplySliderDay(float Value);
 	void SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const;
 	void SetGardenMode(EGardenEditMode NewMode);
+	void CancelActiveGardenModification() const;
 
 	UPROPERTY(Transient, meta = (BindWidget))
 	UEditableTextBox* ET_BloomDate = nullptr;
