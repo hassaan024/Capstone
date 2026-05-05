@@ -119,7 +119,7 @@ void APlant::UpdateForDay(int32 DayIndex)
 	}
 
 	UStaticMesh* DesiredMesh = nullptr;
-	FVector DesiredScale = FVector(1.f);
+	FVector DesiredVisualScale = FVector(BloomStageScale);
 
 	if (BloomDayIndex <= 0 || PlantingDayIndex <= 0)
 	{
@@ -133,7 +133,7 @@ void APlant::UpdateForDay(int32 DayIndex)
 			PreviewMesh->SetStaticMesh(BloomedMesh);
 		}
 
-		SetActorScale3D(DesiredScale);
+		PreviewMesh->SetRelativeScale3D(DesiredVisualScale);
 		BlueprintDayUpdate(DayIndex);
 		UpdatePlantingDateText();
 		return;
@@ -145,7 +145,7 @@ void APlant::UpdateForDay(int32 DayIndex)
 		PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		SetActorEnableCollision(false);
 		RefreshPlantingDateTextVisibility();
-		SetActorScale3D(DesiredScale);
+		PreviewMesh->SetRelativeScale3D(DesiredVisualScale);
 		BlueprintDayUpdate(DayIndex);
 		UpdatePlantingDateText();
 		return;
@@ -160,23 +160,30 @@ void APlant::UpdateForDay(int32 DayIndex)
 	{
 		const int32 GrowthDuration = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
 		const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
+		constexpr float SaplingStartAlpha = 0.33f;
 
 		if (DayIndex == BloomDayIndex)
 		{
 			DesiredMesh = BloomedMesh ? BloomedMesh : (SaplingMesh ? SaplingMesh : SeedMesh);
+			DesiredVisualScale = FVector(BloomStageScale);
 		}
-		else if (GrowthAlpha < 0.33f)
+		else if (GrowthAlpha < SaplingStartAlpha)
 		{
 			DesiredMesh = SeedMesh ? SeedMesh : SaplingMesh;
+			const float SeedAlpha = FMath::Clamp(GrowthAlpha / SaplingStartAlpha, 0.f, 1.f);
+			DesiredVisualScale = FVector(FMath::Lerp(SeedStageStartScale, SeedStageEndScale, SeedAlpha));
 		}
 		else
 		{
 			DesiredMesh = SaplingMesh ? SaplingMesh : SeedMesh;
+			const float SaplingAlpha = FMath::Clamp((GrowthAlpha - SaplingStartAlpha) / (1.f - SaplingStartAlpha), 0.f, 1.f);
+			DesiredVisualScale = FVector(FMath::Lerp(SaplingStageStartScale, BloomStageScale, SaplingAlpha));
 		}
 	}
 	else
 	{
 		DesiredMesh = WitherMesh ? WitherMesh : BloomedMesh;
+		DesiredVisualScale = FVector(BloomStageScale);
 	}
 
 	if (DesiredMesh)
@@ -184,7 +191,7 @@ void APlant::UpdateForDay(int32 DayIndex)
 		PreviewMesh->SetStaticMesh(DesiredMesh);
 	}
 
-	SetActorScale3D(DesiredScale);
+	PreviewMesh->SetRelativeScale3D(DesiredVisualScale);
 	BlueprintDayUpdate(DayIndex);
 	UpdatePlantingDateText();
 }
@@ -210,6 +217,7 @@ void APlant::UpdatePlantingDateText()
 	UKismetSystemLibrary::GetComponentBounds(PreviewMesh, Origin, BoxExtent, SphereRadius);
 
 	TextRender->SetWorldLocation(FVector(Origin.X, Origin.Y, Origin.Z + BoxExtent.Z + PlantingDateTextPadding));
+	TextRender->SetWorldScale3D(PlantingDateTextWorldScale);
 	RefreshPlantingDateTextVisibility();
 }
 
