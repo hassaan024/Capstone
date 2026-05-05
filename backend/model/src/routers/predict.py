@@ -1,5 +1,6 @@
 import logging
 import math
+import math
 from fastapi import APIRouter
 from ..schema import PredictionRequest, PredictionResponse, StressFactors
 
@@ -188,7 +189,29 @@ def _base_daily_growth_cm(species) -> float:
       • Trees           → 600–730 days (capped timeline)
     The base rate is calibrated so that at average stress (0.6) the plant
     reaches maxHeightCm in approximately the expected days.
+    Baseline cm/day derived from a type+cycle-aware expected-days table so that
+    different plant categories have biologically realistic growth timelines:
+      • Annual flowers  → 80–200 days to mature
+      • Vegetables      → 65–130 days
+      • Trees           → 600–730 days (capped timeline)
+    The base rate is calibrated so that at average stress (0.6) the plant
+    reaches maxHeightCm in approximately the expected days.
     """
+    cat = (species.modelCategory or 'flower').lower()
+    ck  = _cycle_key(species.cycle)
+
+    key   = (cat, ck)
+    tiers = _EXPECTED_DAYS.get(key, _EXPECTED_DAYS[('flower', 'perennial')])
+
+    tier_idx  = max(0, min(2, int(round(species.growthRate)) - 1))
+    base_days = tiers[tier_idx]
+
+    ref_h      = _REFERENCE_HEIGHT_CM.get(cat, 60.0)
+    height_adj = math.pow(max(species.maxHeightCm, 1.0) / ref_h, 0.3)
+    expected_days = base_days * height_adj
+
+    # base_daily × AVG_STRESS × expected_days = maxHeightCm  →  solve for base_daily
+    return species.maxHeightCm / (expected_days * _AVG_STRESS)
     cat = (species.modelCategory or 'flower').lower()
     ck  = _cycle_key(species.cycle)
 

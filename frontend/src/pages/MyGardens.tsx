@@ -265,17 +265,19 @@ const MyGardens: React.FC = () => {
     };
   }, [user?.id, selectedId, subTab]);
 
+  // Suggest Chatbot interaction for Gardens page (respects pageInfoRecommendations preference)
   useEffect(() => {
-    if (!localStorage.getItem('hasSeenGardensPopup')) {
+    if (user?.pageInfoRecommendations !== false) {
       const t = setTimeout(() => {
         window.dispatchEvent(
-          new CustomEvent('suggestChat', { detail: 'What shows up on My Gardens?' }),
+          new CustomEvent('suggestChat', {
+            detail: 'What can I do on the My Gardens page?',
+          }),
         );
-        localStorage.setItem('hasSeenGardensPopup', 'true');
       }, 2000);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [user?.pageInfoRecommendations]);
 
   const formatDt = (iso: string) => {
     try {

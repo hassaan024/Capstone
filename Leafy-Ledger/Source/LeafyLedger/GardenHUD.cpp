@@ -318,6 +318,7 @@ void UGardenHUD::OnPressPredict()
 	if (Draft.BackendGardenId <= 0 || GardenSession->IsDirty())
 	{
 		UE_LOG(LogTemp, Log, TEXT("OnPressPredict: saving pending garden changes before prediction"));
+		CancelActiveGardenModification();
 		bRunPredictionAfterSave = true;
 		OnPressSave();
 		return;
@@ -345,6 +346,7 @@ void UGardenHUD::OnPressPredict()
 		return;
 	}
 
+	CancelActiveGardenModification();
 	bPredictionInFlight = true;
 	if (BTN_Predict)
 	{
@@ -884,6 +886,11 @@ bool UGardenHUD::IsDateSliderVisible() const
 	return bDateSliderReady && SLDR_Date && SLDR_Date->GetVisibility() == ESlateVisibility::Visible;
 }
 
+bool UGardenHUD::IsPredictionRunning() const
+{
+	return bPredictionInFlight || bRunPredictionAfterSave;
+}
+
 void UGardenHUD::RestoreDateSliderFromDraft()
 {
 	if (!GetGameInstance())
@@ -1101,6 +1108,12 @@ void UGardenHUD::OnPressDeleteMode()
 
 void UGardenHUD::SetGardenMode(EGardenEditMode NewMode)
 {
+	if (IsPredictionRunning())
+	{
+		CancelActiveGardenModification();
+		return;
+	}
+
 	if (!GetWorld())
 	{
 		return;
@@ -1109,5 +1122,18 @@ void UGardenHUD::SetGardenMode(EGardenEditMode NewMode)
 	if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
 	{
 		Drone->SetGardenEditMode(NewMode);
+	}
+}
+
+void UGardenHUD::CancelActiveGardenModification() const
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+	{
+		Drone->CancelActivePlantInteraction();
 	}
 }

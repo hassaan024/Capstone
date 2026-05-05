@@ -64,6 +64,23 @@ export function rawDaysToMature(
   const heightAdj = Math.pow(Math.max(maxHeightCm, 1) / refHeight, 0.3);
 
   return Math.ceil(baseDays * heightAdj);
+export function rawDaysToMature(
+  growthRate: number,
+  maxHeightCm: number,
+  modelCategory: string | null | undefined = 'flower',
+  cycle: string | null | undefined = '',
+): number {
+  const cat = (modelCategory || 'flower').toLowerCase();
+  const ck = cycleKey(cycle);
+
+  const tiers = EXPECTED_DAYS[cat]?.[ck] ?? EXPECTED_DAYS['flower']['perennial'];
+  const idx = Math.max(0, Math.min(2, Math.round(growthRate) - 1));
+  const baseDays = tiers[idx];
+
+  const refHeight = REFERENCE_HEIGHT_CM[cat] ?? 60;
+  const heightAdj = Math.pow(Math.max(maxHeightCm, 1) / refHeight, 0.3);
+
+  return Math.ceil(baseDays * heightAdj);
 }
 
 /**
@@ -74,7 +91,10 @@ export function estimateDaysToMature(
   maxHeightCm: number,
   modelCategory: string | null | undefined = 'flower',
   cycle: string | null | undefined = '',
+  modelCategory: string | null | undefined = 'flower',
+  cycle: string | null | undefined = '',
 ): number {
+  return Math.min(rawDaysToMature(growthRate, maxHeightCm, modelCategory, cycle), MAX_DAYS_TO_MATURE);
   return Math.min(rawDaysToMature(growthRate, maxHeightCm, modelCategory, cycle), MAX_DAYS_TO_MATURE);
 }
 
@@ -89,10 +109,13 @@ export function computeBloomDays(species: {
   maxHeight: number | null;
   modelCategory?: string | null;
   cycle?: string | null;
+  modelCategory?: string | null;
+  cycle?: string | null;
 }): number {
   const demo = getDemoSpecies(species.commonName, species.scientificName);
   if (demo) return demo.daysToFirstBloom;
   const maxHeightCm = (species.maxHeight ?? 1) * 30.48;
+  return estimateDaysToMature(species.growthRate, maxHeightCm, species.modelCategory, species.cycle);
   return estimateDaysToMature(species.growthRate, maxHeightCm, species.modelCategory, species.cycle);
 }
 
