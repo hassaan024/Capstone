@@ -21,7 +21,12 @@ void UPlantSelect::AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Na
 
 void UPlantSelect::SetGardenPlants(const TArray<FBackendPlantDto>& Plants)
 {
+	const bool bHadGardenSavedPlants = GardenPlants.Num() > 0;
 	GardenPlants = Plants;
+	if (!bHadGardenSavedPlants && GardenPlants.Num() > 0)
+	{
+		bAreGlobalPlantsVisible = false;
+	}
 	RebuildPlantShelf();
 }
 
@@ -45,6 +50,8 @@ void UPlantSelect::RebuildPlantShelf()
 
 	PlantShelf->ClearListItems();
 
+	const bool bHasGardenSavedPlants = GardenPlants.Num() > 0;
+
 	for (const FBackendPlantDto& Plant : GardenPlants)
 	{
 		AddPlantToShelf(
@@ -65,6 +72,27 @@ void UPlantSelect::RebuildPlantShelf()
 	}
 
 	if (UniqueGlobalPlantCount <= 0) return;
+
+	if (!bHasGardenSavedPlants)
+	{
+		bAreGlobalPlantsVisible = true;
+
+		for (const FBackendPlantDto& Plant : GlobalPlants)
+		{
+			if (ShouldSkipGlobalPlant(Plant)) continue;
+
+			AddPlantToShelf(
+				Plant.PerenualId,
+				Plant.Id,
+				Plant.CommonName,
+				Plant.ModelCategory,
+				false,
+				true
+			);
+		}
+
+		return;
+	}
 
 	AddPlantToShelf(
 		-1,
