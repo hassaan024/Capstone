@@ -15,6 +15,7 @@ import {
   TIMELINE_INTERVAL_DAYS,
 } from 'utils/plant-growth';
 import { computeModelCategory } from 'utils/model-category';
+import { computeModelCategory } from 'utils/model-category';
 import { GrowthStage } from 'enums/table_enums';
 import { DEMO_SPECIES, getDemoSpecies } from 'utils/demo-species';
 
@@ -48,6 +49,7 @@ interface SpeciesPayloadData {
   tropical: boolean | null;
   cycle: string | null;
   modelCategory: string | null;
+  modelCategory: string | null;
 }
 
 @Injectable()
@@ -65,7 +67,10 @@ export class PredictionService {
       include: { species: true, soil: true, garden: true },
     });
 
-    if (!plant) throw new NotFoundException(`Plant instance ${plantInstanceId} not found`);
+    if (!plant)
+      throw new NotFoundException(
+        `Plant instance ${plantInstanceId} not found`,
+      );
 
     const { soil, garden } = plant;
 
@@ -73,7 +78,8 @@ export class PredictionService {
     const speciesData = this.resolveSpecies(plant.species);
 
     const ageDays = Math.floor(
-      (plant.currentGameDate.getTime() - plant.plantedDate.getTime()) / 86400000,
+      (plant.currentGameDate.getTime() - plant.plantedDate.getTime()) /
+        86400000,
     );
 
     const weather = await this.weatherService.getWeatherForGameDate(
@@ -84,7 +90,15 @@ export class PredictionService {
     );
 
     const soilMoisture = estimateSoilMoisture(weather, soil.type);
-    const payload = this.buildPayload(plant, speciesData, soil, weather, soilMoisture, ageDays, daysAhead);
+    const payload = this.buildPayload(
+      plant,
+      speciesData,
+      soil,
+      weather,
+      soilMoisture,
+      ageDays,
+      daysAhead,
+    );
 
     this.logger.log(`Prediction payload built for plant ${plantInstanceId}`);
 
@@ -109,141 +123,218 @@ export class PredictionService {
     });
 
     if (!garden) throw new NotFoundException(`Garden ${gardenId} not found`);
-    if (!garden.plants.length) throw new BadRequestException(`Garden ${gardenId} has no plants`);
+    if (!garden.plants.length)
+      throw new BadRequestException(`Garden ${gardenId} has no plants`);
+
+    // Pre-compute per-plant metadata synchronously so we can determine the
+    // full weather window needed before making any API calls.
+    const plantMeta = garden.plants.map((plant) => {
+      const speciesData = this.resolveSpecies(plant.species);
+      const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
+      // const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
+      const demoData = null;
+      const daysNeeded = rawDaysToMature(
+        speciesData.growthRate,
+        maxHeightCm,
+        speciesData.modelCategory,
+        speciesData.cycle,
+      );
+      const daysToMature = Math.min(daysNeeded, 730);
+      const feasible = daysNeeded <= 730;
+      const plantedDate = new Date(
+        bloomDate.getTime() - daysToMature * 86400000,
+      );
+      return {
+        plant,
+        speciesData,
+        maxHeightCm,
+        demoData,
+        daysNeeded,
+        daysToMature,
+        feasible,
+        plantedDate,
+      };
+    });
+
+    // Fetch base window + 365-day buffer so simulations can run longer than
+    // daysToMature when conditions are poor. Each plant's offset positions it
+    // within the shared array; the buffer sits after every plant's base end.
+    const maxDaysToMature = Math.max(...plantMeta.map((m) => m.daysToMature));
+    const bufferedDays = Math.min(maxDaysToMature + 365, 730);
+    const earliestPlantedDate = new Date(
+      bloomDate.getTime() - bufferedDays * 86400000,
+    );
+
+    const sharedWeather = await this.weatherService.getWeatherForGameDate(
+      garden.latitude,
+      garden.longitude,
+      earliestPlantedDate,
+      bufferedDays + TIMELINE_INTERVAL_DAYS,
+    );
 
     const plantResults = await Promise.all(
-      garden.plants.map(async (plant) => {
-        // Use accurate hardcoded data for demo species if available
-        const speciesData = this.resolveSpecies(plant.species);
-
-        const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
-        const demoData = getDemoSpecies(plant.species.commonName, plant.species.scientificName);
-        const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
-        const daysToMature = Math.min(daysNeeded, 730);
-        const feasible = daysNeeded <= 730;
-        const plantedDate = new Date(bloomDate.getTime() - daysToMature * 86400000);
-
-        // Persist the calculated planted date and reset game date to bloom date
-        await this.db.plantInstance.update({
-          where: { id: plant.id },
-          data: { plantedDate, currentGameDate: bloomDate },
-        });
-
-        // Fetch the full growth-period weather in a single API call.
-        // getWeatherForGameDate anchors to 1 year before the game date, so
-        // the returned array covers plantedDate-365 → bloomDate-365 (same
-        // seasonal window, different year), giving realistic conditions across
-        // the entire timeline.
-        const allWeather = await this.weatherService.getWeatherForGameDate(
-          garden.latitude,
-          garden.longitude,
+      plantMeta.map(
+        async ({
+          plant,
+          speciesData,
+          maxHeightCm,
+          demoData,
+          daysNeeded,
+          daysToMature,
+          feasible,
           plantedDate,
-          daysToMature + TIMELINE_INTERVAL_DAYS, // small buffer for the last window
-        );
+        }) => {
+          // plantOffset positions this plant's seasonal window within the shared array.
+          // The 365-day buffer sits after index maxDaysToMature, giving each plant
+          // room to run longer than daysToMature when conditions are poor.
+          const plantOffset = maxDaysToMature - daysToMature;
 
-        // Clear any previously generated history before writing the new one
-        await this.db.plantHistory.deleteMany({ where: { plantId: plant.id } });
+          await this.db.plantHistory.deleteMany({
+            where: { plantId: plant.id },
+          });
 
-        let currentHeight = 0;
-        const timeline: TimelineEntry[] = [];
+          let currentHeight = 0;
+          let dayIndex = 0;
+          const timeline: TimelineEntry[] = [];
 
-        for (let dayIndex = 0; dayIndex <= daysToMature; dayIndex += TIMELINE_INTERVAL_DAYS) {
-          const gameDate = new Date(plantedDate.getTime() + dayIndex * 86400000);
-          const heightRatio = maxHeightCm > 0 ? currentHeight / maxHeightCm : 0;
-          const growthStage = growthStageFromRatio(heightRatio);
+          // Run until the plant reaches 90% of max height or weather data runs out.
+          // This makes the timeline duration weather-driven: bad conditions = longer timeline.
+          while (true) {
+            const weatherSlice = sharedWeather.slice(
+              plantOffset + dayIndex,
+              plantOffset + dayIndex + TIMELINE_INTERVAL_DAYS,
+            );
+            if (!weatherSlice.length) break;
 
-          const weatherSlice = allWeather.slice(dayIndex, dayIndex + TIMELINE_INTERVAL_DAYS);
-          if (!weatherSlice.length) break;
+            const gameDate = new Date(
+              plantedDate.getTime() + dayIndex * 86400000,
+            );
+            const heightRatio =
+              maxHeightCm > 0 ? currentHeight / maxHeightCm : 0;
+            const growthStage = growthStageFromRatio(heightRatio);
 
-          const soilMoisture = estimateSoilMoisture(weatherSlice, plant.soil.type);
+            const soilMoisture = estimateSoilMoisture(
+              weatherSlice,
+              plant.soil.type,
+            );
 
-          const payload = this.buildPayload(
-            { ...plant, heightCm: currentHeight, growthStage, bloomState: heightRatio >= 0.9 },
-            speciesData,
-            plant.soil,
-            weatherSlice,
-            soilMoisture,
-            dayIndex,
-            TIMELINE_INTERVAL_DAYS,
-          );
+            const payload = this.buildPayload(
+              {
+                ...plant,
+                heightCm: currentHeight,
+                growthStage,
+                bloomState: heightRatio >= 0.9,
+              },
+              speciesData,
+              plant.soil,
+              weatherSlice,
+              soilMoisture,
+              dayIndex,
+              TIMELINE_INTERVAL_DAYS,
+            );
 
-          const prediction = await this.callMlService(payload);
-          currentHeight = Math.min(prediction.predictedHeightCm as number, maxHeightCm);
+            const prediction = await this.callMlService(payload);
+            currentHeight = Math.min(
+              prediction.predictedHeightCm as number,
+              maxHeightCm,
+            );
 
-          const record = await this.db.plantHistory.create({
-            data: {
-              plantId: plant.id,
-              date: gameDate,
+            const record = await this.db.plantHistory.create({
+              data: {
+                plantId: plant.id,
+                date: gameDate,
+                heightCm: currentHeight,
+                growthStage,
+                predictedValue: prediction.stressFactors.overall as number,
+              },
+            });
+
+            timeline.push({
+              historyId: record.id,
+              date: gameDate.toISOString().split('T')[0],
+              dayIndex,
               heightCm: currentHeight,
               growthStage,
-              predictedValue: prediction.stressFactors.overall as number,
+              stressFactors:
+                prediction.stressFactors as TimelineEntry['stressFactors'],
+              confidence: prediction.confidence as number,
+            });
+
+            if (currentHeight >= maxHeightCm * 0.9) break;
+            dayIndex += TIMELINE_INTERVAL_DAYS;
+          }
+
+          // plantedDate is now weather-driven: how far back from bloomDate the
+          // simulation actually needed to run to reach mature height.
+          const actualDaysToMature = dayIndex + TIMELINE_INTERVAL_DAYS;
+          const actualPlantedDate = new Date(
+            bloomDate.getTime() - actualDaysToMature * 86400000,
+          );
+
+          await this.db.plantInstance.update({
+            where: { id: plant.id },
+            data: {
+              plantedDate: actualPlantedDate,
+              currentGameDate: bloomDate,
             },
           });
 
-          timeline.push({
-            historyId: record.id,
-            date: gameDate.toISOString().split('T')[0],
-            dayIndex,
-            heightCm: currentHeight,
-            growthStage,
-            stressFactors: prediction.stressFactors as TimelineEntry['stressFactors'],
-            confidence: prediction.confidence as number,
-          });
-        }
+          const earliestFeasibleBloomDate = !feasible
+            ? new Date(plantedDate.getTime() + daysNeeded * 86400000)
+                .toISOString()
+                .split('T')[0]
+            : null;
 
-        const earliestFeasibleBloomDate = !feasible
-          ? new Date(plantedDate.getTime() + daysNeeded * 86400000).toISOString().split('T')[0]
-          : null;
+          // Derive suitability from the already-computed stress factors.
+          // No extra API calls — we aggregate what the ML model already returned.
+          const suitabilityReasons: string[] = [];
+          if (timeline.length > 0) {
+            const avg = (fn: (e: TimelineEntry) => number) =>
+              timeline.reduce((sum, e) => sum + fn(e), 0) / timeline.length;
 
-        // Derive suitability from the already-computed stress factors.
-        // No extra API calls — we aggregate what the ML model already returned.
-        const suitabilityReasons: string[] = [];
-        if (timeline.length > 0) {
-          const avg = (fn: (e: TimelineEntry) => number) =>
-            timeline.reduce((sum, e) => sum + fn(e), 0) / timeline.length;
+            const avgTempStress = avg((e) => e.stressFactors.temperature);
+            const avgSunStress = avg((e) => e.stressFactors.sunlight);
+            const avgWaterStress = avg((e) => e.stressFactors.water);
+            const avgOverallStress = avg((e) => e.stressFactors.overall);
 
-          const avgTempStress    = avg(e => e.stressFactors.temperature);
-          const avgSunStress     = avg(e => e.stressFactors.sunlight);
-          const avgWaterStress   = avg(e => e.stressFactors.water);
-          const avgOverallStress = avg(e => e.stressFactors.overall);
+            if (avgTempStress < 0.4)
+              suitabilityReasons.push(
+                `Temperature is outside the comfortable range for ${plant.species.commonName} throughout most of the growth period.`,
+              );
+            if (avgSunStress < 0.4)
+              suitabilityReasons.push(
+                `Available sunlight is consistently below what ${plant.species.commonName} needs to grow well.`,
+              );
+            if (avgWaterStress < 0.4)
+              suitabilityReasons.push(
+                `Soil moisture and precipitation are too low for ${plant.species.commonName} during this period.`,
+              );
+            if (avgOverallStress < 0.4)
+              suitabilityReasons.push(
+                `Combined growing conditions are too poor for meaningful growth — consider a different planting window.`,
+              );
+          }
+          const suitable = suitabilityReasons.length === 0;
 
-          if (avgTempStress < 0.25)
-            suitabilityReasons.push(
-              `Temperature is outside the comfortable range for ${plant.species.commonName} throughout most of the growth period.`,
-            );
-          if (avgSunStress < 0.25)
-            suitabilityReasons.push(
-              `Available sunlight is consistently below what ${plant.species.commonName} needs to grow well.`,
-            );
-          if (avgWaterStress < 0.25)
-            suitabilityReasons.push(
-              `Soil moisture and precipitation are too low for ${plant.species.commonName} during this period.`,
-            );
-          if (avgOverallStress < 0.10)
-            suitabilityReasons.push(
-              `Combined growing conditions are too poor for meaningful growth — consider a different planting window.`,
-            );
-        }
-        const suitable = suitabilityReasons.length === 0;
-
-        return {
-          plantInstanceId: plant.id,
-          speciesName: plant.species.commonName,
-          isDemo: !!getDemoSpecies(plant.species.commonName, plant.species.scientificName),
-          feasible,
-          feasibilityNote: !feasible
-            ? `${plant.species.commonName} needs ~${daysNeeded} days to reach full height but the timeline is capped at 730. ` +
-              `The slider will show partial growth (~${Math.round((730 / daysNeeded) * 100)}% of max height). ` +
-              `Earliest feasible bloom date: ${earliestFeasibleBloomDate}.`
-            : null,
-          suitable,
-          suitabilityReasons,
-          plantedDate: plantedDate.toISOString().split('T')[0],
-          daysToMature,
-          maxHeightCm,
-          timeline,
-        };
-      }),
+          return {
+            plantInstanceId: plant.id,
+            speciesName: plant.species.commonName,
+            isDemo: !!demoData,
+            feasible,
+            feasibilityNote: !feasible
+              ? `${plant.species.commonName} needs ~${daysNeeded} days to reach full height but the timeline is capped at 730. ` +
+                `The slider will show partial growth (~${Math.round((730 / daysNeeded) * 100)}% of max height). ` +
+                `Earliest feasible bloom date: ${earliestFeasibleBloomDate}.`
+              : null,
+            suitable,
+            suitabilityReasons,
+            plantedDate: actualPlantedDate.toISOString().split('T')[0],
+            daysToMature: actualDaysToMature,
+            maxHeightCm,
+            timeline,
+          };
+        },
+      ),
     );
 
     return {
@@ -258,25 +349,40 @@ export class PredictionService {
    * No ML call — pure formula. Used by the frontend to show "~X months to full bloom."
    */
   async bloomEstimate(speciesId: number, plantedDate: Date, gardenId?: number) {
-    const species = await this.db.species.findUnique({ where: { id: speciesId } });
+    const species = await this.db.species.findUnique({
+      where: { id: speciesId },
+    });
     if (!species) throw new NotFoundException(`Species ${speciesId} not found`);
 
     const speciesData = this.resolveSpecies(species);
     const maxHeightCm = (speciesData.maxHeight ?? 100) * 30.48;
-    const demoData = getDemoSpecies(species.commonName, species.scientificName);
-    const daysNeeded = demoData?.daysToFirstBloom ?? rawDaysToMature(speciesData.growthRate, maxHeightCm, speciesData.modelCategory, speciesData.cycle);
+    // const demoData = getDemoSpecies(species.commonName, species.scientificName);
+    const daysNeeded = rawDaysToMature(
+      speciesData.growthRate,
+      maxHeightCm,
+      speciesData.modelCategory,
+      speciesData.cycle,
+    );
     const daysToMature = Math.min(daysNeeded, 730);
     const feasible = daysNeeded <= 730;
 
-    const estimatedBloomDate = new Date(plantedDate.getTime() + daysToMature * 86400000)
-      .toISOString().split('T')[0];
+    const estimatedBloomDate = new Date(
+      plantedDate.getTime() + daysToMature * 86400000,
+    )
+      .toISOString()
+      .split('T')[0];
 
     // If gardenId provided, fetch current weather and check if conditions suit this species
     let suitability: { suitable: boolean; reasons: string[] } | null = null;
     if (gardenId) {
-      const garden = await this.db.garden.findUnique({ where: { id: gardenId } });
+      const garden = await this.db.garden.findUnique({
+        where: { id: gardenId },
+      });
       if (!garden) throw new NotFoundException(`Garden ${gardenId} not found`);
-      const weather = await this.weatherService.getCurrentDaysWeather(garden.latitude, garden.longitude);
+      const weather = await this.weatherService.getCurrentDaysWeather(
+        garden.latitude,
+        garden.longitude,
+      );
       suitability = this.checkSuitability(speciesData, weather);
     }
 
@@ -324,7 +430,10 @@ export class PredictionService {
     }
 
     // Sunlight check — shortwave_radiation_sum is MJ/m², ~3.6 MJ per peak sun hour
-    if (species.avgHoursSun !== null && weather.sunlight_intensity !== undefined) {
+    if (
+      species.avgHoursSun !== null &&
+      weather.sunlight_intensity !== undefined
+    ) {
       const estimatedHours = weather.sunlight_intensity / 3.6;
       if (estimatedHours < species.avgHoursSun * 0.7) {
         reasons.push(
@@ -334,7 +443,11 @@ export class PredictionService {
     }
 
     // Drought / moisture check
-    if (!species.droughtTolerant && weather.precipitation !== undefined && weather.precipitation < 1) {
+    if (
+      !species.droughtTolerant &&
+      weather.precipitation !== undefined &&
+      weather.precipitation < 1
+    ) {
       reasons.push(
         `Low precipitation today (${weather.precipitation}mm) — this species is not drought tolerant and needs consistent moisture`,
       );
@@ -350,7 +463,12 @@ export class PredictionService {
    * Returns the DB record for each species including its assigned ID.
    */
   async seedDemoSpecies() {
-    const results: { action: string; id: number; commonName: string; type: string }[] = [];
+    const results: {
+      action: string;
+      id: number;
+      commonName: string;
+      type: string;
+    }[] = [];
 
     for (const demo of DEMO_SPECIES) {
       const existing = await this.db.species.findFirst({
@@ -373,6 +491,7 @@ export class PredictionService {
         cycle: demo.cycle,
         type: demo.type,
         modelCategory: computeModelCategory(demo),
+        modelCategory: computeModelCategory(demo),
         careLevel: demo.careLevel,
         family: demo.family,
         genus: demo.genus,
@@ -387,17 +506,32 @@ export class PredictionService {
 
       if (existing) {
         await this.db.species.update({ where: { id: existing.id }, data });
-        results.push({ action: 'updated', id: existing.id, commonName: demo.commonName, type: demo.type });
-        this.logger.log(`Demo species updated: ${demo.commonName} (id=${existing.id})`);
+        results.push({
+          action: 'updated',
+          id: existing.id,
+          commonName: demo.commonName,
+          type: demo.type,
+        });
+        this.logger.log(
+          `Demo species updated: ${demo.commonName} (id=${existing.id})`,
+        );
       } else {
         const created = await this.db.species.create({ data });
-        results.push({ action: 'created', id: created.id, commonName: demo.commonName, type: demo.type });
-        this.logger.log(`Demo species created: ${demo.commonName} (id=${created.id})`);
+        results.push({
+          action: 'created',
+          id: created.id,
+          commonName: demo.commonName,
+          type: demo.type,
+        });
+        this.logger.log(
+          `Demo species created: ${demo.commonName} (id=${created.id})`,
+        );
       }
     }
 
     return {
-      message: 'Demo species seeded successfully. Use these speciesIds when creating plant instances.',
+      message:
+        'Demo species seeded successfully. Use these speciesIds when creating plant instances.',
       species: results,
     };
   }
@@ -407,6 +541,7 @@ export class PredictionService {
   /**
    * Returns accurate hardcoded species data if this is a demo species,
    * otherwise returns the DB species record unchanged.
+   * Always ensures modelCategory is populated.
    * Always ensures modelCategory is populated.
    */
   private resolveSpecies(dbSpecies: {
@@ -428,15 +563,20 @@ export class PredictionService {
     edibleFruit?: boolean | null;
     edibleLeaf?: boolean | null;
     cuisine?: boolean | null;
+    modelCategory?: string | null;
+    type?: string | null;
+    edibleFruit?: boolean | null;
+    edibleLeaf?: boolean | null;
+    cuisine?: boolean | null;
   }): SpeciesPayloadData {
-    const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
-    if (demo) {
-      this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
-      return {
-        ...demo,
-        modelCategory: computeModelCategory(demo),
-      };
-    }
+    // const demo = getDemoSpecies(dbSpecies.commonName, dbSpecies.scientificName);
+    // if (demo) {
+    //   this.logger.log(`Using hardcoded demo data for species: ${dbSpecies.commonName}`);
+    //   return {
+    //     ...demo,
+    //     modelCategory: computeModelCategory(demo),
+    //   };
+    // }
     return {
       ...dbSpecies,
       modelCategory: dbSpecies.modelCategory ?? computeModelCategory(dbSpecies),
@@ -487,6 +627,7 @@ export class PredictionService {
         droughtTolerant: species.droughtTolerant ?? false,
         tropical: species.tropical ?? false,
         cycle: species.cycle ?? null,
+        modelCategory: species.modelCategory ?? 'flower',
         modelCategory: species.modelCategory ?? 'flower',
       },
       soil: {
