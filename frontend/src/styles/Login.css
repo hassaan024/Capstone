@@ -17,7 +17,7 @@
 
 .leafy-login-visual {
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   padding: 48px 44px;
   display: flex;
   flex-direction: column;

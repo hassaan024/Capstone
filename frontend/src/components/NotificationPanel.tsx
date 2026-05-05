@@ -14,6 +14,8 @@ interface AlertData {
   species: any;
   plantedDate: string;
   notificationDate: string;
+  count?: number;
+  plantInstanceIds?: number[];
 }
 
 const NotificationPanel: React.FC = () => {
@@ -34,7 +36,30 @@ const NotificationPanel: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.get(`/garden/alerts/${user?.id}`);
-      setAlerts(res.data);
+      const rawAlerts: AlertData[] = res.data;
+      
+      const consolidated: Record<string, AlertData> = {};
+      
+      rawAlerts.forEach(alert => {
+        const speciesId = alert.species?.id || alert.species?.perenualId || 'unknown';
+        const key = `${alert.gardenId}-${speciesId}-${alert.plantedDate}`;
+        
+        if (consolidated[key]) {
+          consolidated[key].count = (consolidated[key].count || 1) + 1;
+          if (!consolidated[key].plantInstanceIds) {
+            consolidated[key].plantInstanceIds = [consolidated[key].plantInstanceId];
+          }
+          consolidated[key].plantInstanceIds!.push(alert.plantInstanceId);
+        } else {
+          consolidated[key] = {
+            ...alert,
+            count: 1,
+            plantInstanceIds: [alert.plantInstanceId]
+          };
+        }
+      });
+      
+      setAlerts(Object.values(consolidated));
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
     } finally {
@@ -118,7 +143,10 @@ const NotificationPanel: React.FC = () => {
                   <div key={alert.plantInstanceId} className="notification-card">
                     <div className="notification-card-header">
                       <div>
-                        <h3 className="notification-card-title">{alert.species.commonName || 'Unknown Plant'}</h3>
+                        <h3 className="notification-card-title">
+                          {alert.species.commonName || 'Unknown Plant'}
+                          {alert.count && alert.count > 1 ? ` (x${alert.count})` : ''}
+                        </h3>
                         <p className="notification-card-subtitle">{alert.species.scientificName}</p>
                       </div>
                       <div className="notification-card-date-badge">
@@ -128,6 +156,11 @@ const NotificationPanel: React.FC = () => {
                     </div>
 
                     <div className="notification-card-body">
+                      {alert.count && alert.count > 1 && (
+                        <p style={{ marginBottom: '0.45rem', color: '#fbbf24', fontWeight: '600', fontSize: '0.9rem' }}>
+                          You have {alert.count} plants of this kind to plant.
+                        </p>
+                      )}
                       <p>
                         <strong style={{ color: '#e2e8f0' }}>Target Date:</strong> {formatDate(alert.plantedDate)}
                       </p>
