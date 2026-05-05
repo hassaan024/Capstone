@@ -103,6 +103,8 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	}
 
 	if (Category != "") UE_LOG(LogTemp, Warning, TEXT("%s"), *Category);
+
+	UpdatePlantingDateText();
 }
 
 void APlant::UpdateForDay(int32 DayIndex)
@@ -111,8 +113,8 @@ void APlant::UpdateForDay(int32 DayIndex)
 
 	if (!PreviewMesh)
 	{
-		UpdatePlantingDateText();
 		BlueprintDayUpdate(DayIndex);
+		UpdatePlantingDateText();
 		return;
 	}
 
@@ -132,8 +134,8 @@ void APlant::UpdateForDay(int32 DayIndex)
 		}
 
 		SetActorScale3D(DesiredScale);
-		UpdatePlantingDateText();
 		BlueprintDayUpdate(DayIndex);
+		UpdatePlantingDateText();
 		return;
 	}
 
@@ -144,8 +146,8 @@ void APlant::UpdateForDay(int32 DayIndex)
 		SetActorEnableCollision(false);
 		RefreshPlantingDateTextVisibility();
 		SetActorScale3D(DesiredScale);
-		UpdatePlantingDateText();
 		BlueprintDayUpdate(DayIndex);
+		UpdatePlantingDateText();
 		return;
 	}
 
@@ -183,8 +185,8 @@ void APlant::UpdateForDay(int32 DayIndex)
 	}
 
 	SetActorScale3D(DesiredScale);
-	UpdatePlantingDateText();
 	BlueprintDayUpdate(DayIndex);
+	UpdatePlantingDateText();
 }
 
 void APlant::UpdatePlantingDateText()
@@ -238,6 +240,6 @@ void APlant::RefreshPlantingDateTextVisibility()
 	if (UTextRenderComponent* TextRender = GetPlantingDateTextRender())
 	{
 		const bool bMeshVisible = PreviewMesh && PreviewMesh->IsVisible();
-		TextRender->SetVisibility(bPlantingDateTextEnabled && bMeshVisible);
+		TextRender->SetVisibility(bMeshVisible);
 	}
 }
