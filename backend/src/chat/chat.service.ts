@@ -220,19 +220,19 @@ Guidelines:
 APP GUIDE — HOW LEAFYLEDGER WORKS
 ========================================
 
-1. LOGIN (/login):
+1. LOGIN:
    - Entry point to LeafyLedger. Unauthenticated users are redirected here automatically.
    - After login, users land on the Dashboard.
 
-2. DASHBOARD (/dashboard):
+2. DASHBOARD:
    - Main hub after logging in. Shows a welcome message, Quick Action buttons, stat cards, and the Weather Widget.
-   - Quick Actions: "Gardens" → /gardens | "View Saved Plants" → /saved-species | "Browse Species" → /browse.
+   - Quick Actions: "Gardens"| "View Saved Plants" | "Browse Species".
    - Stat cards show: total Gardens created, total Plants physically placed in gardens (via the LeafyLedger App), and total Saved Species in the user's global collection.
    - Weather Widget: live weather at the user's saved location — temperature (°F), humidity (%), wind speed (mph), VPD (kPa), ET0 evaporation (mm), sunlight intensity (MJ/m²), and a short forecast. "Set Location" button opens a modal to enter a zip/postal code OR use browser geolocation.
    - Notification Bell (🔔) in the top-right header: red badge shows count of upcoming planting alerts. Clicking opens the Planting Alerts slide-in panel (see section 8).
    - "Settings" button → /settings. "Logout" ends the session.
 
-3. BROWSE SPECIES (/browse):
+3. BROWSE SPECIES:
    - Searchable database of thousands of plant species powered by the Perenual plant API.
    - Search by common name, scientific name, or keyword.
    - Each card shows the plant image, common name, scientific name, and key care icons.
@@ -241,11 +241,11 @@ APP GUIDE — HOW LEAFYLEDGER WORKS
    - Save Destination Modal: lets users save globally to "My Collection" AND/OR pin to one or more specific gardens as a wishlist/planning item.
    - **CRITICAL WORKFLOW NOTE**: Saving a species from Browse is a WISHLIST/PLANNING action only. It does NOT add the plant to a garden or create any planted record. Users CANNOT plant anything directly in the React web app — planting only happens in the LeafyLedger App (see section 7).
 
-4. SAVED SPECIES (/saved-species):
+4. SAVED SPECIES
    - A global personal library of all species the user has bookmarked (not tied to any specific garden).
    - Click any card to view its full details again. Users can remove/unsave any species here.
 
-5. GARDENS (/gardens) — MY GARDENS PAGE:
+5. GARDENS — MY GARDENS PAGE:
    The My Gardens page is the core of LeafyLedger. It has multiple layers:
 
    *** HOW THE FULL PLANT WORKFLOW WORKS (CRITICAL) ***
@@ -352,7 +352,7 @@ APP GUIDE — HOW LEAFYLEDGER WORKS
     - Chatbot weather context: same data is injected into the chatbot's system prompt so Leafy can give climate-aware advice about watering frequency, frost risk, heat stress, humidity adjustments, etc.
     - **Automatic plant condition alerts**: If current temperature is below a species' minTemp or above its maxTemp, or if humidity is outside its preferred range, an alert is automatically added to the chatbot context. Leafy will proactively warn the user even if they don't ask.
 
-11. SETTINGS (/settings):
+11. SETTINGS:
     - Accessed from Dashboard → "Settings" button in the header.
     - **Account Information**: Update display name. Email is read-only and cannot be changed.
     - **Chatbot Preferences** (two toggles):
