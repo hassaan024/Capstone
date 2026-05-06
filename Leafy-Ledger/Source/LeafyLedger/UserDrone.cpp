@@ -17,6 +17,7 @@
 #include "LandscapeLayerInfoObject.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 
 AUserDrone::AUserDrone()
@@ -444,6 +445,11 @@ bool AUserDrone::ValidPlantPlacement()
 	FHitResult GroundHit;
 	if (GetMouseGroundHit(GroundHit))
 	{
+		if (CurrentPaintMask && RuntimePaintMaskValues.Num() > 0)
+		{
+			return IsRuntimePaintLocationPlantable(GroundHit);
+		}
+
 		if (GroundHit.PhysMaterial.IsValid())
 		{
 			UPhysicalMaterial* PhysMat = GroundHit.PhysMaterial.Get();
@@ -560,7 +566,9 @@ bool AUserDrone::PaintLandscapeAtHit(const FHitResult& LandscapeHit, ULandscapeL
 	PaintBrushMID->SetScalarParameterValue(BrushPaintValueParameterName, PaintValue);
 
 	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, NextPaintMask, PaintBrushMID);
-	Swap(CurrentPaintMask, NextPaintMask);
+	AdvancePaintRenderTargetsAfterDraw();
+	PaintRuntimeMaskValuesAt(PaintUV, NormalizedBrushRadius, bPaintingGrass);
+	SaveRuntimePaintMaskToDraft();
 	ApplyCurrentPaintMaskToLandscape(Landscape);
 
 	UE_LOG(
@@ -587,10 +595,215 @@ void AUserDrone::InitializeRuntimePaint()
 
 	UKismetRenderingLibrary::ClearRenderTarget2D(this, PaintMaskA, FLinearColor::Black);
 	UKismetRenderingLibrary::ClearRenderTarget2D(this, PaintMaskB, FLinearColor::Black);
+	InitializeRuntimePaintMaskValues();
 
 	if (PaintBrushMaterial && !PaintBrushMID)
 	{
 		PaintBrushMID = UMaterialInstanceDynamic::Create(PaintBrushMaterial, this);
+	}
+
+	
+	if (GetGameInstance())
+	{
+		if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
+		{
+			const FEditableGardenState& Draft = GardenSession->GetDraft();
+			if (!Draft.PaintMaskData.IsEmpty())
+			{
+				ImportPaintMaskData(Draft.PaintMaskData);
+			}
+		}
+	}
+TArray<AActor*> FoundLandscapes;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ALandscapeProxy::StaticClass(), FoundLandscapes);
+	for (AActor* Actor : FoundLandscapes)
+	{
+		if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
+		{
+			ApplyCurrentPaintMaskToLandscape(Landscape);
+		}
+	}
+}
+
+void AUserDrone::InitializeRuntimePaintMaskValues()
+{
+	RuntimePaintMaskValues.Reset();
+	RuntimePaintMaskWidth = 0;
+	RuntimePaintMaskHeight = 0;
+
+	if (!PaintMaskA)
+	{
+		return;
+	}
+
+	RuntimePaintMaskWidth = PaintMaskA->SizeX;
+	RuntimePaintMaskHeight = PaintMaskA->SizeY;
+
+	if (RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
+	{
+		return;
+	}
+
+	RuntimePaintMaskValues.Init(0, RuntimePaintMaskWidth * RuntimePaintMaskHeight);
+}
+
+void AUserDrone::PaintRuntimeMaskValuesAt(const FVector2D& PaintUV, float NormalizedBrushRadius, bool bPaintingGrass)
+{
+	if (RuntimePaintMaskValues.Num() == 0 || RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
+	{
+		InitializeRuntimePaintMaskValues();
+	}
+
+	if (RuntimePaintMaskValues.Num() == 0)
+	{
+		return;
+	}
+
+	const int32 CenterX = FMath::Clamp(FMath::RoundToInt(PaintUV.X * static_cast<float>(RuntimePaintMaskWidth - 1)), 0, RuntimePaintMaskWidth - 1);
+	const int32 CenterY = FMath::Clamp(FMath::RoundToInt(PaintUV.Y * static_cast<float>(RuntimePaintMaskHeight - 1)), 0, RuntimePaintMaskHeight - 1);
+	const int32 RadiusPixels = FMath::Max(1, FMath::RoundToInt(NormalizedBrushRadius * static_cast<float>(FMath::Max(RuntimePaintMaskWidth, RuntimePaintMaskHeight))));
+	const int32 RadiusSquared = RadiusPixels * RadiusPixels;
+	const uint8 NewValue = bPaintingGrass ? 255 : 0;
+
+	const int32 MinX = FMath::Max(0, CenterX - RadiusPixels);
+	const int32 MaxX = FMath::Min(RuntimePaintMaskWidth - 1, CenterX + RadiusPixels);
+	const int32 MinY = FMath::Max(0, CenterY - RadiusPixels);
+	const int32 MaxY = FMath::Min(RuntimePaintMaskHeight - 1, CenterY + RadiusPixels);
+
+	for (int32 Y = MinY; Y <= MaxY; ++Y)
+	{
+		const int32 DeltaY = Y - CenterY;
+		for (int32 X = MinX; X <= MaxX; ++X)
+		{
+			const int32 DeltaX = X - CenterX;
+			if ((DeltaX * DeltaX) + (DeltaY * DeltaY) <= RadiusSquared)
+			{
+				RuntimePaintMaskValues[(Y * RuntimePaintMaskWidth) + X] = NewValue;
+			}
+		}
+	}
+}
+
+bool AUserDrone::IsRuntimePaintLocationPlantable(const FHitResult& GroundHit) const
+{
+	if (RuntimePaintMaskValues.Num() == 0 || RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
+	{
+		return false;
+	}
+
+	ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(GroundHit.GetActor());
+	if (!Landscape)
+	{
+		return false;
+	}
+
+	FVector2D PaintUV;
+	float IgnoredBrushRadius = 0.f;
+	if (!GetLandscapePaintUV(Landscape, GroundHit.Location, PaintUV, IgnoredBrushRadius))
+	{
+		return false;
+	}
+
+	const int32 PixelX = FMath::Clamp(FMath::RoundToInt(PaintUV.X * static_cast<float>(RuntimePaintMaskWidth - 1)), 0, RuntimePaintMaskWidth - 1);
+	const int32 PixelY = FMath::Clamp(FMath::RoundToInt(PaintUV.Y * static_cast<float>(RuntimePaintMaskHeight - 1)), 0, RuntimePaintMaskHeight - 1);
+	const uint8 PaintValue = RuntimePaintMaskValues[(PixelY * RuntimePaintMaskWidth) + PixelX];
+
+	return PaintValue < 128;
+}
+FString AUserDrone::ExportPaintMaskData() const
+{
+	if (RuntimePaintMaskValues.Num() == 0 || RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
+	{
+		return TEXT("");
+	}
+
+	TArray<FString> Runs;
+	Runs.Reserve(256);
+
+	uint8 CurrentValue = RuntimePaintMaskValues[0] >= 128 ? 1 : 0;
+	int32 CurrentCount = 0;
+
+	for (uint8 RawValue : RuntimePaintMaskValues)
+	{
+		const uint8 EncodedValue = RawValue >= 128 ? 1 : 0;
+		if (EncodedValue == CurrentValue)
+		{
+			++CurrentCount;
+			continue;
+		}
+
+		Runs.Add(FString::Printf(TEXT("%d%c"), CurrentCount, CurrentValue > 0 ? TCHAR('G') : TCHAR('D')));
+		CurrentValue = EncodedValue;
+		CurrentCount = 1;
+	}
+
+	Runs.Add(FString::Printf(TEXT("%d%c"), CurrentCount, CurrentValue > 0 ? TCHAR('G') : TCHAR('D')));
+	return FString::Printf(TEXT("LLPM1:%d:%d:%s"), RuntimePaintMaskWidth, RuntimePaintMaskHeight, *FString::Join(Runs, TEXT(",")));
+}
+
+bool AUserDrone::ImportPaintMaskData(const FString& PaintMaskData)
+{
+	TArray<FString> Parts;
+	PaintMaskData.ParseIntoArray(Parts, TEXT(":"), false);
+	if (Parts.Num() != 4 || Parts[0] != TEXT("LLPM1"))
+	{
+		return false;
+	}
+
+	const int32 SavedWidth = FCString::Atoi(*Parts[1]);
+	const int32 SavedHeight = FCString::Atoi(*Parts[2]);
+	if (SavedWidth <= 0 || SavedHeight <= 0)
+	{
+		return false;
+	}
+
+	TArray<uint8> SavedValues;
+	SavedValues.Reserve(SavedWidth * SavedHeight);
+
+	TArray<FString> Runs;
+	Parts[3].ParseIntoArray(Runs, TEXT(","), true);
+	for (const FString& Run : Runs)
+	{
+		if (Run.Len() < 2)
+		{
+			continue;
+		}
+
+		const TCHAR ValueChar = Run[Run.Len() - 1];
+		const int32 Count = FCString::Atoi(*Run.LeftChop(1));
+		const uint8 Value = ValueChar == TCHAR('G') ? 255 : 0;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			SavedValues.Add(Value);
+		}
+	}
+
+	if (SavedValues.Num() != SavedWidth * SavedHeight)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ImportPaintMaskData: invalid saved mask data size. Expected=%d Actual=%d"), SavedWidth * SavedHeight, SavedValues.Num());
+		return false;
+	}
+
+	InitializeRuntimePaintMaskValues();
+	if (RuntimePaintMaskValues.Num() == 0)
+	{
+		return false;
+	}
+
+	for (int32 Y = 0; Y < RuntimePaintMaskHeight; ++Y)
+	{
+		const int32 SourceY = FMath::Clamp(FMath::RoundToInt((static_cast<float>(Y) / FMath::Max(1, RuntimePaintMaskHeight - 1)) * static_cast<float>(SavedHeight - 1)), 0, SavedHeight - 1);
+		for (int32 X = 0; X < RuntimePaintMaskWidth; ++X)
+		{
+			const int32 SourceX = FMath::Clamp(FMath::RoundToInt((static_cast<float>(X) / FMath::Max(1, RuntimePaintMaskWidth - 1)) * static_cast<float>(SavedWidth - 1)), 0, SavedWidth - 1);
+			RuntimePaintMaskValues[(Y * RuntimePaintMaskWidth) + X] = SavedValues[(SourceY * SavedWidth) + SourceX];
+		}
+	}
+
+	RuntimePaintMaskTexture = CreateTextureFromRuntimePaintMask();
+	if (RuntimePaintMaskTexture)
+	{
+		CurrentPaintMask = RuntimePaintMaskTexture;
 	}
 
 	TArray<AActor*> FoundLandscapes;
@@ -602,8 +815,57 @@ void AUserDrone::InitializeRuntimePaint()
 			ApplyCurrentPaintMaskToLandscape(Landscape);
 		}
 	}
+
+	return true;
 }
 
+void AUserDrone::SaveRuntimePaintMaskToDraft() const
+{
+	if (!GetGameInstance())
+	{
+		return;
+	}
+
+	if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
+	{
+		GardenSession->SetPaintMaskData(ExportPaintMaskData());
+	}
+}
+
+UTexture2D* AUserDrone::CreateTextureFromRuntimePaintMask()
+{
+	if (RuntimePaintMaskValues.Num() == 0 || RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
+	{
+		return nullptr;
+	}
+
+	UTexture2D* Texture = UTexture2D::CreateTransient(RuntimePaintMaskWidth, RuntimePaintMaskHeight, PF_B8G8R8A8);
+	if (!Texture || !Texture->PlatformData || Texture->PlatformData->Mips.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	FTexture2DMipMap& Mip = Texture->PlatformData->Mips[0];
+	void* Data = Mip.BulkData.Lock(LOCK_READ_WRITE);
+	FColor* Pixels = static_cast<FColor*>(Data);
+	for (int32 Index = 0; Index < RuntimePaintMaskValues.Num(); ++Index)
+	{
+		const uint8 Value = RuntimePaintMaskValues[Index];
+		Pixels[Index] = FColor(Value, Value, Value, 255);
+	}
+	Mip.BulkData.Unlock();
+
+	Texture->SRGB = false;
+	Texture->UpdateResource();
+	return Texture;
+}
+
+void AUserDrone::AdvancePaintRenderTargetsAfterDraw()
+{
+	UTextureRenderTarget2D* PaintedTarget = NextPaintMask;
+	CurrentPaintMask = PaintedTarget;
+	NextPaintMask = PaintedTarget == PaintMaskA ? PaintMaskB : PaintMaskA;
+}
 bool AUserDrone::GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const
 {
 	if (!Landscape)

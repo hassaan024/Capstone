@@ -12,6 +12,8 @@ class ULandscapeLayerInfoObject;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UTextureRenderTarget2D;
+class UTexture;
+class UTexture2D;
 class ALandscapeProxy;
 
 UENUM(BlueprintType)
@@ -114,10 +116,17 @@ private:
 	UMaterialInstanceDynamic* PaintBrushMID = nullptr;
 
 	UPROPERTY()
-	UTextureRenderTarget2D* CurrentPaintMask = nullptr;
+	UTexture* CurrentPaintMask = nullptr;
 
 	UPROPERTY()
 	UTextureRenderTarget2D* NextPaintMask = nullptr;
+
+	
+	UPROPERTY()
+	UTexture2D* RuntimePaintMaskTexture = nullptr;
+TArray<uint8> RuntimePaintMaskValues;
+	int32 RuntimePaintMaskWidth = 0;
+	int32 RuntimePaintMaskHeight = 0;
 #pragma endregion
 
 #pragma region Tick Functions
@@ -136,7 +145,13 @@ private:
 	void PaintSelectedLandscapeLayer();
 	bool PaintLandscapeAtHit(const FHitResult& LandscapeHit, ULandscapeLayerInfoObject* LayerInfo);
 	void InitializeRuntimePaint();
-	bool GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const;
+	void InitializeRuntimePaintMaskValues();
+	void PaintRuntimeMaskValuesAt(const FVector2D& PaintUV, float NormalizedBrushRadius, bool bPaintingGrass);
+	bool IsRuntimePaintLocationPlantable(const FHitResult& GroundHit) const;
+		void SaveRuntimePaintMaskToDraft() const;
+	UTexture2D* CreateTextureFromRuntimePaintMask();
+	void AdvancePaintRenderTargetsAfterDraw();
+bool GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const;
 	void ApplyCurrentPaintMaskToLandscape(ALandscapeProxy* Landscape) const;
 	void EnsureDefaultPaintLayersLoaded();
 	bool IsGardenModificationBlocked() const;
@@ -177,7 +192,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetPaintBrushRadius() const { return PaintBrushRadius; }
 
-	void CancelActivePlantInteraction();
+	
+	UFUNCTION(BlueprintCallable)
+	FString ExportPaintMaskData() const;
+
+	UFUNCTION(BlueprintCallable)
+	bool ImportPaintMaskData(const FString& PaintMaskData);
+void CancelActivePlantInteraction();
 
 	UFUNCTION(BlueprintCallable)
 	EGardenEditMode GetGardenEditMode() const { return CurrentEditMode; }

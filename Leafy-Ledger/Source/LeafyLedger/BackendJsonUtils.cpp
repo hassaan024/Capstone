@@ -538,6 +538,7 @@ bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGar
 	Obj->TryGetStringField(TEXT("name"), OutGarden.Name);
 	Obj->TryGetStringField(TEXT("description"), OutGarden.Description);
 	Obj->TryGetStringField(TEXT("bloomDate"), OutGarden.BloomDate);
+	Obj->TryGetStringField(TEXT("paintMaskData"), OutGarden.PaintMaskData);
 	Obj->TryGetStringField(TEXT("timezone"), OutGarden.Timezone);
 
 	if (Obj->TryGetNumberField(TEXT("latitude"), NumberValue))

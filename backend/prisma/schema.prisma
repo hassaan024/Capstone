@@ -44,6 +44,7 @@ model Garden {
   longitude         Float
   timezone          String?
   bloomDate         DateTime?
+  paintMaskData     String?
   creationTimestamp DateTime        @default(now())
   lastUpdated       DateTime        @updatedAt
   owner             User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)

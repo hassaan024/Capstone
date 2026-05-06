@@ -100,6 +100,9 @@ struct FEditableGardenState
 	FString Timezone;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString PaintMaskData;
+
+	UPROPERTY(BlueprintReadWrite)
 	bool bPendingGardenUpdate = false;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -137,6 +140,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetBloomDate(const FString& BloomDate);
+
+	UFUNCTION(BlueprintCallable)
+	void SetPaintMaskData(const FString& PaintMaskData);
 
 	UFUNCTION(BlueprintCallable)
 	void MarkDirty();

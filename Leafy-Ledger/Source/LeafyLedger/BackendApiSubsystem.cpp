@@ -963,6 +963,7 @@ void UBackendApiSubsystem::CreateGarden(
 	const FString& Name,
 	const FString& Description,
 	const FString& BloomDate,
+	const FString& PaintMaskData,
 	float Latitude,
 	float Longitude,
 	const FString& Timezone,
@@ -988,6 +989,7 @@ void UBackendApiSubsystem::CreateGarden(
 	BodyObj->SetNumberField(TEXT("ownerId"), UserId);
 	BodyObj->SetStringField(TEXT("name"), TrimmedName);
 	BodyObj->SetStringField(TEXT("description"), Description);
+	BodyObj->SetStringField(TEXT("paintMaskData"), PaintMaskData);
 	BodyObj->SetNumberField(TEXT("latitude"), Latitude);
 	BodyObj->SetNumberField(TEXT("longitude"), Longitude);
 
@@ -1047,6 +1049,7 @@ void UBackendApiSubsystem::CreateGarden(
 			Obj->TryGetStringField(TEXT("name"), Garden.Name);
 			Obj->TryGetStringField(TEXT("description"), Garden.Description);
 			Obj->TryGetStringField(TEXT("bloomDate"), Garden.BloomDate);
+			Obj->TryGetStringField(TEXT("paintMaskData"), Garden.PaintMaskData);
 
 			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
 			{
@@ -1077,6 +1080,7 @@ void UBackendApiSubsystem::UpdateGarden(
 	const FString& Name,
 	const FString& Description,
 	const FString& BloomDate,
+	const FString& PaintMaskData,
 	float Latitude,
 	float Longitude,
 	const FString& Timezone,
@@ -1099,6 +1103,7 @@ void UBackendApiSubsystem::UpdateGarden(
 	TSharedRef<FJsonObject> BodyObj = MakeShared<FJsonObject>();
 	BodyObj->SetStringField(TEXT("name"), TrimmedName);
 	BodyObj->SetStringField(TEXT("description"), Description);
+	BodyObj->SetStringField(TEXT("paintMaskData"), PaintMaskData);
 	BodyObj->SetNumberField(TEXT("latitude"), Latitude);
 	BodyObj->SetNumberField(TEXT("longitude"), Longitude);
 
@@ -1159,6 +1164,7 @@ void UBackendApiSubsystem::UpdateGarden(
 			Obj->TryGetStringField(TEXT("name"), Garden.Name);
 			Obj->TryGetStringField(TEXT("description"), Garden.Description);
 			Obj->TryGetStringField(TEXT("bloomDate"), Garden.BloomDate);
+			Obj->TryGetStringField(TEXT("paintMaskData"), Garden.PaintMaskData);
 
 			if (Obj->TryGetNumberField(TEXT("latitude"), Num))
 			{

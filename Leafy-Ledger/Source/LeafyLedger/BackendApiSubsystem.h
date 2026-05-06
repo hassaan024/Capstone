@@ -47,8 +47,8 @@ public:
 	void GetCurrentWeather(float Latitude, float Longitude, const FBackendWeatherResponse& Callback);
 	void GetGardensByUser(const FBackendGardenSummariesResponse& Callback);
 	void GetGardenDetail(int32 GardenId, const FBackendGardenDetailResponse& Callback);
-	void CreateGarden(const FString& Name, const FString& Description, const FString& BloomDate, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
-	void UpdateGarden(int32 GardenId, const FString& Name, const FString& Description, const FString& BloomDate, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
+	void CreateGarden(const FString& Name, const FString& Description, const FString& BloomDate, const FString& PaintMaskData, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
+	void UpdateGarden(int32 GardenId, const FString& Name, const FString& Description, const FString& BloomDate, const FString& PaintMaskData, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
 	void DeleteGarden(int32 GardenId, const FBackendOperationResponse& Callback);
 	void EnsureGenericSoil(const FBackendSoilIdResponse& Callback);
 	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, const FString& SoilType, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);

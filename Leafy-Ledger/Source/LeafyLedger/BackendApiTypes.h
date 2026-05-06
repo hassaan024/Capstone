@@ -224,6 +224,9 @@ struct FBackendGardenDto
 	FString BloomDate;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString PaintMaskData;
+
+	UPROPERTY(BlueprintReadWrite)
 	float Latitude = 0.f;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -399,6 +402,9 @@ struct FBackendGardenDetailDto
 
 	UPROPERTY(BlueprintReadWrite)
 	FString BloomDate;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString PaintMaskData;
 
 	UPROPERTY(BlueprintReadWrite)
 	float Latitude = 0.f;
