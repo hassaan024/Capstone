@@ -377,6 +377,10 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes browse-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ──── Save Destination Modal ──── */
 .save-dest-overlay {
   position: fixed;

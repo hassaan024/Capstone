@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/BrowseSpecies.css';
 import { api } from '../utils/api';
@@ -18,11 +18,35 @@ const BrowseSpecies: React.FC = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ id: number; common_name: string; scientific_name: string; image_url?: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
   const [savedPlantIds, setSavedPlantIds] = useState<Set<number>>(new Set());
   const [gardens, setGardens] = useState<GardenSummary[]>([]);
   const [gardenSaveStates, setGardenSaveStates] = useState<Record<number, boolean>>({});
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { user } = useAuth();
+
+  // Debounced search-as-you-type
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!query.trim()) {
+      setResults([]);
+      setIsTyping(false);
+      return;
+    }
+
+    setIsTyping(true);
+    debounceRef.current = setTimeout(() => {
+      setIsTyping(false);
+      handleSearch(query);
+    }, 450);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   // Suggest Chatbot interaction
   React.useEffect(() => {
@@ -159,7 +183,12 @@ const BrowseSpecies: React.FC = () => {
 
 
   const handleSearch = async (e: React.FormEvent | string) => {
-    if (typeof e !== 'string') e.preventDefault();
+    if (typeof e !== 'string') {
+      e.preventDefault();
+      // Explicit submit: cancel pending debounce and run immediately
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setIsTyping(false);
+    }
     const q = typeof e === 'string' ? e : query;
     if (!q.trim()) return;
 
@@ -230,9 +259,27 @@ const BrowseSpecies: React.FC = () => {
         </section>
 
         {/* Results */}
-        {loading ? (
-          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.7)', marginTop: '2rem' }}>
-            Searching the botanical database...
+
+        {/* Active query label */}
+        {query.trim() && !loading && !isTyping && results.length > 0 && (
+          <div style={{ marginBottom: '0.75rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>
+            Results for <span style={{ color: 'rgba(134,239,172,0.8)', fontStyle: 'italic' }}>"{query.trim()}"</span>
+          </div>
+        )}
+
+        {loading || isTyping ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.65rem', color: 'rgba(255,255,255,0.55)', marginTop: '2.5rem' }}>
+            <span style={{
+              display: 'inline-block',
+              width: '14px',
+              height: '14px',
+              border: '2px solid rgba(255,255,255,0.15)',
+              borderTopColor: '#86efac',
+              borderRadius: '50%',
+              animation: 'browse-spin 0.7s linear infinite',
+              flexShrink: 0,
+            }} />
+            {isTyping ? 'Waiting…' : 'Searching the botanical database…'}
           </div>
         ) : (
           <div className="browse-grid">
@@ -243,10 +290,16 @@ const BrowseSpecies: React.FC = () => {
                 onClick={() => setSelectedPlantId(plant.id)}
               />
             ))}
-            {!loading && results.length === 0 && query && (
-               <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
-                 No plants found. Try a different search term.
+            {results.length === 0 && query && (
+               <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '2rem 0' }}>
+                 No plants found for <em>"{query}"</em>. Try a different search term.
                </div>
+            )}
+            {results.length === 0 && !query && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 0', color: 'rgba(255,255,255,0.3)' }}>
+                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.75rem' }}>🌿</span>
+                Start typing a plant name to search the botanical database.
+              </div>
             )}
           </div>
         )}
