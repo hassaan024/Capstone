@@ -16,6 +16,7 @@
 #include "LandscapeProxy.h"
 #include "LandscapeLayerInfoObject.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Engine.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
@@ -39,6 +40,12 @@ AUserDrone::AUserDrone()
 	if (GrassLayerFinder.Succeeded())
 	{
 		GrassLayerInfo = GrassLayerFinder.Object;
+	}
+
+	static ConstructorHelpers::FClassFinder<APlant> DefaultPlantFinder(TEXT("/Game/BP_BasePlant"));
+	if (DefaultPlantFinder.Succeeded())
+	{
+		DefaultPlantClass = DefaultPlantFinder.Class;
 	}
 }
 
@@ -84,7 +91,24 @@ void AUserDrone::Tick(float DeltaTime)
 
 void AUserDrone::SetSelectedPlantData(UPlantObject* InPlantData)
 {
+	if (!InPlantData || InPlantData->bIsDropdownToggle)
+	{
+		return;
+	}
+
+	if (SelectedPlantData != InPlantData)
+	{
+		CancelActivePlantInteraction();
+	}
+
 	SelectedPlantData = InPlantData;
+	CurrentEditMode = EGardenEditMode::Plant;
+	bLeftPaintHeld = false;
+}
+
+bool AUserDrone::IsPlantDataSelected(const UPlantObject* PlantData) const
+{
+	return PlantData && SelectedPlantData == PlantData;
 }
 
 void AUserDrone::UpdatePan()
@@ -1090,6 +1114,8 @@ bool AUserDrone::IsGardenModificationBlocked() const
 
 bool AUserDrone::SpawnPlant(APlant*& Plant)
 {
+	Plant = nullptr;
+
 	if (IsGardenModificationBlocked())
 	{
 		return false;

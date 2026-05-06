@@ -202,6 +202,9 @@ public:
 	void SetSelectedPlantData(UPlantObject* InPlantData);
 
 	UFUNCTION(BlueprintCallable)
+	bool IsPlantDataSelected(const UPlantObject* PlantData) const;
+
+	UFUNCTION(BlueprintCallable)
 	void SetGardenEditMode(EGardenEditMode NewMode);
 
 	UFUNCTION(BlueprintCallable)
