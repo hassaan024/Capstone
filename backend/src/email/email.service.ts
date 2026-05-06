@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 export interface PlantAlertItem {
   commonName: string;
   scientificName: string;
-  plantedDate: string;   // ISO string
+  plantedDate: string; // ISO string
   gardenName: string;
 }
 
@@ -32,7 +32,8 @@ export class EmailService {
   ): Promise<void> {
     if (alerts.length === 0) return;
 
-    const fromName = this.config.get<string>('EMAIL_FROM_NAME') ?? 'LeafyLedger';
+    const fromName =
+      this.config.get<string>('EMAIL_FROM_NAME') ?? 'LeafyLedger';
     const fromEmail = this.config.get<string>('EMAIL_USER');
 
     const formatDate = (iso: string) =>
@@ -96,7 +97,7 @@ export class EmailService {
             </table>
 
             <p style="margin:24px 0 0;font-size:14px;color:rgba(148,163,184,0.7);line-height:1.6;">
-              Open the <strong style="color:#86efac;">LeafyLedger companion app</strong> to place your plants in the 3D garden view.
+              Open the <strong style="color:#86efac;">LeafyLedger app</strong> to place your plants in the 3D garden view.
             </p>
           </td>
         </tr>
@@ -106,7 +107,7 @@ export class EmailService {
           <td style="padding:20px 40px;border-top:1px solid rgba(148,163,184,0.1);text-align:center;">
             <p style="margin:0;font-size:12px;color:rgba(148,163,184,0.4);">
               You're receiving this because you have plants with upcoming planting dates.<br>
-              Happy planting — The LeafyLedger Team 🌿
+              LeafyLedger 🌿
             </p>
           </td>
         </tr>
@@ -124,9 +125,13 @@ export class EmailService {
         subject: `LeafyLedger — You have ${alerts.length} plant${alerts.length > 1 ? 's' : ''} to place this week`,
         html,
       });
-      this.logger.log(`Planting alert email sent to ${toEmail} (${alerts.length} alerts)`);
+      this.logger.log(
+        `Planting alert email sent to ${toEmail} (${alerts.length} alerts)`,
+      );
     } catch (err) {
-      this.logger.error(`Failed to send planting alert email to ${toEmail}: ${(err as Error).message}`);
+      this.logger.error(
+        `Failed to send planting alert email to ${toEmail}: ${(err as Error).message}`,
+      );
       throw err;
     }
   }
