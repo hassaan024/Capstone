@@ -237,13 +237,6 @@ void AGardenDirector::MakePlantList()
 
 	if (ActiveGardenId > 0)
 	{
-		UBackendApiSubsystem* BackendApi = GI->GetSubsystem<UBackendApiSubsystem>();
-		if (!BackendApi)
-		{
-			UE_LOG(LogTemp, Error, TEXT("MakePlantList: BackendApiSubsystem missing"));
-			return;
-		}
-
 		if (PlantCache && PlantCache->HasCachedPlants())
 		{
 			PlantSelect->SetGlobalPlants(PlantCache->GetCachedPlants());
@@ -270,9 +263,20 @@ void AGardenDirector::MakePlantList()
 			);
 		}
 
-		BackendApi->GetSavedSpeciesForGarden(
+		if (!PlantCache)
+		{
+			UE_LOG(LogTemp, Error, TEXT("MakePlantList: SavedPlantCacheSubsystem missing"));
+			return;
+		}
+
+		if (const TArray<FBackendPlantDto>* CachedGardenPlants = PlantCache->GetCachedGardenPlants(ActiveGardenId))
+		{
+			PlantSelect->SetGardenPlants(*CachedGardenPlants);
+		}
+
+		PlantCache->RefreshGardenSavedPlants(
 			ActiveGardenId,
-			FBackendPlantsResponse::CreateWeakLambda(
+			FOnSavedPlantsRefreshed::CreateWeakLambda(
 				PlantSelect,
 				[PlantSelect, ActiveGardenId](bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
 				{

@@ -6,7 +6,14 @@
 #include "GardenTimeManager.h"
 #include "Plant.h"
 #include "Components/EditableTextBox.h"
+#include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/Widget.h"
+#include "Blueprint/WidgetTree.h"
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -117,6 +124,16 @@ bool UGardenHUD::Initialize()
 		BTN_DeleteMode->OnClicked.AddDynamic(this, &UGardenHUD::OnPressDeleteMode);
 	}
 
+	if (BTN_Dirt)
+	{
+		BTN_Dirt->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPaintDirt);
+	}
+
+	if (BTN_Grass)
+	{
+		BTN_Grass->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPaintGrass);
+	}
+
 	if (SLDR_Date)
 	{
 		SLDR_Date->OnValueChanged.AddDynamic(this, &UGardenHUD::OnValueChanged);
@@ -129,6 +146,10 @@ void UGardenHUD::NativeConstruct()
 {
 	Super::NativeConstruct();
 	EnsureBloomDateInput();
+	BuildPaintLayerControls();
+	BuildPaintBrushControls();
+	WrapModeButtonsWithBorders();
+	SyncModeControls(GetCurrentGardenMode());
 	HideDateSlider();
 	RestoreDateSliderFromDraft();
 }
@@ -213,6 +234,7 @@ void UGardenHUD::OnPressSave()
 				Draft.Name,
 				Draft.Description,
 				Draft.BloomDate,
+				Draft.PaintMaskData,
 				Draft.Latitude,
 				Draft.Longitude,
 				Draft.Timezone,
@@ -246,6 +268,7 @@ void UGardenHUD::OnPressSave()
 		Draft.Name,
 		Draft.Description,
 		Draft.BloomDate,
+		Draft.PaintMaskData,
 		Draft.Latitude,
 		Draft.Longitude,
 		Draft.Timezone,
@@ -1106,6 +1129,33 @@ void UGardenHUD::OnPressDeleteMode()
 	SetGardenMode(EGardenEditMode::Delete);
 }
 
+void UGardenHUD::OnPressPaintDirt()
+{
+	SetSelectedPaintLayer(TEXT("Dirt"));
+}
+
+void UGardenHUD::OnPressPaintGrass()
+{
+	SetSelectedPaintLayer(TEXT("Grass"));
+}
+
+void UGardenHUD::OnBrushSizeChanged(float Value)
+{
+	const float BrushRadius = FMath::Lerp(50.f, 1000.f, FMath::Clamp(Value, 0.f, 1.f));
+	if (GetWorld())
+	{
+		if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+		{
+			Drone->SetPaintBrushRadius(BrushRadius);
+		}
+	}
+
+	if (RuntimeTXT_BrushSize)
+	{
+		RuntimeTXT_BrushSize->SetText(FText::FromString(FString::Printf(TEXT("Brush %.0f"), BrushRadius)));
+	}
+}
+
 void UGardenHUD::SetGardenMode(EGardenEditMode NewMode)
 {
 	if (IsPredictionRunning())
@@ -1122,7 +1172,313 @@ void UGardenHUD::SetGardenMode(EGardenEditMode NewMode)
 	if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
 	{
 		Drone->SetGardenEditMode(NewMode);
+		if (NewMode == EGardenEditMode::Paint)
+		{
+			Drone->SetPaintLayerByName(SelectedPaintLayerName);
+		}
 	}
+
+	SyncModeControls(NewMode);
+}
+
+void UGardenHUD::BuildPaintLayerControls()
+{
+	if (BTN_Dirt || BTN_Grass)
+	{
+		return;
+	}
+
+	if (PaintLayerControls || !WidgetTree)
+	{
+		return;
+	}
+
+	UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(WidgetTree->RootWidget);
+	if (!RootCanvas)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GardenHUD: root widget is not a CanvasPanel; paint layer controls were not created"));
+		return;
+	}
+
+	PaintLayerControls = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("PaintLayerControls"));
+	if (!PaintLayerControls)
+	{
+		return;
+	}
+
+	auto CreatePaintButton = [this](const FName& ButtonName, const FString& Label, const FLinearColor& Color) -> UButton*
+	{
+		UButton* Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), ButtonName);
+		if (!Button)
+		{
+			return nullptr;
+		}
+
+		UTextBlock* LabelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), FName(*(ButtonName.ToString() + TEXT("_Text"))));
+		if (LabelText)
+		{
+			LabelText->SetText(FText::FromString(Label));
+			LabelText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			Button->AddChild(LabelText);
+		}
+
+		Button->SetBackgroundColor(Color);
+		return Button;
+	};
+
+	RuntimeBTN_Dirt = CreatePaintButton(TEXT("RuntimeBTN_Dirt"), TEXT("Dirt"), FLinearColor(0.38f, 0.24f, 0.15f, 1.f));
+	RuntimeBTN_Grass = CreatePaintButton(TEXT("RuntimeBTN_Grass"), TEXT("Grass"), FLinearColor(0.18f, 0.55f, 0.25f, 1.f));
+
+	if (RuntimeBTN_Dirt)
+	{
+		RuntimeBTN_Dirt->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPaintDirt);
+		if (UHorizontalBoxSlot* DirtButtonSlot = PaintLayerControls->AddChildToHorizontalBox(RuntimeBTN_Dirt))
+		{
+			DirtButtonSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+		}
+	}
+
+	if (RuntimeBTN_Grass)
+	{
+		RuntimeBTN_Grass->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPaintGrass);
+		PaintLayerControls->AddChildToHorizontalBox(RuntimeBTN_Grass);
+	}
+
+	if (UCanvasPanelSlot* PaintControlsSlot = RootCanvas->AddChildToCanvas(PaintLayerControls))
+	{
+		PaintControlsSlot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
+		PaintControlsSlot->SetAlignment(FVector2D(0.f, 1.f));
+		PaintControlsSlot->SetPosition(FVector2D(32.f, -32.f));
+		PaintControlsSlot->SetAutoSize(true);
+		PaintControlsSlot->SetZOrder(50);
+	}
+}
+
+void UGardenHUD::BuildPaintBrushControls()
+{
+	if (PaintBrushControls || !WidgetTree)
+	{
+		return;
+	}
+
+	UCanvasPanel* RootCanvas = Cast<UCanvasPanel>(WidgetTree->RootWidget);
+	if (!RootCanvas)
+	{
+		return;
+	}
+
+	PaintBrushControls = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("PaintBrushControls"));
+	if (!PaintBrushControls)
+	{
+		return;
+	}
+
+	RuntimeTXT_BrushSize = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RuntimeTXT_BrushSize"));
+	if (RuntimeTXT_BrushSize)
+	{
+		RuntimeTXT_BrushSize->SetText(FText::FromString(TEXT("Brush 400")));
+		RuntimeTXT_BrushSize->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		if (UHorizontalBoxSlot* LabelSlot = PaintBrushControls->AddChildToHorizontalBox(RuntimeTXT_BrushSize))
+		{
+			LabelSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
+			LabelSlot->SetVerticalAlignment(VAlign_Center);
+		}
+	}
+
+	RuntimeSLDR_BrushSize = WidgetTree->ConstructWidget<USlider>(USlider::StaticClass(), TEXT("RuntimeSLDR_BrushSize"));
+	if (RuntimeSLDR_BrushSize)
+	{
+		RuntimeSLDR_BrushSize->SetMinValue(0.f);
+		RuntimeSLDR_BrushSize->SetMaxValue(1.f);
+		RuntimeSLDR_BrushSize->SetValue((400.f - 50.f) / (1000.f - 50.f));
+		RuntimeSLDR_BrushSize->OnValueChanged.AddDynamic(this, &UGardenHUD::OnBrushSizeChanged);
+		if (UHorizontalBoxSlot* SliderSlot = PaintBrushControls->AddChildToHorizontalBox(RuntimeSLDR_BrushSize))
+		{
+			SliderSlot->SetPadding(FMargin(0.f));
+			SliderSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			SliderSlot->SetVerticalAlignment(VAlign_Center);
+		}
+	}
+
+	if (UCanvasPanelSlot* BrushControlsSlot = RootCanvas->AddChildToCanvas(PaintBrushControls))
+	{
+		BrushControlsSlot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
+		BrushControlsSlot->SetAlignment(FVector2D(0.f, 1.f));
+		BrushControlsSlot->SetPosition(FVector2D(32.f, -76.f));
+		BrushControlsSlot->SetSize(FVector2D(260.f, 32.f));
+		BrushControlsSlot->SetZOrder(51);
+	}
+
+	OnBrushSizeChanged(RuntimeSLDR_BrushSize ? RuntimeSLDR_BrushSize->GetValue() : ((400.f - 50.f) / (1000.f - 50.f)));
+}
+
+void UGardenHUD::WrapModeButtonsWithBorders()
+{
+	if (!PlantModeBorder)
+	{
+		PlantModeBorder = WrapModeButtonWithBorder(BTN_PlantMode, TEXT("PlantModeBorder"));
+	}
+	if (!PaintModeBorder)
+	{
+		PaintModeBorder = WrapModeButtonWithBorder(BTN_PaintMode, TEXT("PaintModeBorder"));
+	}
+	if (!DeleteModeBorder)
+	{
+		DeleteModeBorder = WrapModeButtonWithBorder(BTN_DeleteMode, TEXT("DeleteModeBorder"));
+	}
+}
+
+UBorder* UGardenHUD::WrapModeButtonWithBorder(UButton* Button, const FName& BorderName)
+{
+	if (!Button || !WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UPanelWidget* Parent = Button->GetParent();
+	if (!Parent)
+	{
+		return nullptr;
+	}
+
+	const int32 ChildIndex = Parent->GetChildIndex(Button);
+	if (ChildIndex == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
+	FMargin ButtonSlotPadding = FMargin(0.f);
+	FSlateChildSize HorizontalSize;
+	EHorizontalAlignment HorizontalAlignment = HAlign_Fill;
+	EVerticalAlignment VerticalAlignment = VAlign_Fill;
+
+	FAnchorData CanvasLayout;
+	bool bCanvasAutoSize = false;
+	int32 CanvasZOrder = 0;
+	const bool bWasCanvasSlot = Button->Slot && Button->Slot->IsA<UCanvasPanelSlot>();
+	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Button->Slot))
+	{
+		CanvasLayout = CanvasSlot->GetLayout();
+		bCanvasAutoSize = CanvasSlot->GetAutoSize();
+		CanvasZOrder = CanvasSlot->GetZOrder();
+	}
+	else if (UHorizontalBoxSlot* HorizontalSlot = Cast<UHorizontalBoxSlot>(Button->Slot))
+	{
+		ButtonSlotPadding = HorizontalSlot->Padding;
+		HorizontalSize = HorizontalSlot->Size;
+		HorizontalAlignment = HorizontalSlot->HorizontalAlignment;
+		VerticalAlignment = HorizontalSlot->VerticalAlignment;
+	}
+
+	Parent->RemoveChild(Button);
+
+	UBorder* Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), BorderName);
+	if (!Border)
+	{
+		Parent->InsertChildAt(ChildIndex, Button);
+		return nullptr;
+	}
+
+	Border->SetPadding(FMargin(3.f));
+	Border->SetContent(Button);
+
+	Parent->InsertChildAt(ChildIndex, Border);
+
+	if (bWasCanvasSlot)
+	{
+		if (UCanvasPanelSlot* NewCanvasSlot = Cast<UCanvasPanelSlot>(Border->Slot))
+		{
+			NewCanvasSlot->SetLayout(CanvasLayout);
+			NewCanvasSlot->SetAutoSize(bCanvasAutoSize);
+			NewCanvasSlot->SetZOrder(CanvasZOrder);
+		}
+	}
+	else if (UHorizontalBoxSlot* NewHorizontalSlot = Cast<UHorizontalBoxSlot>(Border->Slot))
+	{
+		NewHorizontalSlot->SetPadding(ButtonSlotPadding);
+		NewHorizontalSlot->SetSize(HorizontalSize);
+		NewHorizontalSlot->SetHorizontalAlignment(HorizontalAlignment);
+		NewHorizontalSlot->SetVerticalAlignment(VerticalAlignment);
+	}
+
+	return Border;
+}
+
+void UGardenHUD::SyncModeControls(EGardenEditMode ActiveMode)
+{
+	SetModeBorderActive(PlantModeBorder, ActiveMode == EGardenEditMode::Plant);
+	SetModeBorderActive(PaintModeBorder, ActiveMode == EGardenEditMode::Paint);
+	SetModeBorderActive(DeleteModeBorder, ActiveMode == EGardenEditMode::Delete);
+
+	if (PaintLayerControls)
+	{
+		PaintLayerControls->SetVisibility(ActiveMode == EGardenEditMode::Paint ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (PaintBrushControls)
+	{
+		PaintBrushControls->SetVisibility(ActiveMode == EGardenEditMode::Paint ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+
+	const ESlateVisibility PaintButtonVisibility = ActiveMode == EGardenEditMode::Paint ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+	if (BTN_Dirt)
+	{
+		BTN_Dirt->SetVisibility(PaintButtonVisibility);
+	}
+	if (BTN_Grass)
+	{
+		BTN_Grass->SetVisibility(PaintButtonVisibility);
+	}
+
+	SetPaintLayerButtonActive(BTN_Dirt ? BTN_Dirt : RuntimeBTN_Dirt, SelectedPaintLayerName != TEXT("Grass"));
+	SetPaintLayerButtonActive(BTN_Grass ? BTN_Grass : RuntimeBTN_Grass, SelectedPaintLayerName == TEXT("Grass"));
+}
+
+void UGardenHUD::SetModeBorderActive(UBorder* Border, bool bActive) const
+{
+	if (!Border)
+	{
+		return;
+	}
+
+	Border->SetBrushColor(bActive ? FLinearColor(0.1f, 0.65f, 1.f, 1.f) : FLinearColor(0.f, 0.f, 0.f, 0.f));
+}
+
+void UGardenHUD::SetPaintLayerButtonActive(UButton* Button, bool bActive) const
+{
+	if (!Button)
+	{
+		return;
+	}
+
+	Button->SetColorAndOpacity(bActive ? FLinearColor(1.f, 1.f, 1.f, 1.f) : FLinearColor(0.65f, 0.65f, 0.65f, 1.f));
+}
+
+void UGardenHUD::SetSelectedPaintLayer(FName LayerName)
+{
+	SelectedPaintLayerName = LayerName == TEXT("Grass") ? TEXT("Grass") : TEXT("Dirt");
+
+	if (GetWorld())
+	{
+		if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+		{
+			Drone->SetPaintLayerByName(SelectedPaintLayerName);
+		}
+	}
+
+	SyncModeControls(GetCurrentGardenMode());
+}
+
+EGardenEditMode UGardenHUD::GetCurrentGardenMode() const
+{
+	if (GetWorld())
+	{
+		if (const AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+		{
+			return Drone->GetGardenEditMode();
+		}
+	}
+
+	return EGardenEditMode::Plant;
 }
 
 void UGardenHUD::CancelActiveGardenModification() const

@@ -24,6 +24,7 @@ void UGardenSessionSubsystem::LoadGardenDraft(const FBackendGardenDetailDto& Gar
 	Draft.Latitude = Garden.Latitude;
 	Draft.Longitude = Garden.Longitude;
 	Draft.Timezone = Garden.Timezone;
+	Draft.PaintMaskData = Garden.PaintMaskData;
 	Draft.bPendingGardenUpdate = false;
 	Draft.bIsInitialized = true;
 	Draft.bHasUnsavedChanges = false;
@@ -109,6 +110,22 @@ void UGardenSessionSubsystem::SetBloomDate(const FString& BloomDate)
 	RefreshDirtyState();
 }
 
+void UGardenSessionSubsystem::SetPaintMaskData(const FString& PaintMaskData)
+{
+	if (!Draft.bIsInitialized)
+	{
+		return;
+	}
+
+	if (Draft.PaintMaskData == PaintMaskData)
+	{
+		return;
+	}
+
+	Draft.PaintMaskData = PaintMaskData;
+	Draft.bPendingGardenUpdate = true;
+	RefreshDirtyState();
+}
 void UGardenSessionSubsystem::MarkDirty()
 {
 	if (!Draft.bIsInitialized) return;

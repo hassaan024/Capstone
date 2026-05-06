@@ -1,0 +1,1 @@
+ALTER TABLE "Garden" ADD COLUMN "paintMaskData" TEXT;

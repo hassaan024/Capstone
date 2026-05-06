@@ -58,6 +58,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Planting Date")
 		bool bPlantingDateTextEnabled = false;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Planting Date")
+		FVector PlantingDateTextWorldScale = FVector(1.f);
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 		int32 WitherDayIndex = 0;
 
@@ -66,6 +69,18 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 		int32 DaysToWither = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Growth")
+		float SeedStageStartScale = 0.40f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Growth")
+		float SeedStageEndScale = 0.80f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Growth")
+		float SaplingStageStartScale = 0.80f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Growth")
+		float BloomStageScale = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		FString PlantName;

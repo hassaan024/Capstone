@@ -24,4 +24,8 @@ export class CreateGardenDto {
   @IsOptional()
   @IsString()
   bloomDate?: string;
+
+  @IsOptional()
+  @IsString()
+  paintMaskData?: string;
 }
