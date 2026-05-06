@@ -1,0 +1,47 @@
+services:
+  backend:
+    build: .
+    container_name: plant_backend
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./package.json:/app/package.json
+    command: npm run start:dev
+
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: plant_postgres
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: none
+  
+  model: 
+    build:
+      context: ./model
+      dockerfile: Dockerfile
+    container_name: plant_model
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./model/src:/app/src  # host folder : container folder
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:

@@ -1,0 +1,428 @@
+/* public/css/LandingPage.css */
+
+.leafy-landing-root {
+  min-height: 100vh;
+  position: relative;
+  padding: 16px 32px 40px;
+  background: radial-gradient(circle at 0% 0%, #020617 0, #020617 40%, #000000 100%);
+  color: var(--ll-text-main);
+  overflow: clip;
+}
+
+/* Shared width shell for hero + map */
+.leafy-landing-shell {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* Background accents */
+.leafy-landing-bg-gradient {
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(34, 197, 94, 0.35), transparent 55%),
+    radial-gradient(circle at 88% 12%, rgba(56, 189, 248, 0.3), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(148, 163, 184, 0.25), transparent 55%);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.leafy-landing-bg-blob {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  filter: blur(40px);
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.leafy-landing-bg-blob--left {
+  background: rgba(74, 222, 128, 0.8);
+  top: 10%;
+  left: -40px;
+}
+
+.leafy-landing-bg-blob--right {
+  background: rgba(56, 189, 248, 0.65);
+  bottom: -40px;
+  right: -20px;
+}
+
+/* NAVBAR */
+.leafy-landing-nav {
+  position: relative;
+  z-index: 1;
+  padding: 8px 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.leafy-landing-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.leafy-landing-logo-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 25% 20%, #bbf7d0 0, #16a34a 46%, #0f766e 100%);
+  box-shadow: 0px 0px 16px rgba(74, 222, 128, 0.6);
+}
+
+.leafy-landing-logo-text {
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: rgba(229, 231, 235, 0.9);
+}
+
+.leafy-landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leafy-landing-nav-btn {
+  font-size: 13px;
+  padding-inline: 14px;
+}
+
+/* MAIN WRAPPER */
+.leafy-landing-main {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+}
+
+/* HERO – wider centered banner */
+.leafy-landing-hero {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  margin-top: 32px;
+}
+
+.leafy-landing-hero-inner {
+  position: relative;
+  padding: 26px 36px 28px;
+  border-radius: 28px;
+  background: radial-gradient(circle at 0% 0%, rgba(15, 23, 42, 0.96), #020617 70%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0px 22px 50px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  animation: leafy-hero-fade-in 900ms ease-out forwards;
+}
+
+/* Soft moving glow behind text */
+.leafy-hero-glow {
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(74, 222, 128, 0.3), transparent 55%),
+    radial-gradient(circle at 90% 20%, rgba(56, 189, 248, 0.25), transparent 60%);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+  animation: leafy-hero-glow-move 14000ms linear infinite;
+}
+
+@keyframes leafy-hero-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
+@keyframes leafy-hero-glow-move {
+  0% {
+    transform: translate3d(0px, 0px, 0px);
+  }
+  50% {
+    transform: translate3d(10px, -8px, 0px);
+  }
+  100% {
+    transform: translate3d(0px, 0px, 0px);
+  }
+}
+
+.leafy-landing-title {
+  position: relative;
+  z-index: 1;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.12;
+  margin-bottom: 12px;
+}
+
+.leafy-landing-title span {
+  background: linear-gradient(135deg, var(--ll-accent-soft), var(--ll-accent-2));
+  -webkit-background-clip: text;
+  color: transparent;
+  background-size: 200% 200%;
+  animation: leafy-gradient-shift 10000ms ease-in-out infinite;
+}
+
+@keyframes leafy-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.leafy-landing-subtitle {
+  position: relative;
+  z-index: 1;
+  font-size: 15px;
+  color: var(--ll-text-muted);
+  line-height: 1.7;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.leafy-landing-tag-row {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.leafy-landing-stats-row {
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 13px;
+}
+
+.leafy-landing-stats-row--center {
+  justify-content: center;
+}
+
+.leafy-landing-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leafy-landing-stat-label {
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.leafy-landing-stat-value {
+  font-weight: 600;
+  color: rgba(229, 231, 235, 0.96);
+}
+
+.leafy-landing-cta-row {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.leafy-landing-cta-row--center {
+  justify-content: center;
+}
+
+/* FEATURE SECTION (pie chart + panel below hero) */
+.leafy-landing-feature-section {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.leafy-landing-pie-card {
+  border-radius: 22px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 18px 28px 20px;
+  box-shadow: 0px 16px 40px rgba(0, 0, 0, 0.7);
+  overflow: visible;
+}
+
+.leafy-landing-pie-header {
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.leafy-landing-pie-title {
+  position: relative;
+  z-index: 1;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.12;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.leafy-landing-pie-subtitle {
+  font-size: 12px;
+  color: var(--ll-text-muted);
+}
+
+/* Pie layout */
+.leafy-landing-pie-layout {
+  display: grid;
+  grid-template-columns: 54% 46%;
+  gap: 18px;
+  align-items: center;
+}
+
+.leafy-landing-pie-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+/* Chart shell — subtle radial glow behind the donut */
+.leafy-feature-chart-shell {
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  border-radius: 50%;
+}
+
+.leafy-feature-chart-shell::before {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.leafy-feature-chart-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Pie slices & labels are handled in the component via Recharts */
+
+/* Feature panel */
+.leafy-landing-feature-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.leafy-landing-feature-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.leafy-landing-feature-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.96);
+  color: rgba(226, 232, 240, 0.9);
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.leafy-landing-feature-chip--active {
+  border-color: var(--ll-accent);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.leafy-landing-feature-main {
+  margin-top: 4px;
+}
+
+.leafy-landing-feature-heading {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.leafy-landing-feature-short {
+  font-size: 12px;
+  color: var(--ll-text-muted);
+  margin-bottom: 8px;
+}
+
+.leafy-landing-feature-description {
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.95);
+  margin-bottom: 6px;
+}
+
+.leafy-landing-feature-list {
+  font-size: 12px;
+  color: var(--ll-text-muted);
+  padding-left: 18px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .leafy-landing-root {
+    padding: 12px 16px 28px;
+  }
+
+  .leafy-landing-hero-inner {
+    padding: 20px 18px 22px;
+  }
+
+  .leafy-landing-feature-section {
+    margin-top: 28px;
+  }
+
+  .leafy-landing-pie-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .leafy-landing-pie-wrapper {
+    order: 1;
+  }
+
+  .leafy-landing-feature-panel {
+    order: 2;
+  }
+
+  .leafy-feature-chart-shell {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 480px) {
+  .leafy-landing-title {
+    font-size: 30px;
+  }
+
+  .leafy-landing-subtitle {
+    font-size: 14px;
+  }
+}
