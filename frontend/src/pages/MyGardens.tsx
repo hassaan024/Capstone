@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import '../styles/BrowseSpecies.css';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import GardenPlantCard, {
   type GardenPlantCardSpecies,
 } from '../components/GardenPlantCard';
@@ -64,6 +65,7 @@ type GardenSubTab = 'plants' | 'saved' | 'track';
 const MyGardens: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [gardens, setGardens] = useState<GardenSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<GardenDetail | null>(null);
@@ -329,6 +331,7 @@ const MyGardens: React.FC = () => {
 
   const handleSaveToDestinations = async (plantId: number, saveGlobal: boolean, gardenIds: number[]) => {
     if (!user) return;
+    const plantName = gardenSavedPlants.find(p => p.perenualId === plantId)?.commonName || 'Plant';
     try {
       const wasGlobal = globalSavedIds.has(plantId);
       if (saveGlobal && !wasGlobal) {
@@ -351,6 +354,25 @@ const MyGardens: React.FC = () => {
       gardens.forEach(g => { newStates[g.id] = gardenIds.includes(g.id); });
       setSavedPlantGardenStates(newStates);
 
+      const gardenNames = gardenIds.map(id => gardens.find(g => g.id === id)?.name ?? 'a garden');
+      const gardenLabel = gardenNames.length === 0
+        ? ''
+        : gardenNames.length === 1
+          ? gardenNames[0]
+          : gardenNames.length === 2
+            ? `${gardenNames[0]} and ${gardenNames[1]}`
+            : `${gardenNames[0]}, ${gardenNames[1]} and ${gardenNames.length - 2} more`;
+
+      if (saveGlobal && gardenNames.length > 0) {
+        toast(`${plantName} saved to your collection and ${gardenLabel}!`, 'success');
+      } else if (saveGlobal) {
+        toast(`${plantName} saved to your collection!`, 'success');
+      } else if (gardenNames.length > 0) {
+        toast(`${plantName} saved to ${gardenLabel}!`, 'success');
+      } else {
+        toast(`Removed ${plantName} from saved locations.`, 'info');
+      }
+
       // Refresh saved plants for current garden tab
       if (selectedId != null) {
         api.get(`/species/saved?userId=${user.id}&gardenId=${selectedId}`)
@@ -359,17 +381,21 @@ const MyGardens: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to save to destinations', err);
+      toast('Something went wrong. Please try again.', 'error');
     }
   };
 
   const handleUnsaveFromGarden = async (perenualId: number) => {
     if (!user || selectedId == null) return;
+    const plantName = gardenSavedPlants.find(p => p.perenualId === perenualId)?.commonName || 'Plant';
     try {
       await api.del(`/species/save/${perenualId}?userId=${user.id}&gardenId=${selectedId}`);
       setGardenSavedPlants(prev => prev.filter(p => p.perenualId !== perenualId));
       setSelectedSavedPlantId(null);
+      toast(`Removed ${plantName} from this garden.`, 'info');
     } catch (err) {
-      console.error("Failed to unsave from garden", err);
+      console.error('Failed to unsave from garden', err);
+      toast('Something went wrong. Please try again.', 'error');
     }
   };
 

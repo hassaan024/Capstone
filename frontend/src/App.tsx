@@ -2,6 +2,7 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import { Dashboard } from "./pages/Dashboard";
@@ -15,6 +16,7 @@ import ChatWidget from "./components/ChatWidget";
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <ToastProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -26,6 +28,7 @@ const App: React.FC = () => {
         <Route path="/settings" element={<Settings />} />
       </Routes>
       <ChatWidget />
+      </ToastProvider>
     </AuthProvider>
   );
 };
