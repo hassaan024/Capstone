@@ -58,6 +58,20 @@ protected:
 	bool bSelectedPlantSpawned = false;
 
 private:
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	bool bLimitDroneMovement = true;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0"))
+	float MaxDronePlanarDistance = 2500.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float MinDroneRelativeHeight = -600.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float MaxDroneRelativeHeight = 600.f;
+
+	FVector DroneMovementOrigin = FVector::ZeroVector;
+
 	AUserDroneController* PC;
 	bool bRightClickHeld = false;
 	bool bLeftPaintHeld = false;
@@ -78,6 +92,12 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Paint")
 	float PaintStrength = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Default Mask")
+	FVector2D DefaultDirtCircleCenter = FVector2D(0.5f, 0.5f);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Default Mask", meta = (ClampMin = "0", ClampMax = "1"))
+	float DefaultDirtCircleRadius = 0.36f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
 	UTextureRenderTarget2D* PaintMaskA = nullptr;
@@ -121,10 +141,11 @@ private:
 	UPROPERTY()
 	UTextureRenderTarget2D* NextPaintMask = nullptr;
 
-	
+
 	UPROPERTY()
 	UTexture2D* RuntimePaintMaskTexture = nullptr;
-TArray<uint8> RuntimePaintMaskValues;
+
+	TArray<uint8> RuntimePaintMaskValues;
 	int32 RuntimePaintMaskWidth = 0;
 	int32 RuntimePaintMaskHeight = 0;
 #pragma endregion
@@ -134,6 +155,8 @@ private:
 	void UpdatePan();
 	void UpdatePreviewPlant();
 	void UpdatePaintBrushPreview();
+	FVector ClampDroneLocation(const FVector& DesiredLocation) const;
+	void MoveDroneTo(const FVector& DesiredLocation, bool bSweep);
 #pragma endregion
 
 #pragma region Helper Functions
@@ -146,12 +169,13 @@ private:
 	bool PaintLandscapeAtHit(const FHitResult& LandscapeHit, ULandscapeLayerInfoObject* LayerInfo);
 	void InitializeRuntimePaint();
 	void InitializeRuntimePaintMaskValues();
+	void InitializeDefaultRuntimePaintMaskValues();
 	void PaintRuntimeMaskValuesAt(const FVector2D& PaintUV, float NormalizedBrushRadius, bool bPaintingGrass);
 	bool IsRuntimePaintLocationPlantable(const FHitResult& GroundHit) const;
-		void SaveRuntimePaintMaskToDraft() const;
+	void SaveRuntimePaintMaskToDraft() const;
 	UTexture2D* CreateTextureFromRuntimePaintMask();
 	void AdvancePaintRenderTargetsAfterDraw();
-bool GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const;
+	bool GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const;
 	void ApplyCurrentPaintMaskToLandscape(ALandscapeProxy* Landscape) const;
 	void EnsureDefaultPaintLayersLoaded();
 	bool IsGardenModificationBlocked() const;
@@ -198,7 +222,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool ImportPaintMaskData(const FString& PaintMaskData);
-void CancelActivePlantInteraction();
+	void CancelActivePlantInteraction();
 
 	UFUNCTION(BlueprintCallable)
 	EGardenEditMode GetGardenEditMode() const { return CurrentEditMode; }

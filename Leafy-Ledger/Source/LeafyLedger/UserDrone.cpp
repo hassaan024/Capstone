@@ -47,6 +47,7 @@ void AUserDrone::BeginPlay()
 	Super::BeginPlay();
 	PC = Cast<AUserDroneController>(Controller);
 	check(PC);
+	DroneMovementOrigin = GetActorLocation();
 	EnsureDefaultPaintLayersLoaded();
 	InitializeRuntimePaint();
 }
@@ -96,7 +97,7 @@ void AUserDrone::UpdatePan()
 	FVector CurrentLoc = CurrentHit.Location;
 	FVector Delta = MouseDragStart - CurrentLoc;
 	Delta.Z = 0.0f;
-	AddActorWorldOffset(Delta, true);
+	MoveDroneTo(GetActorLocation() + Delta, true);
 }
 
 void AUserDrone::UpdatePreviewPlant()
@@ -167,6 +168,36 @@ void AUserDrone::UpdatePaintBrushPreview()
 	DrawDebugSphere(GetWorld(), Center, 10.f, 12, BrushColor, false, 0.f, 0, 2.f);
 }
 
+FVector AUserDrone::ClampDroneLocation(const FVector& DesiredLocation) const
+{
+	if (!bLimitDroneMovement)
+	{
+		return DesiredLocation;
+	}
+
+	FVector ClampedLocation = DesiredLocation;
+	const FVector2D Origin2D(DroneMovementOrigin.X, DroneMovementOrigin.Y);
+	const FVector2D Desired2D(DesiredLocation.X, DesiredLocation.Y);
+	FVector2D Offset2D = Desired2D - Origin2D;
+	const float MaxDistance = FMath::Max(0.f, MaxDronePlanarDistance);
+
+	if (MaxDistance > 0.f && Offset2D.SizeSquared() > FMath::Square(MaxDistance))
+	{
+		Offset2D = Offset2D.GetSafeNormal() * MaxDistance;
+		ClampedLocation.X = DroneMovementOrigin.X + Offset2D.X;
+		ClampedLocation.Y = DroneMovementOrigin.Y + Offset2D.Y;
+	}
+
+	const float MinHeight = DroneMovementOrigin.Z + FMath::Min(MinDroneRelativeHeight, MaxDroneRelativeHeight);
+	const float MaxHeight = DroneMovementOrigin.Z + FMath::Max(MinDroneRelativeHeight, MaxDroneRelativeHeight);
+	ClampedLocation.Z = FMath::Clamp(DesiredLocation.Z, MinHeight, MaxHeight);
+	return ClampedLocation;
+}
+
+void AUserDrone::MoveDroneTo(const FVector& DesiredLocation, bool bSweep)
+{
+	SetActorLocation(ClampDroneLocation(DesiredLocation), bSweep);
+}
 void AUserDrone::LeftMousePressed()
 {
 	if (IsGardenModificationBlocked())
@@ -311,14 +342,14 @@ void AUserDrone::MouseScroll(float Axis)
 		FVector NewLoc = GetActorLocation();
 		FVector CameraVector = CameraComp->GetForwardVector();
 		NewLoc += CameraVector * 50;
-		SetActorLocation(NewLoc);
+		MoveDroneTo(NewLoc, false);
 	}
 	else if (Axis < 0)
 	{
 		FVector NewLoc = GetActorLocation();
 		FVector CameraVector = CameraComp->GetForwardVector();
 		NewLoc -= CameraVector * 50;
-		SetActorLocation(NewLoc);
+		MoveDroneTo(NewLoc, false);
 	}
 }
 
@@ -587,6 +618,7 @@ void AUserDrone::InitializeRuntimePaint()
 {
 	if (!PaintMaskA || !PaintMaskB)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("InitializeRuntimePaint: missing paint render target(s). PaintMaskA=%s PaintMaskB=%s"), PaintMaskA ? *PaintMaskA->GetName() : TEXT("None"), PaintMaskB ? *PaintMaskB->GetName() : TEXT("None"));
 		return;
 	}
 
@@ -595,26 +627,55 @@ void AUserDrone::InitializeRuntimePaint()
 
 	UKismetRenderingLibrary::ClearRenderTarget2D(this, PaintMaskA, FLinearColor::Black);
 	UKismetRenderingLibrary::ClearRenderTarget2D(this, PaintMaskB, FLinearColor::Black);
-	InitializeRuntimePaintMaskValues();
+	InitializeDefaultRuntimePaintMaskValues();
 
 	if (PaintBrushMaterial && !PaintBrushMID)
 	{
 		PaintBrushMID = UMaterialInstanceDynamic::Create(PaintBrushMaterial, this);
 	}
 
-	
+	bool bHasActiveDraft = false;
+	bool bDraftHasSavedPaintMask = false;
+	bool bLoadedSavedPaintMask = false;
 	if (GetGameInstance())
 	{
 		if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
 		{
+			bHasActiveDraft = GardenSession->HasActiveDraft();
 			const FEditableGardenState& Draft = GardenSession->GetDraft();
-			if (!Draft.PaintMaskData.IsEmpty())
+			bDraftHasSavedPaintMask = !Draft.PaintMaskData.IsEmpty();
+			if (bDraftHasSavedPaintMask)
 			{
-				ImportPaintMaskData(Draft.PaintMaskData);
+				bLoadedSavedPaintMask = ImportPaintMaskData(Draft.PaintMaskData);
 			}
 		}
 	}
-TArray<AActor*> FoundLandscapes;
+
+	if (!bLoadedSavedPaintMask)
+	{
+		RuntimePaintMaskTexture = CreateTextureFromRuntimePaintMask();
+		if (RuntimePaintMaskTexture)
+		{
+			CurrentPaintMask = RuntimePaintMaskTexture;
+		}
+		NextPaintMask = PaintMaskA;
+		SaveRuntimePaintMaskToDraft();
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("InitializeRuntimePaint v2 CPUDefault: activeDraft=%d savedMask=%d loadedSaved=%d currentMask=%s nextMask=%s defaultRadius=%.3f transientTexture=%d"),
+		bHasActiveDraft ? 1 : 0,
+		bDraftHasSavedPaintMask ? 1 : 0,
+		bLoadedSavedPaintMask ? 1 : 0,
+		CurrentPaintMask ? *CurrentPaintMask->GetName() : TEXT("None"),
+		NextPaintMask ? *NextPaintMask->GetName() : TEXT("None"),
+		DefaultDirtCircleRadius,
+		RuntimePaintMaskTexture ? 1 : 0
+	);
+
+	TArray<AActor*> FoundLandscapes;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ALandscapeProxy::StaticClass(), FoundLandscapes);
 	for (AActor* Actor : FoundLandscapes)
 	{
@@ -647,6 +708,36 @@ void AUserDrone::InitializeRuntimePaintMaskValues()
 	RuntimePaintMaskValues.Init(0, RuntimePaintMaskWidth * RuntimePaintMaskHeight);
 }
 
+void AUserDrone::InitializeDefaultRuntimePaintMaskValues()
+{
+	InitializeRuntimePaintMaskValues();
+	if (RuntimePaintMaskValues.Num() == 0 || RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
+	{
+		return;
+	}
+
+	RuntimePaintMaskValues.Init(255, RuntimePaintMaskWidth * RuntimePaintMaskHeight);
+
+	const FVector2D CircleCenter(
+		FMath::Clamp(DefaultDirtCircleCenter.X, 0.f, 1.f),
+		FMath::Clamp(DefaultDirtCircleCenter.Y, 0.f, 1.f)
+	);
+	const float CircleRadius = FMath::Clamp(DefaultDirtCircleRadius, 0.f, 1.f);
+	const float RadiusSquared = FMath::Square(CircleRadius);
+
+	for (int32 Y = 0; Y < RuntimePaintMaskHeight; ++Y)
+	{
+		const float V = RuntimePaintMaskHeight > 1 ? static_cast<float>(Y) / static_cast<float>(RuntimePaintMaskHeight - 1) : 0.f;
+		for (int32 X = 0; X < RuntimePaintMaskWidth; ++X)
+		{
+			const float U = RuntimePaintMaskWidth > 1 ? static_cast<float>(X) / static_cast<float>(RuntimePaintMaskWidth - 1) : 0.f;
+			if (FVector2D::DistSquared(FVector2D(U, V), CircleCenter) <= RadiusSquared)
+			{
+				RuntimePaintMaskValues[(Y * RuntimePaintMaskWidth) + X] = 0;
+			}
+		}
+	}
+}
 void AUserDrone::PaintRuntimeMaskValuesAt(const FVector2D& PaintUV, float NormalizedBrushRadius, bool bPaintingGrass)
 {
 	if (RuntimePaintMaskValues.Num() == 0 || RuntimePaintMaskWidth <= 0 || RuntimePaintMaskHeight <= 0)
