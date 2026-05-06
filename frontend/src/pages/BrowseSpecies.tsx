@@ -5,6 +5,7 @@ import { api } from '../utils/api';
 import PlantCard from '../components/PlantCard';
 import PlantDetailsModal from '../components/PlantDetailsModal';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 import { FaLeaf, FaSearch } from 'react-icons/fa';
 
@@ -25,6 +26,7 @@ const BrowseSpecies: React.FC = () => {
   const [gardenSaveStates, setGardenSaveStates] = useState<Record<number, boolean>>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Debounced search-as-you-type
   useEffect(() => {
@@ -109,43 +111,34 @@ const BrowseSpecies: React.FC = () => {
   }, [user, selectedPlantId, gardens]);
 
   const handleToggleSave = async (plantId: number) => {
-    console.log("handleToggleSave called for:", plantId, "User:", user);
     if (!user) {
-        console.warn("No user logged in, cannot save.");
-        // TODO: Show toast or login prompt
-        return; 
+      toast('Please log in to save plants.', 'warning');
+      return;
     }
-    
+
     const isSaved = savedPlantIds.has(plantId);
-    console.log("Current save state:", isSaved);
+    const plantName = results.find(r => r.id === plantId)?.common_name || 'Plant';
 
     try {
-        if (isSaved) {
-            console.log("Unsaving...");
-            await api.del(`/species/save/${plantId}?userId=${user.id}`);
-            setSavedPlantIds(prev => {
-                const next = new Set(prev);
-                next.delete(plantId);
-                return next;
-            });
-             console.log("Unsaved!");
-        } else {
-            console.log("Saving...");
-            await api.post(`/species/save/${plantId}?userId=${user.id}`, {});
-            setSavedPlantIds(prev => {
-                const next = new Set(prev);
-                next.add(plantId);
-                return next;
-            });
-            console.log("Saved!");
-        }
+      if (isSaved) {
+        await api.del(`/species/save/${plantId}?userId=${user.id}`);
+        setSavedPlantIds(prev => { const next = new Set(prev); next.delete(plantId); return next; });
+        toast(`Removed ${plantName} from your saved plants.`, 'info');
+      } else {
+        await api.post(`/species/save/${plantId}?userId=${user.id}`, {});
+        setSavedPlantIds(prev => { const next = new Set(prev); next.add(plantId); return next; });
+        toast(`${plantName} saved to your collection!`, 'success');
+      }
     } catch (err) {
-        console.error("Failed to toggle save", err);
+      console.error('Failed to toggle save', err);
+      toast('Something went wrong. Please try again.', 'error');
     }
   };
 
   const handleSaveToDestinations = async (plantId: number, saveGlobal: boolean, gardenIds: number[]) => {
     if (!user) return;
+
+    const plantName = results.find(r => r.id === plantId)?.common_name || 'Plant';
 
     try {
       // Handle global save/unsave
@@ -176,8 +169,28 @@ const BrowseSpecies: React.FC = () => {
         newStates[g.id] = gardenIds.includes(g.id);
       });
       setGardenSaveStates(newStates);
+
+      const gardenNames = gardenIds.map(id => gardens.find(g => g.id === id)?.name ?? 'a garden');
+      const gardenLabel = gardenNames.length === 0
+        ? ''
+        : gardenNames.length === 1
+          ? gardenNames[0]
+          : gardenNames.length === 2
+            ? `${gardenNames[0]} and ${gardenNames[1]}`
+            : `${gardenNames[0]}, ${gardenNames[1]} and ${gardenNames.length - 2} more`;
+
+      if (saveGlobal && gardenNames.length > 0) {
+        toast(`${plantName} saved to your collection and ${gardenLabel}!`, 'success');
+      } else if (saveGlobal) {
+        toast(`${plantName} saved to your collection!`, 'success');
+      } else if (gardenNames.length > 0) {
+        toast(`${plantName} saved to ${gardenLabel}!`, 'success');
+      } else {
+        toast(`Removed ${plantName} from saved locations.`, 'info');
+      }
     } catch (err) {
-      console.error("Failed to save to destinations", err);
+      console.error('Failed to save to destinations', err);
+      toast('Something went wrong. Please try again.', 'error');
     }
   };
 
