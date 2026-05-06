@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FaBell, FaTimes, FaCalendarAlt, FaLeaf, FaChevronDown, FaChevronUp, FaSeedling, FaEnvelope } from 'react-icons/fa';
+import { FaBell, FaTimes, FaCalendarAlt, FaLeaf, FaChevronDown, FaChevronUp, FaSeedling, FaEnvelope, FaClock } from 'react-icons/fa';
 import '../styles/NotificationPanel.css';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,9 @@ const NotificationPanel: React.FC = () => {
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [scheduleStatus, setScheduleStatus] = useState<'idle' | 'scheduling' | 'scheduled'>('idle');
+  const [scheduledLabel, setScheduledLabel] = useState('');
   const [expandedAlertId, setExpandedAlertId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -73,6 +76,13 @@ const NotificationPanel: React.FC = () => {
   const togglePanel = () => {
     if (!isOpen) {
       fetchAlerts();
+      // Pre-fill scheduled time to now + 2 minutes each time panel opens
+      const d = new Date(Date.now() + 2 * 60 * 1000);
+      d.setSeconds(0, 0);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      setScheduledTime(local);
+      setScheduleStatus('idle');
     }
     setIsOpen(!isOpen);
   };
@@ -83,7 +93,7 @@ const NotificationPanel: React.FC = () => {
     try {
       const res = await api.post(`/garden/send-alert-email/${user.id}`, {});
       if (res.data.sent) {
-        toast(`Alert email sent! Check your inbox.`, 'success');
+        toast('Alert email sent! Check your inbox.', 'success');
       } else {
         toast('No active alerts to email right now.', 'info');
       }
@@ -91,6 +101,28 @@ const NotificationPanel: React.FC = () => {
       toast('Failed to send email. Check your app password in .env.', 'error');
     } finally {
       setEmailSending(false);
+    }
+  };
+
+  const handleScheduleEmail = async () => {
+    if (!user?.id || !scheduledTime || scheduleStatus === 'scheduling') return;
+    setScheduleStatus('scheduling');
+    try {
+      const isoScheduledAt = new Date(scheduledTime).toISOString();
+      const res = await api.post(`/garden/schedule-alert-email/${user.id}`, { scheduledAt: isoScheduledAt });
+      if (res.data.scheduled) {
+        const t = new Date(scheduledTime);
+        const label = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setScheduledLabel(label);
+        setScheduleStatus('scheduled');
+        toast(`Email scheduled for ${label}!`, 'success');
+      } else {
+        toast('No active alerts found to schedule.', 'info');
+        setScheduleStatus('idle');
+      }
+    } catch {
+      toast('Failed to schedule. Check backend is running.', 'error');
+      setScheduleStatus('idle');
     }
   };
 
@@ -230,48 +262,51 @@ const NotificationPanel: React.FC = () => {
               )}
             </div>
 
-            {/* Footer: on-demand email button */}
+            {/* Footer: schedule email */}
             {alerts.length > 0 && (
-              <div style={{
-                padding: '1rem 1.25rem',
-                borderTop: '1px solid rgba(148,163,184,0.1)',
-                display: 'flex',
-                justifyContent: 'center',
-              }}>
-                <button
-                  onClick={handleSendEmail}
-                  disabled={emailSending}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.6rem 1.25rem',
-                    background: emailSending ? 'rgba(74,222,128,0.08)' : 'rgba(74,222,128,0.12)',
-                    border: '1px solid rgba(74,222,128,0.3)',
-                    borderRadius: '8px',
-                    color: '#86efac',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: emailSending ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    opacity: emailSending ? 0.7 : 1,
-                  }}
-                >
-                  {emailSending ? (
-                    <span style={{
-                      display: 'inline-block',
-                      width: '12px',
-                      height: '12px',
-                      border: '2px solid rgba(134,239,172,0.3)',
-                      borderTopColor: '#86efac',
-                      borderRadius: '50%',
-                      animation: 'spin 0.7s linear infinite',
-                    }} />
-                  ) : (
-                    <FaEnvelope />
-                  )}
-                  {emailSending ? 'Sending…' : 'Email me this week\'s alerts'}
-                </button>
+              <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(148,163,184,0.1)' }}>
+                {scheduleStatus === 'scheduled' ? (
+                  /* Confirmation banner */
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.65rem 1rem', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: '8px', color: '#86efac', fontSize: '0.85rem', fontWeight: 600 }}>
+                    <FaClock style={{ flexShrink: 0 }} />
+                    Email scheduled for {scheduledLabel}
+                    <button
+                      onClick={() => setScheduleStatus('idle')}
+                      style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(148,163,184,0.5)', cursor: 'pointer', fontSize: '0.78rem' }}
+                    >Reschedule</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(148,163,184,0.55)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Schedule alert email
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="datetime-local"
+                        value={scheduledTime}
+                        onChange={e => { setScheduledTime(e.target.value); setScheduleStatus('idle'); }}
+                        style={{ flex: 1, padding: '0.48rem 0.7rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: '7px', color: '#e2e8f0', fontSize: '0.83rem', colorScheme: 'dark', outline: 'none' }}
+                      />
+                      <button
+                        onClick={handleScheduleEmail}
+                        disabled={scheduleStatus === 'scheduling' || !scheduledTime}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.48rem 0.9rem', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: '7px', color: '#86efac', fontSize: '0.83rem', fontWeight: 600, cursor: scheduleStatus === 'scheduling' ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: scheduleStatus === 'scheduling' ? 0.7 : 1, transition: 'all 0.2s' }}
+                      >
+                        {scheduleStatus === 'scheduling' ? (
+                          <span style={{ display: 'inline-block', width: '11px', height: '11px', border: '2px solid rgba(134,239,172,0.3)', borderTopColor: '#86efac', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                        ) : <FaClock />}
+                        {scheduleStatus === 'scheduling' ? 'Scheduling…' : 'Schedule'}
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={emailSending}
+                      style={{ background: 'none', border: 'none', color: 'rgba(148,163,184,0.4)', fontSize: '0.76rem', cursor: 'pointer', padding: 0, textAlign: 'left', textDecoration: 'underline' }}
+                    >
+                      {emailSending ? 'Sending…' : 'Or send immediately'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

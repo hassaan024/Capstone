@@ -40,6 +40,14 @@ export class GardenController {
     return this.gardenScheduler.sendAlertEmailForUser(+userId);
   }
 
+  @Post('schedule-alert-email/:userId')
+  scheduleAlertEmail(
+    @Param('userId') userId: string,
+    @Body() body: { scheduledAt: string },
+  ) {
+    return this.gardenScheduler.scheduleAlertEmailForUser(+userId, body.scheduledAt);
+  }
+
   /** List gardens for a user (read-only web). Must be before @Get(':id'). */
   @Get('by-user/:userId')
   findByUser(@Param('userId') userId: string) {

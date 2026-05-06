@@ -241,4 +241,42 @@ export class GardenScheduler {
       );
     }
   }
+
+  /**
+   * Schedules a planting alert email to be sent at a specific datetime.
+   * Uses Node.js setTimeout — works perfectly for demo delays up to ~24h.
+   * Returns the scheduled ISO time and delay in seconds so the frontend can confirm.
+   */
+  async scheduleAlertEmailForUser(
+    userId: number,
+    scheduledAt: string,
+  ): Promise<{ scheduled: boolean; scheduledAt: string; delaySeconds: number }> {
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    if (!user?.email) return { scheduled: false, scheduledAt, delaySeconds: 0 };
+
+    const targetTime = new Date(scheduledAt).getTime();
+    const now = Date.now();
+    const delayMs = Math.max(0, targetTime - now);
+    const delaySeconds = Math.round(delayMs / 1000);
+
+    this.logger.log(
+      `Email for user ${userId} scheduled in ${delaySeconds}s (at ${new Date(scheduledAt).toLocaleTimeString()})`,
+    );
+
+    // Fire after the delay
+    setTimeout(async () => {
+      try {
+        const result = await this.sendAlertEmailForUser(userId);
+        if (result.sent) {
+          this.logger.log(`Scheduled email sent to ${user.email} (${result.alertCount} alerts)`);
+        } else {
+          this.logger.warn(`Scheduled email: no alerts found for ${user.email} at send time`);
+        }
+      } catch (err) {
+        this.logger.error(`Scheduled email failed for ${user.email}: ${(err as Error).message}`);
+      }
+    }, delayMs);
+
+    return { scheduled: true, scheduledAt, delaySeconds };
+  }
 }
