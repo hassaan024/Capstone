@@ -9,12 +9,16 @@ import {
   Query,
 } from '@nestjs/common';
 import { GardenService } from './garden.service';
+import { GardenScheduler } from './garden.scheduler';
 import { CreateGardenDto } from './dto/create-garden.dto';
 import { UpdateGardenDto } from './dto/update-garden.dto';
 
 @Controller('garden')
 export class GardenController {
-  constructor(private readonly gardenService: GardenService) {}
+  constructor(
+    private readonly gardenService: GardenService,
+    private readonly gardenScheduler: GardenScheduler,
+  ) {}
 
   @Post()
   create(@Body() createGardenDto: CreateGardenDto) {
@@ -29,6 +33,19 @@ export class GardenController {
   @Get('alerts/:userId')
   getAlerts(@Param('userId') userId: string) {
     return this.gardenService.getPlantingAlerts(+userId);
+  }
+
+  @Post('send-alert-email/:userId')
+  sendAlertEmail(@Param('userId') userId: string) {
+    return this.gardenScheduler.sendAlertEmailForUser(+userId);
+  }
+
+  @Post('schedule-alert-email/:userId')
+  scheduleAlertEmail(
+    @Param('userId') userId: string,
+    @Body() body: { scheduledAt: string },
+  ) {
+    return this.gardenScheduler.scheduleAlertEmailForUser(+userId, body.scheduledAt);
   }
 
   /** List gardens for a user (read-only web). Must be before @Get(':id'). */
