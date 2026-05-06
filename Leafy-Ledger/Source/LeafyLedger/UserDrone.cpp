@@ -9,6 +9,15 @@
 #include "Kismet/GameplayStatics.h"
 #include "GardenTimeManager.h"
 #include "GardenSessionSubsystem.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/KismetRenderingLibrary.h"
+#include "Landscape.h"
+#include "LandscapeComponent.h"
+#include "LandscapeProxy.h"
+#include "LandscapeLayerInfoObject.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "UObject/ConstructorHelpers.h"
 
 AUserDrone::AUserDrone()
 {
@@ -18,6 +27,18 @@ AUserDrone::AUserDrone()
 	CameraComp->SetupAttachment(RootComponent);
 	CameraComp->SetRelativeLocation(FVector(0, 0, 290));
 	CameraComp->SetRelativeRotation(FRotator(0, -40, 0));
+
+	static ConstructorHelpers::FObjectFinder<ULandscapeLayerInfoObject> DirtLayerFinder(TEXT("/Game/Garden_sharedassets/Dirt_LayerInfo.Dirt_LayerInfo"));
+	if (DirtLayerFinder.Succeeded())
+	{
+		DirtLayerInfo = DirtLayerFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<ULandscapeLayerInfoObject> GrassLayerFinder(TEXT("/Game/Garden_sharedassets/Grass_LayerInfo.Grass_LayerInfo"));
+	if (GrassLayerFinder.Succeeded())
+	{
+		GrassLayerInfo = GrassLayerFinder.Object;
+	}
 }
 
 void AUserDrone::BeginPlay()
@@ -25,6 +46,8 @@ void AUserDrone::BeginPlay()
 	Super::BeginPlay();
 	PC = Cast<AUserDroneController>(Controller);
 	check(PC);
+	EnsureDefaultPaintLayersLoaded();
+	InitializeRuntimePaint();
 }
 
 void AUserDrone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -48,6 +71,12 @@ void AUserDrone::Tick(float DeltaTime)
 		UpdatePan();
 	}
 
+	if (bLeftPaintHeld && CurrentEditMode == EGardenEditMode::Paint)
+	{
+		PaintSelectedLandscapeLayer();
+	}
+
+	UpdatePaintBrushPreview();
 	UpdatePreviewPlant();
 }
 
@@ -102,6 +131,41 @@ void AUserDrone::UpdatePreviewPlant()
 	}
 }
 
+void AUserDrone::UpdatePaintBrushPreview()
+{
+	if (CurrentEditMode != EGardenEditMode::Paint || !GetWorld())
+	{
+		return;
+	}
+
+	FHitResult GroundHit;
+	if (!GetMousePaintHit(GroundHit))
+	{
+		return;
+	}
+
+	const FVector Center = GroundHit.Location + (GroundHit.ImpactNormal * 6.f);
+	const FQuat CircleRotation = FRotationMatrix::MakeFromZ(GroundHit.ImpactNormal).ToQuat();
+	const FColor BrushColor = SelectedPaintLayerInfo == GrassLayerInfo ? FColor(60, 220, 80) : FColor(150, 95, 45);
+
+	DrawDebugCircle(
+		GetWorld(),
+		Center,
+		PaintBrushRadius,
+		96,
+		BrushColor,
+		false,
+		0.f,
+		0,
+		4.f,
+		FVector(1.f, 0.f, 0.f),
+		FVector(0.f, 1.f, 0.f),
+		false
+	);
+
+	DrawDebugSphere(GetWorld(), Center, 10.f, 12, BrushColor, false, 0.f, 0, 2.f);
+}
+
 void AUserDrone::LeftMousePressed()
 {
 	if (IsGardenModificationBlocked())
@@ -117,6 +181,13 @@ void AUserDrone::LeftMousePressed()
 		{
 			DeletePlant(Cast<APlant>(PlantHit.Actor));
 		}
+		return;
+	}
+
+	if (CurrentEditMode == EGardenEditMode::Paint)
+	{
+		bLeftPaintHeld = true;
+		PaintSelectedLandscapeLayer();
 		return;
 	}
 
@@ -159,6 +230,8 @@ void AUserDrone::LeftMousePressed()
 
 void AUserDrone::LeftMouseReleased()
 {
+	bLeftPaintHeld = false;
+
 	if (IsGardenModificationBlocked())
 	{
 		CancelActivePlantInteraction();
@@ -250,6 +323,11 @@ void AUserDrone::MouseScroll(float Axis)
 
 bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
 {
+	if (!PC || !GetWorld())
+	{
+		return false;
+	}
+
 	float MouseX, MouseY;
 	PC->GetMousePosition(MouseX, MouseY);
 
@@ -272,6 +350,55 @@ bool AUserDrone::GetMouseGroundHit(FHitResult& OutHit)
 	}
 
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
+	if (!bHit) return false;
+
+	OutHit = Hit;
+	return true;
+}
+
+bool AUserDrone::GetMousePaintHit(FHitResult& OutHit)
+{
+	if (!PC || !GetWorld())
+	{
+		return false;
+	}
+
+	FHitResult CursorHit;
+	if (PC->GetHitResultUnderCursor(ECC_Visibility, false, CursorHit))
+	{
+		if (!Cast<APlant>(CursorHit.Actor))
+		{
+			OutHit = CursorHit;
+			return true;
+		}
+	}
+
+	float MouseX, MouseY;
+	PC->GetMousePosition(MouseX, MouseY);
+
+	FVector WorldLocation, WorldDirection;
+	PC->DeprojectScreenPositionToWorld(MouseX, MouseY, WorldLocation, WorldDirection);
+
+	FVector End = WorldLocation + WorldDirection * 100000.f;
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.bReturnPhysicalMaterial = true;
+	Params.AddIgnoredActor(this);
+	if (PreviewPlant) Params.AddIgnoredActor(PreviewPlant);
+
+	TArray<AActor*> FoundPlants;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+	for (AActor* PlantActor : FoundPlants)
+	{
+		Params.AddIgnoredActor(PlantActor);
+	}
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_WorldStatic, Params);
+	if (!bHit)
+	{
+		bHit = GetWorld()->LineTraceSingleByChannel(Hit, WorldLocation, End, ECC_Visibility, Params);
+	}
 	if (!bHit) return false;
 
 	OutHit = Hit;
@@ -324,6 +451,268 @@ bool AUserDrone::ValidPlantPlacement()
 		}
 	}
 	return false;
+}
+
+void AUserDrone::PaintSelectedLandscapeLayer()
+{
+	if (IsGardenModificationBlocked())
+	{
+		return;
+	}
+
+	EnsureDefaultPaintLayersLoaded();
+
+	if (!SelectedPaintLayerInfo)
+	{
+		SelectedPaintLayerInfo = DirtLayerInfo ? DirtLayerInfo : GrassLayerInfo;
+	}
+
+	if (!SelectedPaintLayerInfo)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintSelectedLandscapeLayer: no paint layer selected"));
+		return;
+	}
+
+	FHitResult GroundHit;
+	if (!GetMousePaintHit(GroundHit))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintSelectedLandscapeLayer: no ground hit"));
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("PaintSelectedLandscapeLayer: hit actor=%s component=%s layer=%s location=%s"),
+		GroundHit.GetActor() ? *GroundHit.GetActor()->GetName() : TEXT("None"),
+		GroundHit.GetComponent() ? *GroundHit.GetComponent()->GetName() : TEXT("None"),
+		*SelectedPaintLayerInfo->LayerName.ToString(),
+		*GroundHit.Location.ToString()
+	);
+
+	if (!PaintLandscapeAtHit(GroundHit, SelectedPaintLayerInfo))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintSelectedLandscapeLayer: paint failed for %s"), *SelectedPaintLayerInfo->LayerName.ToString());
+	}
+}
+
+bool AUserDrone::PaintLandscapeAtHit(const FHitResult& LandscapeHit, ULandscapeLayerInfoObject* LayerInfo)
+{
+	if (!LayerInfo || !GetWorld())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintLandscapeAtHit: missing layer or world"));
+		return false;
+	}
+
+	ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(LandscapeHit.GetActor());
+	if (!Landscape)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("PaintLandscapeAtHit: cursor is not over a landscape. HitActor=%s"),
+			LandscapeHit.GetActor() ? *LandscapeHit.GetActor()->GetName() : TEXT("None")
+		);
+		return false;
+	}
+
+	if (!PaintMaskA || !PaintMaskB || !PaintBrushMaterial)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintLandscapeAtHit: assign PaintMaskA, PaintMaskB, and PaintBrushMaterial on BP_UserDrone"));
+		return false;
+	}
+
+	if (!PaintBrushMID)
+	{
+		PaintBrushMID = UMaterialInstanceDynamic::Create(PaintBrushMaterial, this);
+	}
+
+	if (!PaintBrushMID)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintLandscapeAtHit: failed to create paint brush MID"));
+		return false;
+	}
+
+	if (!CurrentPaintMask || !NextPaintMask)
+	{
+		InitializeRuntimePaint();
+	}
+
+	if (!CurrentPaintMask || !NextPaintMask)
+	{
+		return false;
+	}
+
+	FVector2D PaintUV;
+	float NormalizedBrushRadius = 0.f;
+	if (!GetLandscapePaintUV(Landscape, LandscapeHit.Location, PaintUV, NormalizedBrushRadius))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PaintLandscapeAtHit: failed to convert hit to paint UV"));
+		return false;
+	}
+
+	const bool bPaintingGrass = LayerInfo == GrassLayerInfo || LayerInfo->LayerName == TEXT("Grass");
+	const float PaintValue = bPaintingGrass ? 1.f : 0.f;
+
+	PaintBrushMID->SetTextureParameterValue(BrushPreviousMaskParameterName, CurrentPaintMask);
+	PaintBrushMID->SetVectorParameterValue(BrushCenterParameterName, FLinearColor(PaintUV.X, PaintUV.Y, 0.f, 0.f));
+	PaintBrushMID->SetScalarParameterValue(BrushRadiusParameterName, NormalizedBrushRadius);
+	PaintBrushMID->SetScalarParameterValue(BrushPaintValueParameterName, PaintValue);
+
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, NextPaintMask, PaintBrushMID);
+	Swap(CurrentPaintMask, NextPaintMask);
+	ApplyCurrentPaintMaskToLandscape(Landscape);
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Painted %s runtime mask at UV %.3f,%.3f radius %.4f"),
+		bPaintingGrass ? TEXT("Grass") : TEXT("Dirt"),
+		PaintUV.X,
+		PaintUV.Y,
+		NormalizedBrushRadius
+	);
+	return true;
+}
+
+void AUserDrone::InitializeRuntimePaint()
+{
+	if (!PaintMaskA || !PaintMaskB)
+	{
+		return;
+	}
+
+	CurrentPaintMask = PaintMaskA;
+	NextPaintMask = PaintMaskB;
+
+	UKismetRenderingLibrary::ClearRenderTarget2D(this, PaintMaskA, FLinearColor::Black);
+	UKismetRenderingLibrary::ClearRenderTarget2D(this, PaintMaskB, FLinearColor::Black);
+
+	if (PaintBrushMaterial && !PaintBrushMID)
+	{
+		PaintBrushMID = UMaterialInstanceDynamic::Create(PaintBrushMaterial, this);
+	}
+
+	TArray<AActor*> FoundLandscapes;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ALandscapeProxy::StaticClass(), FoundLandscapes);
+	for (AActor* Actor : FoundLandscapes)
+	{
+		if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
+		{
+			ApplyCurrentPaintMaskToLandscape(Landscape);
+		}
+	}
+}
+
+bool AUserDrone::GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const
+{
+	if (!Landscape)
+	{
+		return false;
+	}
+
+	FVector Origin;
+	FVector Extent;
+	Landscape->GetActorBounds(false, Origin, Extent);
+
+	const float Width = FMath::Max(1.f, Extent.X * 2.f);
+	const float Height = FMath::Max(1.f, Extent.Y * 2.f);
+	const float MinX = Origin.X - Extent.X;
+	const float MinY = Origin.Y - Extent.Y;
+
+	OutUV.X = FMath::Clamp((WorldLocation.X - MinX) / Width, 0.f, 1.f);
+	OutUV.Y = FMath::Clamp((WorldLocation.Y - MinY) / Height, 0.f, 1.f);
+	OutNormalizedBrushRadius = FMath::Clamp(PaintBrushRadius / FMath::Max(Width, Height), 0.001f, 0.5f);
+	return true;
+}
+
+void AUserDrone::ApplyCurrentPaintMaskToLandscape(ALandscapeProxy* Landscape) const
+{
+	if (!Landscape || !CurrentPaintMask)
+	{
+		return;
+	}
+
+	FVector Origin;
+	FVector Extent;
+	Landscape->GetActorBounds(false, Origin, Extent);
+
+	TArray<ULandscapeComponent*> LandscapeComponents;
+	Landscape->GetComponents<ULandscapeComponent>(LandscapeComponents);
+
+	Landscape->bUseDynamicMaterialInstance = true;
+
+	Landscape->SetLandscapeMaterialTextureParameterValue(LandscapePaintMaskParameterName, CurrentPaintMask);
+	Landscape->SetLandscapeMaterialVectorParameterValue(
+		LandscapePaintWorldMinParameterName,
+		FLinearColor(Origin.X - Extent.X, Origin.Y - Extent.Y, 0.f, 0.f)
+	);
+	Landscape->SetLandscapeMaterialVectorParameterValue(
+		LandscapePaintWorldSizeParameterName,
+		FLinearColor(FMath::Max(1.f, Extent.X * 2.f), FMath::Max(1.f, Extent.Y * 2.f), 0.f, 0.f)
+	);
+
+	const FLinearColor PaintWorldMin(Origin.X - Extent.X, Origin.Y - Extent.Y, 0.f, 0.f);
+	const FLinearColor PaintWorldSize(FMath::Max(1.f, Extent.X * 2.f), FMath::Max(1.f, Extent.Y * 2.f), 0.f, 0.f);
+
+	int32 DynamicMaterialCount = 0;
+	for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
+	{
+		if (!LandscapeComponent)
+		{
+			continue;
+		}
+
+		for (UMaterialInstanceDynamic* DynamicMaterial : LandscapeComponent->MaterialInstancesDynamic)
+		{
+			if (DynamicMaterial)
+			{
+				++DynamicMaterialCount;
+				DynamicMaterial->SetTextureParameterValue(LandscapePaintMaskParameterName, CurrentPaintMask);
+				DynamicMaterial->SetVectorParameterValue(LandscapePaintWorldMinParameterName, PaintWorldMin);
+				DynamicMaterial->SetVectorParameterValue(LandscapePaintWorldSizeParameterName, PaintWorldSize);
+			}
+		}
+
+		LandscapeComponent->MarkRenderStateDirty();
+	}
+
+	if (DynamicMaterialCount == 0)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("ApplyCurrentPaintMaskToLandscape: %s has no dynamic landscape material instances. Enable 'Use Dynamic Material Instance' on the Landscape actor, then restart PIE."),
+			*Landscape->GetName()
+		);
+	}
+}
+
+void AUserDrone::EnsureDefaultPaintLayersLoaded()
+{
+	if (!DirtLayerInfo)
+	{
+		DirtLayerInfo = LoadObject<ULandscapeLayerInfoObject>(nullptr, TEXT("/Game/Garden_sharedassets/Dirt_LayerInfo.Dirt_LayerInfo"));
+	}
+
+	if (!GrassLayerInfo)
+	{
+		GrassLayerInfo = LoadObject<ULandscapeLayerInfoObject>(nullptr, TEXT("/Game/Garden_sharedassets/Grass_LayerInfo.Grass_LayerInfo"));
+	}
+
+	if (!SelectedPaintLayerInfo)
+	{
+		SelectedPaintLayerInfo = DirtLayerInfo ? DirtLayerInfo : GrassLayerInfo;
+	}
+
+	if (!DirtLayerInfo)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EnsureDefaultPaintLayersLoaded: Dirt layer info not found"));
+	}
+	if (!GrassLayerInfo)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EnsureDefaultPaintLayersLoaded: Grass layer info not found"));
+	}
 }
 
 bool AUserDrone::IsGardenModificationBlocked() const
@@ -559,6 +948,36 @@ void AUserDrone::SetGardenEditMode(EGardenEditMode NewMode)
 
 	CancelActivePlantInteraction();
 	CurrentEditMode = NewMode;
+	bLeftPaintHeld = false;
+}
+
+void AUserDrone::SetPaintLayerByName(FName LayerName)
+{
+	EnsureDefaultPaintLayersLoaded();
+
+	if (LayerName == TEXT("Grass"))
+	{
+		SelectedPaintLayerInfo = GrassLayerInfo;
+	}
+	else
+	{
+		SelectedPaintLayerInfo = DirtLayerInfo;
+	}
+}
+
+FName AUserDrone::GetSelectedPaintLayerName() const
+{
+	if (SelectedPaintLayerInfo == GrassLayerInfo)
+	{
+		return TEXT("Grass");
+	}
+
+	return TEXT("Dirt");
+}
+
+void AUserDrone::SetPaintBrushRadius(float NewRadius)
+{
+	PaintBrushRadius = FMath::Clamp(NewRadius, 25.f, 1200.f);
 }
 
 FString AUserDrone::FindPredictedPlantedDateForSpecies(int32 SpeciesId) const

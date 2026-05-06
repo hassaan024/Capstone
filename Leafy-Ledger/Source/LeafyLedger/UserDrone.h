@@ -8,6 +8,11 @@
 class APlant;
 class AUserDroneController;
 class UPlantObject;
+class ULandscapeLayerInfoObject;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
+class UTextureRenderTarget2D;
+class ALandscapeProxy;
 
 UENUM(BlueprintType)
 enum class EGardenEditMode : uint8
@@ -53,24 +58,87 @@ protected:
 private:
 	AUserDroneController* PC;
 	bool bRightClickHeld = false;
+	bool bLeftPaintHeld = false;
 	bool bDraggingRealPlant = false;
 	FVector MouseDragStart;
 	APlant* PreviewPlant = nullptr;
 	FTransform DragOriginalTransform;
 	EGardenEditMode CurrentEditMode = EGardenEditMode::Plant;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint")
+	ULandscapeLayerInfoObject* DirtLayerInfo = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint")
+	ULandscapeLayerInfoObject* GrassLayerInfo = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint")
+	float PaintBrushRadius = 400.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint")
+	float PaintStrength = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	UTextureRenderTarget2D* PaintMaskA = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	UTextureRenderTarget2D* PaintMaskB = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	UMaterialInterface* PaintBrushMaterial = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName LandscapePaintMaskParameterName = TEXT("PaintMask");
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName LandscapePaintWorldMinParameterName = TEXT("PaintWorldMin");
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName LandscapePaintWorldSizeParameterName = TEXT("PaintWorldSize");
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName BrushPreviousMaskParameterName = TEXT("PreviousMask");
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName BrushCenterParameterName = TEXT("BrushCenter");
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName BrushRadiusParameterName = TEXT("BrushRadius");
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paint|Runtime Mask")
+	FName BrushPaintValueParameterName = TEXT("PaintValue");
+
+	UPROPERTY()
+	ULandscapeLayerInfoObject* SelectedPaintLayerInfo = nullptr;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* PaintBrushMID = nullptr;
+
+	UPROPERTY()
+	UTextureRenderTarget2D* CurrentPaintMask = nullptr;
+
+	UPROPERTY()
+	UTextureRenderTarget2D* NextPaintMask = nullptr;
 #pragma endregion
 
 #pragma region Tick Functions
 private:
 	void UpdatePan();
 	void UpdatePreviewPlant();
+	void UpdatePaintBrushPreview();
 #pragma endregion
 
 #pragma region Helper Functions
 private:
 	bool GetMouseGroundHit(FHitResult& OutHit);
+	bool GetMousePaintHit(FHitResult& OutHit);
 	bool GetMousePlantHit(FHitResult& OutHit);
 	bool ValidPlantPlacement();
+	void PaintSelectedLandscapeLayer();
+	bool PaintLandscapeAtHit(const FHitResult& LandscapeHit, ULandscapeLayerInfoObject* LayerInfo);
+	void InitializeRuntimePaint();
+	bool GetLandscapePaintUV(ALandscapeProxy* Landscape, const FVector& WorldLocation, FVector2D& OutUV, float& OutNormalizedBrushRadius) const;
+	void ApplyCurrentPaintMaskToLandscape(ALandscapeProxy* Landscape) const;
+	void EnsureDefaultPaintLayersLoaded();
 	bool IsGardenModificationBlocked() const;
 	void TrackPlacedPlant(APlant* PlantActor);
 	void DeletePlant(APlant* PlantActor);
@@ -96,6 +164,18 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetGardenEditMode(EGardenEditMode NewMode);
+
+	UFUNCTION(BlueprintCallable)
+	void SetPaintLayerByName(FName LayerName);
+
+	UFUNCTION(BlueprintCallable)
+	FName GetSelectedPaintLayerName() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetPaintBrushRadius(float NewRadius);
+
+	UFUNCTION(BlueprintCallable)
+	float GetPaintBrushRadius() const { return PaintBrushRadius; }
 
 	void CancelActivePlantInteraction();
 

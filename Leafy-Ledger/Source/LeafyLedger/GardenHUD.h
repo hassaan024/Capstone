@@ -13,6 +13,9 @@
 
 class UBackendApiSubsystem;
 class UEditableTextBox;
+class UBorder;
+class UButton;
+class UHorizontalBox;
 struct FBackendGardenTimelineDto;
 
 UCLASS()
@@ -41,6 +44,15 @@ public:
 
 	UFUNCTION()
 	void OnPressDeleteMode();
+
+	UFUNCTION()
+	void OnPressPaintDirt();
+
+	UFUNCTION()
+	void OnPressPaintGrass();
+
+	UFUNCTION()
+	void OnBrushSizeChanged(float Value);
 
     UFUNCTION()
 	void OnValueChanged(float Value);
@@ -74,6 +86,12 @@ public:
 	UButton* BTN_DeleteMode;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_Dirt = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* BTN_Grass = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USlider* SLDR_Date;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -104,10 +122,46 @@ private:
 	void ApplySliderDay(float Value);
 	void SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const;
 	void SetGardenMode(EGardenEditMode NewMode);
+	void BuildPaintLayerControls();
+	void BuildPaintBrushControls();
+	void WrapModeButtonsWithBorders();
+	UBorder* WrapModeButtonWithBorder(UButton* Button, const FName& BorderName);
+	void SyncModeControls(EGardenEditMode ActiveMode);
+	void SetModeBorderActive(UBorder* Border, bool bActive) const;
+	void SetPaintLayerButtonActive(UButton* Button, bool bActive) const;
+	void SetSelectedPaintLayer(FName LayerName);
+	EGardenEditMode GetCurrentGardenMode() const;
 	void CancelActiveGardenModification() const;
 
 	UPROPERTY(Transient, meta = (BindWidget))
 	UEditableTextBox* ET_BloomDate = nullptr;
+
+	UPROPERTY(Transient)
+	UHorizontalBox* PaintLayerControls = nullptr;
+
+	UPROPERTY(Transient)
+	UHorizontalBox* PaintBrushControls = nullptr;
+
+	UPROPERTY(Transient)
+	USlider* RuntimeSLDR_BrushSize = nullptr;
+
+	UPROPERTY(Transient)
+	UTextBlock* RuntimeTXT_BrushSize = nullptr;
+
+	UPROPERTY(Transient)
+	UButton* RuntimeBTN_Dirt = nullptr;
+
+	UPROPERTY(Transient)
+	UButton* RuntimeBTN_Grass = nullptr;
+
+	UPROPERTY(Transient)
+	UBorder* PlantModeBorder = nullptr;
+
+	UPROPERTY(Transient)
+	UBorder* PaintModeBorder = nullptr;
+
+	UPROPERTY(Transient)
+	UBorder* DeleteModeBorder = nullptr;
 
 	FString LastValidBloomDateDisplay;
 	FString LastValidBloomDateBackend;
@@ -121,6 +175,7 @@ private:
 	bool bSuppressSliderCallbacks = false;
 	bool bPredictionInFlight = false;
 	bool bRunPredictionAfterSave = false;
+	FName SelectedPaintLayerName = TEXT("Dirt");
 	FDateTime SliderStartDate = FDateTime::MinValue();
 	FDateTime SliderBloomDate = FDateTime::MinValue();
 	int32 SliderStartDayIndex = 0;
