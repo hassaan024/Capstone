@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { FaBell, FaTimes, FaCalendarAlt, FaLeaf, FaChevronDown, FaChevronUp, FaSeedling } from 'react-icons/fa';
+import { FaBell, FaTimes, FaCalendarAlt, FaLeaf, FaChevronDown, FaChevronUp, FaSeedling, FaEnvelope } from 'react-icons/fa';
 import '../styles/NotificationPanel.css';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import GardenPlantCard from './GardenPlantCard';
 
 interface AlertData {
@@ -20,10 +21,12 @@ interface AlertData {
 
 const NotificationPanel: React.FC = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [expandedAlertId, setExpandedAlertId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -72,6 +75,23 @@ const NotificationPanel: React.FC = () => {
       fetchAlerts();
     }
     setIsOpen(!isOpen);
+  };
+
+  const handleSendEmail = async () => {
+    if (!user?.id || emailSending) return;
+    setEmailSending(true);
+    try {
+      const res = await api.post(`/garden/send-alert-email/${user.id}`, {});
+      if (res.data.sent) {
+        toast(`Alert email sent! Check your inbox.`, 'success');
+      } else {
+        toast('No active alerts to email right now.', 'info');
+      }
+    } catch {
+      toast('Failed to send email. Check your app password in .env.', 'error');
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const formatRelativeDays = (dateStr: string) => {
@@ -209,6 +229,51 @@ const NotificationPanel: React.FC = () => {
                 ))
               )}
             </div>
+
+            {/* Footer: on-demand email button */}
+            {alerts.length > 0 && (
+              <div style={{
+                padding: '1rem 1.25rem',
+                borderTop: '1px solid rgba(148,163,184,0.1)',
+                display: 'flex',
+                justifyContent: 'center',
+              }}>
+                <button
+                  onClick={handleSendEmail}
+                  disabled={emailSending}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.6rem 1.25rem',
+                    background: emailSending ? 'rgba(74,222,128,0.08)' : 'rgba(74,222,128,0.12)',
+                    border: '1px solid rgba(74,222,128,0.3)',
+                    borderRadius: '8px',
+                    color: '#86efac',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: emailSending ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: emailSending ? 0.7 : 1,
+                  }}
+                >
+                  {emailSending ? (
+                    <span style={{
+                      display: 'inline-block',
+                      width: '12px',
+                      height: '12px',
+                      border: '2px solid rgba(134,239,172,0.3)',
+                      borderTopColor: '#86efac',
+                      borderRadius: '50%',
+                      animation: 'spin 0.7s linear infinite',
+                    }} />
+                  ) : (
+                    <FaEnvelope />
+                  )}
+                  {emailSending ? 'Sending…' : 'Email me this week\'s alerts'}
+                </button>
+              </div>
+            )}
           </div>
         </>,
         document.body

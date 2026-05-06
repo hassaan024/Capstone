@@ -8,10 +8,14 @@ import { UpdatePlantInstanceDto } from './dto/update-plant-instance.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
 import { getSoilDefaults } from 'utils/soil-defaults';
+import { GardenScheduler } from '../garden/garden.scheduler';
 
 @Injectable()
 export class PlantInstanceService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly scheduler: GardenScheduler,
+  ) {}
 
   async create(createPlantInstanceDto: CreatePlantInstanceDto) {
     try {
@@ -25,7 +29,7 @@ export class PlantInstanceService {
       });
 
       // Create plant instance linked to that soil
-      return await this.db.plantInstance.create({
+      const instance = await this.db.plantInstance.create({
         data: {
           gardenId: createPlantInstanceDto.gardenId,
           speciesId: createPlantInstanceDto.speciesId,
@@ -50,6 +54,11 @@ export class PlantInstanceService {
         },
         include: { species: { select: { commonName: true, scientificName: true, type: true } } },
       });
+
+      // Fire email check in the background — never blocks the response
+      void this.scheduler.triggerAlertEmailIfNeeded(createPlantInstanceDto.gardenId);
+
+      return instance;
     } catch (err: unknown) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&

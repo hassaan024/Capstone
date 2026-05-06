@@ -2,16 +2,23 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { CreateGardenDto } from './dto/create-garden.dto';
 import { UpdateGardenDto } from './dto/update-garden.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
 import { computeBloomDays } from 'utils/plant-growth';
+import { GardenScheduler } from './garden.scheduler';
 
 @Injectable()
 export class GardenService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    @Inject(forwardRef(() => GardenScheduler))
+    private readonly scheduler: GardenScheduler,
+  ) {}
 
   private computeModelCategory(species: {
     type?: string | null;
@@ -157,13 +164,20 @@ export class GardenService {
         }
       }
 
-      return await this.db.garden.update({
+      const updated = await this.db.garden.update({
         where: { id },
         data: {
           ...restDto,
           ...(parsedBloomDate !== undefined && { bloomDate: parsedBloomDate }),
         },
       });
+
+      // If bloomDate changed, check for newly triggered planting alerts and email immediately
+      if (parsedBloomDate !== undefined) {
+        void this.scheduler.triggerAlertEmailIfNeeded(id);
+      }
+
+      return updated;
     } catch (err: unknown) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
