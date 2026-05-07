@@ -237,6 +237,7 @@ export class GardenService {
               gardenName: garden.name,
               species: plant.species,
               plantedDate: plantedDate.toISOString(),
+              bloomDate: plant.bloomDate?.toISOString() ?? null,
               notificationDate: now.toISOString(),
             });
           }

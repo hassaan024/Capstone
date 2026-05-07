@@ -14,6 +14,7 @@ interface AlertData {
   gardenName: string;
   species: any;
   plantedDate: string;
+  bloomDate?: string | null;   // actual instance bloom date from Unreal
   notificationDate: string;
   count?: number;
   plantInstanceIds?: number[];
@@ -129,16 +130,10 @@ const NotificationPanel: React.FC = () => {
   const formatRelativeDays = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // Parse the date as UTC midnight and compare against local midnight
     const target = new Date(dateStr);
-    const targetMidnight = new Date(
-      target.getUTCFullYear(),
-      target.getUTCMonth(),
-      target.getUTCDate()
-    );
-    targetMidnight.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
     
-    const diffTime = targetMidnight.getTime() - today.getTime();
+    const diffTime = target.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) return 'Today';
@@ -150,7 +145,6 @@ const NotificationPanel: React.FC = () => {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(undefined, {
-      timeZone: 'UTC',
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -259,7 +253,8 @@ const NotificationPanel: React.FC = () => {
                             id: alert.plantInstanceId,
                             species: alert.species,
                             plantedDate: alert.plantedDate,
-                            soil: { type: 'Unknown' } // generic fallback
+                            bloomDate: alert.bloomDate ?? undefined,
+                            soil: { type: 'Unknown' }
                           } as any}
                         />
                       </div>
