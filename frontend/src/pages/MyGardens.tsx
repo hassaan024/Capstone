@@ -36,6 +36,7 @@ interface GardenDetailPlant {
   notes: string | null;
   creationTimestamp: string;
   plantedDate?: string | null;   // may come from Unreal later; currently absent in schema
+  bloomDate?: string | null;     // target bloom date set from Unreal
   species: GardenPlantCardSpecies & {
     commonName: string;
     scientificName: string;
@@ -142,7 +143,10 @@ const MyGardens: React.FC = () => {
     if (p.plantedDate) return p.plantedDate;
 
     // 2. Derive from bloomDate - bloomDays
-    if (detail?.bloomDate && p.species.bloomDays) {
+    if (p.bloomDate && p.species.bloomDays) {
+      const bloomMs = new Date(p.bloomDate).getTime();
+      return new Date(bloomMs - p.species.bloomDays * 24 * 60 * 60 * 1000).toISOString();
+    } else if (detail?.bloomDate && p.species.bloomDays) {
       const bloomMs = new Date(detail.bloomDate).getTime();
       return new Date(bloomMs - p.species.bloomDays * 24 * 60 * 60 * 1000).toISOString();
     }
@@ -151,19 +155,30 @@ const MyGardens: React.FC = () => {
   };
 
   // Timeline dates for Track tab
-  // Start = earliest computed planted date; End = bloomDate
+  // Start = earliest computed planted date; End = latest bloomDate across instances
   const timelineDates = useMemo(() => {
-    if (!detail) return { start: Date.now(), end: Date.now() };
-    const end = detail.bloomDate ? new Date(detail.bloomDate).getTime() : Date.now();
-    let earliest = end;
+    if (!detail || detail.plants.length === 0) return { start: Date.now(), end: Date.now() };
+    
+    let earliest = Infinity;
+    let latest = -Infinity;
+
     for (const p of detail.plants) {
-      const dateStr = computePlantedDate(p);
-      if (dateStr) {
-        const d = new Date(dateStr).getTime();
+      const pDateStr = computePlantedDate(p);
+      if (pDateStr) {
+        const d = new Date(pDateStr).getTime();
         if (d < earliest) earliest = d;
       }
+      const bDateStr = p.bloomDate || detail.bloomDate;
+      if (bDateStr) {
+        const d = new Date(bDateStr).getTime();
+        if (d > latest) latest = d;
+      }
     }
-    return { start: earliest, end };
+
+    if (earliest === Infinity) earliest = Date.now();
+    if (latest === -Infinity) latest = earliest;
+    
+    return { start: earliest, end: latest };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
 
@@ -904,18 +919,22 @@ const MyGardens: React.FC = () => {
                       </p>
                     ) : (
                       <div className="browse-grid">
-                        {detail.plants.map(p => (
-                          <PlantStageTrackerCard
-                            key={p.id}
-                            plant={{
-                              ...p,
-                              // Use Unreal's plantedDate if set; otherwise derive from bloomDate - bloomDays
-                              plantedDate: computePlantedDate(p),
-                            }}
-                            currentTimestamp={currentTimestamp}
-                            bloomTimestamp={timelineDates.end}
-                          />
-                        ))}
+                        {detail.plants.map(p => {
+                          const pBloomStr = p.bloomDate || detail.bloomDate;
+                          const bloomTimestamp = pBloomStr ? new Date(pBloomStr).getTime() : timelineDates.end;
+                          return (
+                            <PlantStageTrackerCard
+                              key={p.id}
+                              plant={{
+                                ...p,
+                                // Use Unreal's plantedDate if set; otherwise derive from bloomDate - bloomDays
+                                plantedDate: computePlantedDate(p),
+                              }}
+                              currentTimestamp={currentTimestamp}
+                              bloomTimestamp={bloomTimestamp}
+                            />
+                          );
+                        })}
                       </div>
                     )}
                   </>
