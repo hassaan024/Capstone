@@ -24,8 +24,11 @@ class LEAFYLEDGER_API UMainMenu : public UUserWidget
 
 public:
 	virtual bool Initialize() override;
+	virtual void NativeConstruct() override;
 
 protected:
+	void BindMenuButtons();
+
 	UFUNCTION()
 	void OnPressUpdateDisplayName();
 
@@ -45,12 +48,17 @@ protected:
 	void OnPressDeleteGarden();
 
 	void HandleLoadGardenSelected(int32 GardenId);
+	void RequestCurrentUser();
+	void HandleCurrentUserResponse(bool bSuccess, const FString& Message, const FBackendUserDto& User);
 	void RequestWeatherFromStoredLocation();
 	void HandleUserLocationResponse(bool bSuccess, const FString& Message, const FBackendUserLocationDto& Location);
 	void HandleWeatherResponse(bool bSuccess, const FString& Message, const FBackendWeatherDto& Weather);
 
+	UButton* ResolveMenuButton(UWidget* MenuButtonWidget) const;
+
 	void UpdateWeatherIcon(const FString& Description);
 	UTexture2D* GetWeatherIconForDescription(const FString& Description) const;
+	void EnsureWeatherIconDefaults();
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<UCreateGardenPopup> CreateGardenPopupClass;
@@ -72,22 +80,25 @@ protected:
 
 	//buttons
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_CreateGarden;
+	UWidget* BTN_CreateGarden;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_LoadGarden;
+	UWidget* BTN_LoadGarden;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_DeleteGarden;
+	UWidget* BTN_DeleteGarden;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_UpdateDisplayName;
+	UWidget* BTN_UpdateDisplayName;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_SavedPlants;
+	UWidget* BTN_SavedPlants;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_BrowseSpecies;
+	UWidget* BTN_BrowseSpecies;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_Welcome;
 
 	// weather stuff
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
