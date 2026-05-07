@@ -70,6 +70,7 @@ model PlantInstance {
   healthStatus      HealthStatus?  
   lastWatered       DateTime? 
   plantedDate       DateTime? // when the plant was physically placed (set by Unreal)
+  bloomDate         DateTime? // in-game date when this plant instance should reach bloom
   notes             String?  // any notes
 
   currentGameDate   DateTime  @default(now())  // current in-game date, updated by Unreal

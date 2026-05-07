@@ -1350,7 +1350,7 @@ void UBackendApiSubsystem::EnsureGenericSoil(const FBackendSoilIdResponse& Callb
 	}
 }
 
-void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, const FString& SoilType, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, const FString& SoilType, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString* BloomDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (GardenId <= 0)
 	{
@@ -1403,6 +1403,11 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 	if (PlantedDateIso8601 && !PlantedDateIso8601->IsEmpty())
 	{
 		BodyObj->SetStringField(TEXT("plantedDate"), *PlantedDateIso8601);
+	}
+
+	if (BloomDateIso8601 && !BloomDateIso8601->IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("bloomDate"), *BloomDateIso8601);
 	}
 
 	if (!Notes.IsEmpty())
@@ -1535,6 +1540,11 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 				PlantInstance.bHasPlantedDate = !PlantInstance.PlantedDate.IsEmpty();
 			}
 
+			if (Obj->TryGetStringField(TEXT("bloomDate"), PlantInstance.BloomDate))
+			{
+				PlantInstance.bHasBloomDate = !PlantInstance.BloomDate.IsEmpty();
+			}
+
 			Obj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
 			Obj->TryGetStringField(TEXT("creationTimestamp"), PlantInstance.CreationTimestamp);
 			Obj->TryGetStringField(TEXT("lastUpdated"), PlantInstance.LastUpdated);
@@ -1549,7 +1559,7 @@ void UBackendApiSubsystem::CreatePlantInstance(int32 GardenId, int32 SpeciesId, 
 	}
 }
 
-void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
+void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& PlantedDateIso8601, const FString& BloomDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback)
 {
 	if (PlantInstanceId <= 0)
 	{
@@ -1574,6 +1584,11 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 	if (!PlantedDateIso8601.IsEmpty())
 	{
 		BodyObj->SetStringField(TEXT("plantedDate"), PlantedDateIso8601);
+	}
+
+	if (!BloomDateIso8601.IsEmpty())
+	{
+		BodyObj->SetStringField(TEXT("bloomDate"), BloomDateIso8601);
 	}
 
 	if (!Notes.IsEmpty())
@@ -1705,6 +1720,11 @@ void UBackendApiSubsystem::UpdatePlantInstance(int32 PlantInstanceId, const FVec
 			if (Obj->TryGetStringField(TEXT("plantedDate"), PlantInstance.PlantedDate))
 			{
 				PlantInstance.bHasPlantedDate = !PlantInstance.PlantedDate.IsEmpty();
+			}
+
+			if (Obj->TryGetStringField(TEXT("bloomDate"), PlantInstance.BloomDate))
+			{
+				PlantInstance.bHasBloomDate = !PlantInstance.BloomDate.IsEmpty();
 			}
 
 			Obj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);

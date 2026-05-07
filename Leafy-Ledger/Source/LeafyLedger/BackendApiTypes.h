@@ -311,6 +311,9 @@ struct FBackendPlantInstanceDto
 	FString PlantedDate;
 
 	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
+
+	UPROPERTY(BlueprintReadWrite)
 	FString Notes;
 
 	UPROPERTY(BlueprintReadWrite)
@@ -333,6 +336,9 @@ struct FBackendPlantInstanceDto
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bHasPlantedDate = false;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bHasBloomDate = false;
 };
 
 USTRUCT(BlueprintType)
@@ -375,6 +381,9 @@ struct FBackendGardenPlantInstanceDto
 
 	UPROPERTY(BlueprintReadWrite)
 	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
 
 	UPROPERTY(BlueprintReadWrite)
 	FString Notes;
@@ -438,6 +447,9 @@ struct FBackendGardenTimelinePlantDto
 
 	UPROPERTY(BlueprintReadWrite)
 	FString PlantedDate;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString BloomDate;
 
 	UPROPERTY(BlueprintReadWrite)
 	int32 DaysToMature = 0;

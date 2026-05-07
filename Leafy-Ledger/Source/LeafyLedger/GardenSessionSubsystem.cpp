@@ -50,6 +50,11 @@ void UGardenSessionSubsystem::LoadGardenDraft(const FBackendGardenDetailDto& Gar
 		Plant.HealthStatus = SourcePlant.HealthStatus;
 		Plant.LastWateredIso8601 = SourcePlant.LastWatered;
 		Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(SourcePlant.PlantedDate);
+		Plant.BloomDate = FBloomDateUtils::NormalizeBackendDateString(SourcePlant.BloomDate);
+		if (Plant.BloomDate.IsEmpty())
+		{
+			Plant.BloomDate = Draft.BloomDate;
+		}
 		Plant.Notes = SourcePlant.Notes;
 		Plant.bPendingCreate = false;
 		Plant.bPendingUpdate = false;
@@ -148,7 +153,8 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	const FString& SpeciesScientificName,
 	const FString& SpeciesModelCategory,
 	const FString& Notes,
-	const FString& PlantedDate
+	const FString& PlantedDate,
+	const FString& BloomDate
 )
 {
 	if (!Draft.bIsInitialized)
@@ -172,6 +178,7 @@ FGuid UGardenSessionSubsystem::AddPlantPlacement(
 	Plant.HealthStatus = HealthStatus;
 	Plant.LastWateredIso8601 = LastWateredIso8601;
 	Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(PlantedDate);
+	Plant.BloomDate = FBloomDateUtils::NormalizeBackendDateString(BloomDate);
 	Plant.Notes = Notes;
 	Plant.bPendingCreate = true;
 
@@ -293,7 +300,7 @@ void UGardenSessionSubsystem::MarkGardenSaved(int32 InBackendGardenId)
 	RefreshDirtyState();
 }
 
-void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId, const FString& PlantedDate)
+void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBackendPlantInstanceId, const FString& PlantedDate, const FString& BloomDate)
 {
 	const int32 Index = FindPlantIndexByLocalId(LocalId);
 	if (Index == INDEX_NONE) return;
@@ -303,6 +310,10 @@ void UGardenSessionSubsystem::MarkPlantSaved(const FGuid& LocalId, int32 InBacke
 	if (!PlantedDate.IsEmpty())
 	{
 		Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(PlantedDate);
+	}
+	if (!BloomDate.IsEmpty())
+	{
+		Plant.BloomDate = FBloomDateUtils::NormalizeBackendDateString(BloomDate);
 	}
 	Plant.bPendingCreate = false;
 	Plant.bPendingUpdate = false;
@@ -331,6 +342,25 @@ bool UGardenSessionSubsystem::SetPlantPlantedDateByBackendId(int32 BackendPlantI
 		if (Plant.BackendPlantInstanceId == BackendPlantInstanceId)
 		{
 			Plant.PlantedDate = FBloomDateUtils::NormalizeBackendDateString(PlantedDate);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UGardenSessionSubsystem::SetPlantBloomDateByBackendId(int32 BackendPlantInstanceId, const FString& BloomDate)
+{
+	if (BackendPlantInstanceId <= 0 || BloomDate.IsEmpty())
+	{
+		return false;
+	}
+
+	for (FEditablePlantPlacement& Plant : Draft.Plants)
+	{
+		if (Plant.BackendPlantInstanceId == BackendPlantInstanceId)
+		{
+			Plant.BloomDate = FBloomDateUtils::NormalizeBackendDateString(BloomDate);
 			return true;
 		}
 	}

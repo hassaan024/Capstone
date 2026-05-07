@@ -130,8 +130,8 @@ void AGardenDirector::SpawnLoadedPlants()
 
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
 	const bool bDateSliderVisible = IsGardenDateSliderVisible(GetWorld());
-	int32 BloomDayIndex = -1;
-	const bool bHasBloomDayIndex = TryDateToDayIndex(Draft.BloomDate, BloomDayIndex);
+	int32 FinalBloomDayIndex = -1;
+	const bool bHasFinalBloomDayIndex = TryDateToDayIndex(Draft.BloomDate, FinalBloomDayIndex);
 	AGardenTimeManager* TimeManager = nullptr;
 	TArray<AActor*> FoundTimeManagers;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGardenTimeManager::StaticClass(), FoundTimeManagers);
@@ -162,24 +162,41 @@ void AGardenDirector::SpawnLoadedPlants()
 			PlantData->PerenualId = PlantPlacement.PerenualId;
 			PlantData->SpeciesId = PlantPlacement.SpeciesId;
 			PlantData->ModelCategory = PlantPlacement.SpeciesModelCategory;
+			const FString EffectiveBloomDate = !PlantPlacement.BloomDate.IsEmpty() ? PlantPlacement.BloomDate : Draft.BloomDate;
+			int32 BloomDayIndex = -1;
+			const bool bHasBloomDayIndex = TryDateToDayIndex(EffectiveBloomDate, BloomDayIndex);
 			int32 PlantingDayIndex = -1;
-			if (bHasBloomDayIndex && TryDateToDayIndex(PlantPlacement.PlantedDate, PlantingDayIndex) && PlantingDayIndex <= BloomDayIndex)
+			const bool bHasPlantingDayIndex = bHasBloomDayIndex
+				&& TryDateToDayIndex(PlantPlacement.PlantedDate, PlantingDayIndex)
+				&& PlantingDayIndex <= BloomDayIndex;
+			if (bHasPlantingDayIndex)
 			{
 				PlantData->DaysToBloom = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
 			}
 			else
 			{
 				PlantData->DaysToBloom = GetFallbackDaysToBloom(PlantPlacement.SpeciesModelCategory);
-				PlantingDayIndex = bHasBloomDayIndex ? BloomDayIndex - PlantData->DaysToBloom : 0;
 			}
-			PlantData->DaysToWither = 6;
+			PlantData->DaysToWither = APlant::CalculateDaysToWitherFromBloom(PlantData->DaysToBloom);
 			PlantActor->InitializeFromPlantData(PlantData);
 
 			if (bHasBloomDayIndex)
 			{
-				PlantActor->PlantingDayIndex = PlantingDayIndex;
-				PlantActor->BloomDayIndex = BloomDayIndex;
-				PlantActor->WitherDayIndex = BloomDayIndex + PlantData->DaysToWither;
+				PlantActor->BloomDayIndex = bHasFinalBloomDayIndex
+					? FMath::Min(BloomDayIndex, FinalBloomDayIndex)
+					: BloomDayIndex;
+
+				if (bHasPlantingDayIndex)
+				{
+					PlantActor->PlantingDayIndex = PlantingDayIndex;
+					PlantActor->BloomDayIndex = FMath::Max(PlantActor->BloomDayIndex, PlantingDayIndex);
+					PlantActor->DaysToBloom = FMath::Max(1, PlantActor->BloomDayIndex - PlantActor->PlantingDayIndex);
+					PlantActor->DaysToWither = APlant::CalculateDaysToWitherFromBloom(PlantActor->DaysToBloom);
+					PlantActor->WitherDayIndex = PlantActor->BloomDayIndex + PlantActor->DaysToWither;
+					PlantActor->PlantingDate = FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex);
+				}
+
+				PlantActor->UpdatePlantingDateText();
 			}
 		}
 

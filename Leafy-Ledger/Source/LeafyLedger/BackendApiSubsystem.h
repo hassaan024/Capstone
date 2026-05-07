@@ -51,8 +51,8 @@ public:
 	void UpdateGarden(int32 GardenId, const FString& Name, const FString& Description, const FString& BloomDate, const FString& PaintMaskData, float Latitude, float Longitude, const FString& Timezone, const FBackendGardenResponse& Callback);
 	void DeleteGarden(int32 GardenId, const FBackendOperationResponse& Callback);
 	void EnsureGenericSoil(const FBackendSoilIdResponse& Callback);
-	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, const FString& SoilType, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
-	void UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& PlantedDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
+	void CreatePlantInstance(int32 GardenId, int32 SpeciesId, const FString& SoilType, const FVector& Location, const FRotator& Rotation, const FVector& Scale, const float* HeightCm, const int32* AgeDays, const FString* HealthStatus, const FString* LastWateredIso8601, const FString* PlantedDateIso8601, const FString* BloomDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
+	void UpdatePlantInstance(int32 PlantInstanceId, const FVector& Location, const FRotator& Rotation, const FVector& Scale, float HeightCm, int32 AgeDays, const FString& HealthStatus, const FString& LastWateredIso8601, const FString& PlantedDateIso8601, const FString& BloomDateIso8601, const FString& Notes, const FBackendPlantInstanceResponse& Callback);
 	void DeletePlantInstance(int32 PlantInstanceId, const FBackendOperationResponse& Callback);
 	void GenerateGardenTimeline(int32 GardenId, const FString& BloomDate, const FBackendGardenTimelineResponse& Callback);
 

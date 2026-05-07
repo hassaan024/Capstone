@@ -112,7 +112,7 @@ export class PredictionService {
     };
   }
 
-  async generateTimeline(gardenId: number, bloomDate: Date) {
+  async generateTimeline(gardenId: number, finalBloomDate: Date) {
     const garden = await this.db.garden.findUnique({
       where: { id: gardenId },
       include: {
@@ -139,8 +139,9 @@ export class PredictionService {
       );
       const daysToMature = Math.min(daysNeeded, 730);
       const feasible = daysNeeded <= 730;
+      const plantBloomDate = plant.bloomDate ?? garden.bloomDate ?? finalBloomDate;
       const plantedDate = new Date(
-        bloomDate.getTime() - daysToMature * 86400000,
+        plantBloomDate.getTime() - daysToMature * 86400000,
       );
       return {
         plant,
@@ -150,6 +151,7 @@ export class PredictionService {
         daysNeeded,
         daysToMature,
         feasible,
+        bloomDate: plantBloomDate,
         plantedDate,
       };
     });
@@ -157,10 +159,16 @@ export class PredictionService {
     // Fetch base window + 365-day buffer so simulations can run longer than
     // daysToMature when conditions are poor. Each plant's offset positions it
     // within the shared array; the buffer sits after every plant's base end.
-    const maxDaysToMature = Math.max(...plantMeta.map((m) => m.daysToMature));
-    const bufferedDays = Math.min(maxDaysToMature + 365, 730);
-    const earliestPlantedDate = new Date(
-      bloomDate.getTime() - bufferedDays * 86400000,
+    const earliestBasePlantedDate = new Date(
+      Math.min(...plantMeta.map((m) => m.plantedDate.getTime())),
+    );
+    const timelineFloorDate = new Date(finalBloomDate.getTime() - 730 * 86400000);
+    const earliestPlantedDate = earliestBasePlantedDate < timelineFloorDate
+      ? earliestBasePlantedDate
+      : timelineFloorDate;
+    const bufferedDays = Math.max(
+      TIMELINE_INTERVAL_DAYS,
+      Math.ceil((finalBloomDate.getTime() - earliestPlantedDate.getTime()) / 86400000),
     );
 
     const sharedWeather = await this.weatherService.getWeatherForGameDate(
@@ -180,12 +188,13 @@ export class PredictionService {
           daysNeeded,
           daysToMature,
           feasible,
+          bloomDate,
           plantedDate,
         }) => {
-          // plantOffset positions this plant's seasonal window within the shared array.
-          // The 365-day buffer sits after index maxDaysToMature, giving each plant
-          // room to run longer than daysToMature when conditions are poor.
-          const plantOffset = maxDaysToMature - daysToMature;
+          const plantOffset = Math.max(
+            0,
+            Math.floor((plantedDate.getTime() - earliestPlantedDate.getTime()) / 86400000),
+          );
 
           await this.db.plantHistory.deleteMany({
             where: { plantId: plant.id },
@@ -273,7 +282,8 @@ export class PredictionService {
             where: { id: plant.id },
             data: {
               plantedDate: actualPlantedDate,
-              currentGameDate: bloomDate,
+              bloomDate,
+              currentGameDate: finalBloomDate,
             },
           });
 
@@ -327,6 +337,7 @@ export class PredictionService {
             suitable,
             suitabilityReasons,
             plantedDate: actualPlantedDate.toISOString().split('T')[0],
+            bloomDate: bloomDate.toISOString().split('T')[0],
             daysToMature: actualDaysToMature,
             maxHeightCm,
             timeline,
@@ -337,7 +348,7 @@ export class PredictionService {
 
     return {
       gardenId,
-      bloomDate: bloomDate.toISOString().split('T')[0],
+      bloomDate: finalBloomDate.toISOString().split('T')[0],
       plants: plantResults,
     };
   }

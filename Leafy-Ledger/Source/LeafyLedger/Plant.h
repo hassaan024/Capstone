@@ -27,6 +27,8 @@ protected:
 
 public:
 	virtual void Tick(float DeltaTime) override;
+	virtual void NotifyActorBeginCursorOver() override;
+	virtual void NotifyActorEndCursorOver() override;
 
 	UPROPERTY(BlueprintReadOnly)
 		UMaterialInterface* PreviewMaterial;
@@ -52,6 +54,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
 		FString PlantingDate;
 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+		FString BloomDate;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Planting Date")
 		float PlantingDateTextPadding = 30.f;
 
@@ -68,7 +73,10 @@ public:
 		int32 DaysToBloom = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-		int32 DaysToWither = 0;
+		int32 DaysToWither = 30;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Plant Growth")
+		bool bForceBloomedMesh = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Growth")
 		float SeedStageStartScale = 0.40f;
@@ -157,6 +165,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 		void InitializeFromPlantData(UPlantObject* PlantData);
 
+	static int32 CalculateDaysToWitherFromBloom(int32 InDaysToBloom);
+
 	void UpdateForDay(int32 DayIndex);
 
 	UFUNCTION(BlueprintImplementableEvent)
@@ -169,9 +179,20 @@ public:
 		void UpdatePlantingDateText();
 
 	UFUNCTION(BlueprintCallable)
+		void UpdateHoverPlantingDateText();
+
+	UFUNCTION(BlueprintCallable)
+		void SetForceBloomedMesh(bool bForce);
+
+	UFUNCTION(BlueprintCallable)
+		void UpdateDateStrings();
+
+	UFUNCTION(BlueprintCallable)
 		void SetPlantingDateTextVisible(bool bVisible);
 
 	void RefreshPlantingDateTextVisibility();
+	FString BuildDefaultTextRenderText() const;
+	FString BuildHoverTextRenderText() const;
 
 	UTextRenderComponent* GetPlantingDateTextRender() const;
 };

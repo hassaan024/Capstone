@@ -32,7 +32,7 @@ public:
 	int32 DaysToBloom = 0;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant")
-	int32 DaysToWither = 0;
+	int32 DaysToWither = 30;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Plant Details")
 	FString Sunlight;

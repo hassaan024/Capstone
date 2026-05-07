@@ -90,6 +90,18 @@ FString FBloomDateUtils::DayIndexToDisplayDate(int32 DayIndex)
 	return FormatForDisplay(DisplayDate);
 }
 
+FString FBloomDateUtils::DayIndexToBackendDate(int32 DayIndex)
+{
+	if (DayIndex < 0)
+	{
+		return TEXT("");
+	}
+
+	const FDateTime EpochDate(2000, 1, 1);
+	const FDateTime BackendDate = EpochDate + FTimespan::FromDays(DayIndex);
+	return FormatForBackend(BackendDate);
+}
+
 bool FBloomDateUtils::TryParseDisplayDate(const FString& InputText, FDateTime& OutDate)
 {
 	TArray<FString> Parts;
