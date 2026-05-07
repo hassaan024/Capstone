@@ -14,7 +14,7 @@ interface AlertData {
   gardenName: string;
   species: any;
   plantedDate: string;
-  bloomDate?: string | null;   // actual instance bloom date from Unreal
+  bloomDate?: string | null;    // actual instance bloom date from Unreal
   notificationDate: string;
   count?: number;
   plantInstanceIds?: number[];
@@ -254,7 +254,7 @@ const NotificationPanel: React.FC = () => {
                             species: alert.species,
                             plantedDate: alert.plantedDate,
                             bloomDate: alert.bloomDate ?? undefined,
-                            soil: { type: 'Unknown' }
+                            soil: { type: 'Unknown' } // generic fallback
                           } as any}
                         />
                       </div>
