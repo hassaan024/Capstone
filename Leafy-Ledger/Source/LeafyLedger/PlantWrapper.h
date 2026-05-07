@@ -22,9 +22,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* TXT_PlantWrapper = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	USlider* PWSlider = nullptr;
-
 	UPROPERTY(BlueprintReadOnly, Category = "Plant")
 	AUserDrone* UserDrone = nullptr;
 
@@ -33,5 +30,12 @@ protected:
 
 	virtual void NativeConstruct() override;
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
+private:
+	bool bWasSelected = false;
+	bool bHasSelectionState = false;
+
+	void RefreshSelectionState(bool bForce = false);
 };

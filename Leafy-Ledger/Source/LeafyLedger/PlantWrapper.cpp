@@ -2,7 +2,6 @@
 
 #include "PlantWrapper.h"
 #include "Components/TextBlock.h"
-#include "Components/Slider.h"
 #include "PlantObject.h"
 #include "PlantSelect.h"
 #include "UserDrone.h"
@@ -39,10 +38,45 @@ void UPlantWrapper::NativeOnListItemObjectSet(UObject* ListItemObject)
 		TXT_PlantWrapper->SetText(FText::FromString(PlantData->CommonName));
 	}
 
-	if (PWSlider)
+	bHasSelectionState = false;
+	RefreshSelectionState(true);
+}
+
+void UPlantWrapper::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	RefreshSelectionState();
+}
+
+void UPlantWrapper::RefreshSelectionState(bool bForce)
+{
+	if (!TXT_PlantWrapper || !PlantData)
 	{
-		PWSlider->SetValue(PlantData->SliderValue);
+		return;
 	}
+
+	if (!UserDrone)
+	{
+		APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+		if (PC)
+		{
+			UserDrone = Cast<AUserDrone>(PC->GetPawn());
+		}
+	}
+
+	const bool bIsSelected = UserDrone && UserDrone->IsPlantDataSelected(PlantData);
+	if (!bForce && bHasSelectionState && bIsSelected == bWasSelected)
+	{
+		return;
+	}
+
+	bHasSelectionState = true;
+	bWasSelected = bIsSelected;
+	TXT_PlantWrapper->SetColorAndOpacity(
+		bIsSelected
+			? FSlateColor(FLinearColor(0.25f, 0.9f, 0.35f, 1.f))
+			: FSlateColor(FLinearColor::White)
+	);
 }
 
 FReply UPlantWrapper::NativeOnMouseButtonDown(
@@ -73,6 +107,7 @@ FReply UPlantWrapper::NativeOnMouseButtonDown(
 		if (UserDrone && PlantData)
 		{
 			UserDrone->SetSelectedPlantData(PlantData);
+			RefreshSelectionState();
 			//UE_LOG(LogTemp, Warning, TEXT("SELECTED: %s"), *PlantData->CommonName);
 			return FReply::Handled();
 		}
