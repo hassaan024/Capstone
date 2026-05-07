@@ -212,6 +212,9 @@ export class GardenService {
         let plantedDate: Date | null = null;
         if (plant.plantedDate) {
           plantedDate = new Date(plant.plantedDate);
+        } else if (plant.bloomDate && plant.species.bloomDays) {
+          const bloomMs = new Date(plant.bloomDate).getTime();
+          plantedDate = new Date(bloomMs - plant.species.bloomDays * 24 * 60 * 60 * 1000);
         } else if (garden.bloomDate && plant.species.bloomDays) {
           const bloomMs = new Date(garden.bloomDate).getTime();
           plantedDate = new Date(bloomMs - plant.species.bloomDays * 24 * 60 * 60 * 1000);
