@@ -29,10 +29,10 @@ public:
 	void OnPressBack();
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_SearchSpecies;
+	UWidget* BTN_SearchSpecies;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Back;
+	UWidget* BTN_Back;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	UEditableTextBox* ET_Browse;
@@ -43,6 +43,8 @@ public:
 	AMenuController* MenuController;
 
 private:
+	void BindMenuButtons();
+	UButton* ResolveMenuButton(UWidget* MenuButtonWidget) const;
 	void ResolveWidgetReferences();
 	void HandleSearchResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantSearchResultDto>& Plants);
 };

@@ -13,23 +13,14 @@ bool UBrowseSpecies::Initialize()
 		return false;
 	}
 
-	if (BTN_SearchSpecies)
-	{
-		BTN_SearchSpecies->OnClicked.AddDynamic(this, &UBrowseSpecies::OnPressSearchSpecies);
-	}
-
-	if (BTN_Back)
-	{
-		BTN_Back->OnClicked.AddDynamic(this, &UBrowseSpecies::OnPressBack);
-	}
-
 	return true;
 }
 
 void UBrowseSpecies::NativeConstruct()
 {
 	Super::NativeConstruct();
-	//ResolveWidgetReferences();
+	ResolveWidgetReferences();
+	BindMenuButtons();
 
 	//if (BTN_SubmitSpecies)
 	//{
@@ -40,6 +31,66 @@ void UBrowseSpecies::NativeConstruct()
 	//{
 	//	UE_LOG(LogTemp, Warning, TEXT("BrowseSpecies: BTN_SubmitSpecies was not resolved"));
 	//}
+}
+
+void UBrowseSpecies::BindMenuButtons()
+{
+	if (UButton* SearchSpeciesButton = ResolveMenuButton(BTN_SearchSpecies))
+	{
+		SearchSpeciesButton->OnClicked.RemoveDynamic(this, &UBrowseSpecies::OnPressSearchSpecies);
+		SearchSpeciesButton->OnClicked.AddDynamic(this, &UBrowseSpecies::OnPressSearchSpecies);
+		UE_LOG(LogTemp, Log, TEXT("BrowseSpecies: bound BTN_SearchSpecies to inner button %s"), *SearchSpeciesButton->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BrowseSpecies: failed to resolve BTN_SearchSpecies as a clickable menu button"));
+	}
+
+	if (UButton* BackButton = ResolveMenuButton(BTN_Back))
+	{
+		BackButton->OnClicked.RemoveDynamic(this, &UBrowseSpecies::OnPressBack);
+		BackButton->OnClicked.AddDynamic(this, &UBrowseSpecies::OnPressBack);
+		UE_LOG(LogTemp, Log, TEXT("BrowseSpecies: bound BTN_Back to inner button %s"), *BackButton->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BrowseSpecies: failed to resolve BTN_Back as a clickable menu button"));
+	}
+}
+
+UButton* UBrowseSpecies::ResolveMenuButton(UWidget* MenuButtonWidget) const
+{
+	if (!MenuButtonWidget)
+	{
+		return nullptr;
+	}
+
+	if (UButton* DirectButton = Cast<UButton>(MenuButtonWidget))
+	{
+		return DirectButton;
+	}
+
+	UUserWidget* MenuButtonUserWidget = Cast<UUserWidget>(MenuButtonWidget);
+	if (!MenuButtonUserWidget || !MenuButtonUserWidget->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UButton* ResolvedButton = nullptr;
+	MenuButtonUserWidget->WidgetTree->ForEachWidget([&ResolvedButton](UWidget* Widget)
+	{
+		if (!ResolvedButton)
+		{
+			ResolvedButton = Cast<UButton>(Widget);
+		}
+	});
+
+	if (!ResolvedButton)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BrowseSpecies: no inner UButton found in %s"), *MenuButtonWidget->GetName());
+	}
+
+	return ResolvedButton;
 }
 
 void UBrowseSpecies::OnPressSearchSpecies()
@@ -88,12 +139,17 @@ void UBrowseSpecies::ResolveWidgetReferences()
 
 		if (!BTN_SearchSpecies)
 		{
-			if (UButton* Button = Cast<UButton>(Widget))
+			if (Widget->GetName().Contains(TEXT("BTN_SearchSpecies")))
 			{
-				if (Button->GetName().Contains(TEXT("BTN_SubmitSpecies")))
-				{
-					BTN_SearchSpecies = Button;
-				}
+				BTN_SearchSpecies = Widget;
+			}
+		}
+
+		if (!BTN_Back)
+		{
+			if (Widget->GetName().Contains(TEXT("BTN_Back")))
+			{
+				BTN_Back = Widget;
 			}
 		}
 
