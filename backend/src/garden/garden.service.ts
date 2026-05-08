@@ -172,11 +172,6 @@ export class GardenService {
         },
       });
 
-      // If bloomDate changed, check for newly triggered planting alerts and email immediately
-      if (parsedBloomDate !== undefined) {
-        void this.scheduler.triggerAlertEmailIfNeeded(id);
-      }
-
       return updated;
     } catch (err: unknown) {
       if (

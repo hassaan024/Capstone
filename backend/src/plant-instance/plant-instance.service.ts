@@ -8,13 +8,11 @@ import { UpdatePlantInstanceDto } from './dto/update-plant-instance.dto';
 import { DatabaseService } from 'database/database.service';
 import { Prisma } from '@prisma/client';
 import { getSoilDefaults } from 'utils/soil-defaults';
-import { GardenScheduler } from '../garden/garden.scheduler';
 
 @Injectable()
 export class PlantInstanceService {
   constructor(
     private readonly db: DatabaseService,
-    private readonly scheduler: GardenScheduler,
   ) {}
 
   async create(createPlantInstanceDto: CreatePlantInstanceDto) {
@@ -55,9 +53,6 @@ export class PlantInstanceService {
         },
         include: { species: { select: { commonName: true, scientificName: true, type: true } } },
       });
-
-      // Fire email check in the background — never blocks the response
-      void this.scheduler.triggerAlertEmailIfNeeded(createPlantInstanceDto.gardenId);
 
       return instance;
     } catch (err: unknown) {
