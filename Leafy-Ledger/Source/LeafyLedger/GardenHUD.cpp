@@ -95,19 +95,22 @@ bool UGardenHUD::Initialize()
 {
     if (!Super::Initialize()) return false;
 
-    if (BTN_Save)
+    if (UButton* SaveButton = ResolveMenuButton(BTN_Save))
     {
-        BTN_Save->OnClicked.AddDynamic(this, &UGardenHUD::OnPressSave);
+        SaveButton->OnClicked.RemoveDynamic(this, &UGardenHUD::OnPressSave);
+        SaveButton->OnClicked.AddDynamic(this, &UGardenHUD::OnPressSave);
     }
 
-    if (BTN_Exit)
+    if (UButton* ExitButton = ResolveMenuButton(BTN_Exit))
     {
-        BTN_Exit->OnClicked.AddDynamic(this, &UGardenHUD::OnPressExit);
+        ExitButton->OnClicked.RemoveDynamic(this, &UGardenHUD::OnPressExit);
+        ExitButton->OnClicked.AddDynamic(this, &UGardenHUD::OnPressExit);
     }
 
-	if (BTN_Predict)
+	if (UButton* PredictButton = ResolveMenuButton(BTN_Predict))
 	{
-		BTN_Predict->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPredict);
+		PredictButton->OnClicked.RemoveDynamic(this, &UGardenHUD::OnPressPredict);
+		PredictButton->OnClicked.AddDynamic(this, &UGardenHUD::OnPressPredict);
 	}
 
 	if (BTN_PlantMode)
@@ -141,6 +144,41 @@ bool UGardenHUD::Initialize()
 	}
 
     return true;
+}
+
+UButton* UGardenHUD::ResolveMenuButton(UWidget* MenuButtonWidget) const
+{
+	if (!MenuButtonWidget)
+	{
+		return nullptr;
+	}
+
+	if (UButton* DirectButton = Cast<UButton>(MenuButtonWidget))
+	{
+		return DirectButton;
+	}
+
+	const UUserWidget* MenuButtonUserWidget = Cast<UUserWidget>(MenuButtonWidget);
+	if (!MenuButtonUserWidget || !MenuButtonUserWidget->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UButton* ResolvedButton = nullptr;
+	MenuButtonUserWidget->WidgetTree->ForEachWidget([&ResolvedButton](UWidget* Widget)
+	{
+		if (!ResolvedButton)
+		{
+			ResolvedButton = Cast<UButton>(Widget);
+		}
+	});
+
+	if (!ResolvedButton)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GardenHUD: no inner UButton found in %s"), *MenuButtonWidget->GetName());
+	}
+
+	return ResolvedButton;
 }
 
 void UGardenHUD::NativeConstruct()
@@ -814,6 +852,7 @@ void UGardenHUD::OnValueChanged(float Value)
 	}
 
 	ApplySliderDay(Value);
+	UpdateDateProgress(Value);
 	UpdateSliderDateText(Value);
 
 	//if (!bSliderWidthSet)
@@ -872,6 +911,11 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	SLDR_Date->SetIsEnabled(true);
 	SLDR_Date->SetVisibility(ESlateVisibility::Visible);
 
+	if (PB_DateProgress)
+	{
+		PB_DateProgress->SetVisibility(ESlateVisibility::Visible);
+	}
+
 	if (TXT_CurrentDate)
 	{
 		TXT_CurrentDate->SetVisibility(ESlateVisibility::Visible);
@@ -900,6 +944,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	SLDR_Date->SetValue(0.0f);
 	bSuppressSliderCallbacks = false;
 
+	UpdateDateProgress(0.0f);
 	UpdateSliderDateText(0.0f);
 	SetPlantingDateTextVisibilityForAllPlants(true);
 }
@@ -914,6 +959,12 @@ void UGardenHUD::HideDateSlider()
 	{
 		SLDR_Date->SetIsEnabled(false);
 		SLDR_Date->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (PB_DateProgress)
+	{
+		PB_DateProgress->SetPercent(0.0f);
+		PB_DateProgress->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (TXT_CurrentDate)
@@ -1049,6 +1100,7 @@ void UGardenHUD::ConfigurePrePredictionDateSlider(const FString& BloomDate)
 		SLDR_Date->SetValue(1.0f);
 		bSuppressSliderCallbacks = false;
 
+		UpdateDateProgress(1.0f);
 		ApplySliderDay(1.0f);
 		UpdateSliderDateText(1.0f);
 	}
@@ -1285,7 +1337,15 @@ void UGardenHUD::UpdateSliderDateText(float Value)
 
 	const int32 OffsetDays = FMath::RoundToInt(FMath::Clamp(Value, 0.0f, 1.0f) * static_cast<float>(SliderLongestTimeToBloom));
 	const FDateTime CurrentDate = SliderStartDate + FTimespan::FromDays(OffsetDays);
-	TXT_CurrentDate->SetText(FText::FromString(FBloomDateUtils::FormatForDisplay(CurrentDate)));
+	TXT_CurrentDate->SetText(FText::FromString(FString::Printf(TEXT("Now: %s"), *FBloomDateUtils::FormatForDisplay(CurrentDate))));
+}
+
+void UGardenHUD::UpdateDateProgress(float Value) const
+{
+	if (PB_DateProgress)
+	{
+		PB_DateProgress->SetPercent(FMath::Clamp(Value, 0.0f, 1.0f));
+	}
 }
 
 void UGardenHUD::ApplySliderDay(float Value)

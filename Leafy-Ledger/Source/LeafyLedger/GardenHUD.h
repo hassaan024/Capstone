@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
+#include "Components/ProgressBar.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "GardenSessionSubsystem.h"
@@ -16,6 +17,7 @@ class UEditableTextBox;
 class UBorder;
 class UButton;
 class UHorizontalBox;
+class UWidget;
 struct FBackendGardenTimelineDto;
 
 UCLASS()
@@ -68,13 +70,13 @@ public:
 	bool IsDateSliderVisible() const;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_Save;
+    UWidget* BTN_Save;
 
     UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-    UButton* BTN_Exit;
+    UWidget* BTN_Exit;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Predict;
+	UWidget* BTN_Predict;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UButton* BTN_PlantMode;
@@ -94,6 +96,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	USlider* SLDR_Date;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UProgressBar* PB_DateProgress = nullptr;
+
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* TXT_CurrentDate;
 
@@ -104,6 +109,7 @@ public:
 	UTextBlock* TXT_EndDate;
 
 private:
+	UButton* ResolveMenuButton(UWidget* MenuButtonWidget) const;
 	void EnsureBloomDateInput();
 	void ApplyDraftBloomDate();
 	void ValidateBloomDateText(bool bBroadcastOnSuccess);
@@ -119,6 +125,7 @@ private:
 	void RestoreDateSliderFromDraft();
 	void ConfigurePrePredictionDateSlider(const FString& BloomDate);
 	void ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Timeline);
+	void UpdateDateProgress(float Value) const;
 	void UpdateSliderDateText(float Value);
 	void ApplySliderDay(float Value);
 	void SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const;
