@@ -6,9 +6,11 @@
 #include "Blueprint/UserWidget.h"
 #include "BackendApiTypes.h"
 #include "Components/ListView.h"
+#include "Components/TextBlock.h"
 #include "PlantSelect.generated.h"
 
 class UPlantObject;
+class UTextBlock;
 
 /**
  * 
@@ -27,11 +29,18 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UListView* PlantShelf;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_GardenName = nullptr;
+
+protected:
+	virtual void NativeConstruct() override;
+
 private:
 	TArray<FBackendPlantDto> GardenPlants;
 	TArray<FBackendPlantDto> GlobalPlants;
 	bool bAreGlobalPlantsVisible = false;
 
+	void UpdateGardenNameText();
 	void RebuildPlantShelf();
 	bool ShouldSkipGlobalPlant(const FBackendPlantDto& Plant) const;
 };

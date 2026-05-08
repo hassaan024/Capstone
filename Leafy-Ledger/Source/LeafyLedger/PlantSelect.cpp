@@ -1,7 +1,14 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "PlantSelect.h"
+#include "GardenSessionSubsystem.h"
 #include "PlantObject.h"
+
+void UPlantSelect::NativeConstruct()
+{
+	Super::NativeConstruct();
+	UpdateGardenNameText();
+}
 
 void UPlantSelect::AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Name, FString ModelCategory, bool bIsDropdownToggle, bool bIsGlobalPlant)
 {
@@ -21,6 +28,8 @@ void UPlantSelect::AddPlantToShelf(int32 PerenualId, int32 SpeciesId, FString Na
 
 void UPlantSelect::SetGardenPlants(const TArray<FBackendPlantDto>& Plants)
 {
+	UpdateGardenNameText();
+
 	const bool bHadGardenSavedPlants = GardenPlants.Num() > 0;
 	GardenPlants = Plants;
 	if (!bHadGardenSavedPlants && GardenPlants.Num() > 0)
@@ -28,6 +37,43 @@ void UPlantSelect::SetGardenPlants(const TArray<FBackendPlantDto>& Plants)
 		bAreGlobalPlantsVisible = false;
 	}
 	RebuildPlantShelf();
+}
+
+void UPlantSelect::UpdateGardenNameText()
+{
+	if (!TXT_GardenName)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlantSelect: TXT_GardenName is not bound. Check that the TextBlock is named TXT_GardenName and Is Variable is enabled."));
+		return;
+	}
+
+	FString GardenName = TEXT("Garden");
+
+	if (GetGameInstance())
+	{
+		if (const UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
+		{
+			if (GardenSession->HasActiveDraft())
+			{
+				const FString DraftName = GardenSession->GetDraft().Name.TrimStartAndEnd();
+				if (!DraftName.IsEmpty())
+				{
+					GardenName = DraftName;
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("PlantSelect: active garden draft has an empty name."));
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("PlantSelect: no active garden draft when updating TXT_GardenName."));
+			}
+		}
+	}
+
+	TXT_GardenName->SetText(FText::FromString(GardenName));
+	UE_LOG(LogTemp, Log, TEXT("PlantSelect: TXT_GardenName set to '%s'."), *GardenName);
 }
 
 void UPlantSelect::SetGlobalPlants(const TArray<FBackendPlantDto>& Plants)
