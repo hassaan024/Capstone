@@ -11,6 +11,7 @@
 
 class UButton;
 class UComboBoxString;
+class UWidget;
 
 DECLARE_DELEGATE_OneParam(FOnGardenChosen, int32)
 
@@ -28,7 +29,7 @@ public:
 	void OnGardenSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Load;
+	UWidget* BTN_Load;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UComboBoxString* GardenCombo;
@@ -42,4 +43,7 @@ public:
 	TArray<FBackendGardenSummaryDto> Gardens;
 
 	int32 SelectedGardenId = 0;
+
+private:
+	UButton* ResolveButton(UWidget* ButtonWidget) const;
 };

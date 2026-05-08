@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "LoadGardenPopup.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Button.h"
 
 bool ULoadGardenPopup::Initialize()
 {
@@ -9,9 +11,10 @@ bool ULoadGardenPopup::Initialize()
 		return false;
 	}
 
-	if (BTN_Load)
+	if (UButton* LoadButton = ResolveButton(BTN_Load))
 	{
-		BTN_Load->OnClicked.AddDynamic(this, &ULoadGardenPopup::OnPressLoad);
+		LoadButton->OnClicked.RemoveDynamic(this, &ULoadGardenPopup::OnPressLoad);
+		LoadButton->OnClicked.AddDynamic(this, &ULoadGardenPopup::OnPressLoad);
 	}
 
 	if (GardenCombo)
@@ -20,6 +23,41 @@ bool ULoadGardenPopup::Initialize()
 	}
 
 	return true;
+}
+
+UButton* ULoadGardenPopup::ResolveButton(UWidget* ButtonWidget) const
+{
+	if (!ButtonWidget)
+	{
+		return nullptr;
+	}
+
+	if (UButton* DirectButton = Cast<UButton>(ButtonWidget))
+	{
+		return DirectButton;
+	}
+
+	const UUserWidget* ButtonUserWidget = Cast<UUserWidget>(ButtonWidget);
+	if (!ButtonUserWidget || !ButtonUserWidget->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UButton* ResolvedButton = nullptr;
+	ButtonUserWidget->WidgetTree->ForEachWidget([&ResolvedButton](UWidget* Widget)
+	{
+		if (!ResolvedButton)
+		{
+			ResolvedButton = Cast<UButton>(Widget);
+		}
+	});
+
+	if (!ResolvedButton)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LoadGardenPopup: no inner UButton found in %s"), *ButtonWidget->GetName());
+	}
+
+	return ResolvedButton;
 }
 
 void ULoadGardenPopup::SetGardens(const TArray<FBackendGardenSummaryDto>& InGardens)
