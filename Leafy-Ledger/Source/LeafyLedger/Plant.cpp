@@ -52,6 +52,18 @@ void APlant::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+void APlant::NotifyActorBeginCursorOver()
+{
+	Super::NotifyActorBeginCursorOver();
+	UpdateHoverPlantingDateText();
+}
+
+void APlant::NotifyActorEndCursorOver()
+{
+	Super::NotifyActorEndCursorOver();
+	UpdatePlantingDateText();
+}
+
 void APlant::HandleDayChanged(int32 NewDayIndex)
 {
 	UpdateForDay(NewDayIndex);
@@ -65,7 +77,7 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	PerenualId = PlantData->PerenualId;
 	PlantName = PlantData->CommonName;
 	DaysToBloom = PlantData->DaysToBloom;
-	DaysToWither = PlantData->DaysToWither;
+	DaysToWither = CalculateDaysToWitherFromBloom(DaysToBloom);
 	Category = PlantData->ModelCategory.TrimStartAndEnd();
 	const FString NormalizedCategory = Category.ToLower();
 
@@ -107,9 +119,36 @@ void APlant::InitializeFromPlantData(UPlantObject* PlantData)
 	UpdatePlantingDateText();
 }
 
+int32 APlant::CalculateDaysToWitherFromBloom(int32 InDaysToBloom)
+{
+	return InDaysToBloom > 0
+		? FMath::Max(1, FMath::RoundToInt(static_cast<float>(InDaysToBloom) / 3.0f))
+		: 30;
+}
+
 void APlant::UpdateForDay(int32 DayIndex)
 {
-	PlantingDate = PlantingDayIndex > 0 ? FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex) : TEXT("");
+	UpdateDateStrings();
+
+	if (bForceBloomedMesh)
+	{
+		if (PreviewMesh)
+		{
+			PreviewMesh->SetVisibility(true, true);
+			PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			SetActorEnableCollision(true);
+
+			if (BloomedMesh)
+			{
+				PreviewMesh->SetStaticMesh(BloomedMesh);
+			}
+
+			PreviewMesh->SetRelativeScale3D(FVector(BloomStageScale));
+		}
+
+		UpdatePlantingDateText();
+		return;
+	}
 
 	if (!PreviewMesh)
 	{
@@ -162,7 +201,7 @@ void APlant::UpdateForDay(int32 DayIndex)
 		const float GrowthAlpha = FMath::Clamp(static_cast<float>(DayIndex - PlantingDayIndex) / static_cast<float>(GrowthDuration), 0.f, 1.f);
 		constexpr float SaplingStartAlpha = 0.33f;
 
-		if (DayIndex == BloomDayIndex)
+		if (DayIndex >= BloomDayIndex)
 		{
 			DesiredMesh = BloomedMesh ? BloomedMesh : (SaplingMesh ? SaplingMesh : SeedMesh);
 			DesiredVisualScale = FVector(BloomStageScale);
@@ -198,13 +237,15 @@ void APlant::UpdateForDay(int32 DayIndex)
 
 void APlant::UpdatePlantingDateText()
 {
+	UpdateDateStrings();
+
 	UTextRenderComponent* TextRender = GetPlantingDateTextRender();
 	if (!TextRender)
 	{
 		return;
 	}
 
-	TextRender->SetText(FText::FromString(PlantName));
+	TextRender->SetText(FText::FromString(BuildDefaultTextRenderText()));
 
 	if (!PreviewMesh)
 	{
@@ -219,6 +260,61 @@ void APlant::UpdatePlantingDateText()
 	TextRender->SetWorldLocation(FVector(Origin.X, Origin.Y, Origin.Z + BoxExtent.Z + PlantingDateTextPadding));
 	TextRender->SetWorldScale3D(PlantingDateTextWorldScale);
 	RefreshPlantingDateTextVisibility();
+}
+
+void APlant::UpdateHoverPlantingDateText()
+{
+	UpdateDateStrings();
+
+	if (UTextRenderComponent* TextRender = GetPlantingDateTextRender())
+	{
+		TextRender->SetText(FText::FromString(BuildHoverTextRenderText()));
+	}
+}
+
+void APlant::SetForceBloomedMesh(bool bForce)
+{
+	bForceBloomedMesh = bForce;
+	if (!bForceBloomedMesh)
+	{
+		return;
+	}
+
+	if (PreviewMesh)
+	{
+		PreviewMesh->SetVisibility(true, true);
+		PreviewMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		SetActorEnableCollision(true);
+
+		if (BloomedMesh)
+		{
+			PreviewMesh->SetStaticMesh(BloomedMesh);
+		}
+
+		PreviewMesh->SetRelativeScale3D(FVector(BloomStageScale));
+	}
+
+	UpdatePlantingDateText();
+}
+
+void APlant::UpdateDateStrings()
+{
+	PlantingDate = PlantingDayIndex > 0 ? FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex) : TEXT("");
+	BloomDate = BloomDayIndex > 0 ? FBloomDateUtils::DayIndexToDisplayDate(BloomDayIndex) : TEXT("");
+}
+
+FString APlant::BuildDefaultTextRenderText() const
+{
+	return BloomDate.IsEmpty()
+		? PlantName
+		: PlantName + TEXT("\n") + BloomDate;
+}
+
+FString APlant::BuildHoverTextRenderText() const
+{
+	return PlantingDate.IsEmpty()
+		? BuildDefaultTextRenderText()
+		: BuildDefaultTextRenderText() + TEXT("\n") + PlantingDate;
 }
 
 UTextRenderComponent* APlant::GetPlantingDateTextRender() const

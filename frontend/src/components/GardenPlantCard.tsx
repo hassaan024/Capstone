@@ -28,6 +28,7 @@ export interface GardenPlantCardProps {
     healthStatus?: string | null;
     lastWatered?: string | null;
     plantedDate?: string | null;
+    bloomDate?: string | null;      // actual bloom date saved by Unreal
     notes?: string | null;
     species: GardenPlantCardSpecies;
     soil?: { type: string };
@@ -69,9 +70,11 @@ const GardenPlantCard: React.FC<GardenPlantCardProps> = ({ plant, onClick }) => 
   });
   const imageUrl = imageFromSpecies(species);
 
-  // compute bloom date from plantedDate and species.bloomDays
-  let bloomDateStr: string | null = null;
-  if (plant.plantedDate && species.bloomDays) {
+  // Use the actual bloom date saved by Unreal on the plant instance.
+  // Fall back to computing from plantedDate + bloomDays only when the
+  // instance bloom date is absent (e.g. legacy records).
+  let bloomDateStr: string | null = plant.bloomDate ?? null;
+  if (!bloomDateStr && plant.plantedDate && species.bloomDays) {
     const pDate = new Date(plant.plantedDate);
     pDate.setDate(pDate.getDate() + species.bloomDays);
     bloomDateStr = pDate.toISOString();

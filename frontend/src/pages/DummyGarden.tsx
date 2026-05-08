@@ -26,6 +26,7 @@ const MOCK_GARDEN = {
       healthStatus: "NeedsWater",
       lastWatered: new Date(Date.now() - 3600000 * 24 * 4).toISOString(),
       plantedDate: "2026-07-31T00:00:00.000Z", // bloomDate (Aug 30) - 30 days
+      bloomDate: "2026-08-30T00:00:00.000Z",
       species: {
         perenualId: 5022,
         commonName: "tomato",
@@ -51,7 +52,8 @@ const MOCK_GARDEN = {
       ageDays: 60,
       healthStatus: "Excellent",
       lastWatered: new Date(Date.now() - 3600000 * 24).toISOString(),
-      plantedDate: "2026-07-11T00:00:00.000Z", // bloomDate (Aug 30) - 50 days
+      plantedDate: "2026-07-27T00:00:00.000Z", // bloomDate (Sep 15) - 50 days
+      bloomDate: "2026-09-15T00:00:00.000Z",
       species: {
         perenualId: 351,
         commonName: "Akane Apple",
@@ -77,7 +79,8 @@ const MOCK_GARDEN = {
       ageDays: 30,
       healthStatus: "Healthy",
       lastWatered: new Date(Date.now() - 3600000 * 6).toISOString(),
-      plantedDate: "2026-08-10T00:00:00.000Z", // bloomDate (Aug 30) - 20 days
+      plantedDate: "2026-07-26T00:00:00.000Z", // bloomDate (Aug 15) - 20 days
+      bloomDate: "2026-08-15T00:00:00.000Z",
       species: {
         perenualId: 575,
         commonName: "lily of the Nile",
@@ -109,15 +112,25 @@ const DummyGarden: React.FC = () => {
   
   // Timeline dates for Track tab
   const timelineDates = useMemo(() => {
-    let earliest = MOCK_GARDEN.bloomDate ? new Date(MOCK_GARDEN.bloomDate).getTime() : Date.now();
+    let earliest = Infinity;
+    let latest = -Infinity;
+
     for (const p of MOCK_GARDEN.plants) {
       if (p.plantedDate) {
         const d = new Date(p.plantedDate).getTime();
         if (d < earliest) earliest = d;
       }
+      const bDateStr = (p as any).bloomDate || MOCK_GARDEN.bloomDate;
+      if (bDateStr) {
+        const d = new Date(bDateStr).getTime();
+        if (d > latest) latest = d;
+      }
     }
-    const end = MOCK_GARDEN.bloomDate ? new Date(MOCK_GARDEN.bloomDate).getTime() : Date.now();
-    return { start: earliest, end };
+
+    if (earliest === Infinity) earliest = Date.now();
+    if (latest === -Infinity) latest = earliest;
+
+    return { start: earliest, end: latest };
   }, []);
 
   const [sliderValue, setSliderValue] = useState(100); // 0 to 100
@@ -480,14 +493,18 @@ const DummyGarden: React.FC = () => {
             </div>
             
             <div className="browse-grid">
-              {MOCK_GARDEN.plants.map(p => (
-                <PlantStageTrackerCard
-                  key={p.id}
-                  plant={p}
-                  currentTimestamp={currentTimestamp}
-                  bloomTimestamp={timelineDates.end}
-                />
-              ))}
+              {MOCK_GARDEN.plants.map(p => {
+                const bDateStr = (p as any).bloomDate || MOCK_GARDEN.bloomDate;
+                const bloomTimestamp = bDateStr ? new Date(bDateStr).getTime() : timelineDates.end;
+                return (
+                  <PlantStageTrackerCard
+                    key={p.id}
+                    plant={p as any}
+                    currentTimestamp={currentTimestamp}
+                    bloomTimestamp={bloomTimestamp}
+                  />
+                );
+              })}
             </div>
           </>
         )}

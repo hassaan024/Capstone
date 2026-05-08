@@ -19,6 +19,7 @@ class ALandscapeProxy;
 UENUM(BlueprintType)
 enum class EGardenEditMode : uint8
 {
+	None UMETA(DisplayName = "None"),
 	Plant UMETA(DisplayName = "Plant"),
 	Paint UMETA(DisplayName = "Paint"),
 	Delete UMETA(DisplayName = "Delete")
@@ -80,6 +81,7 @@ private:
 	APlant* PreviewPlant = nullptr;
 	FTransform DragOriginalTransform;
 	EGardenEditMode CurrentEditMode = EGardenEditMode::Plant;
+	bool bPredictedPlacementSchedulesEnabled = true;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Paint")
 	ULandscapeLayerInfoObject* DirtLayerInfo = nullptr;
@@ -182,13 +184,14 @@ private:
 	void TrackPlacedPlant(APlant* PlantActor);
 	void DeletePlant(APlant* PlantActor);
 	//void CancelActivePlantInteraction();
-	FString FindPredictedPlantedDateForSpecies(int32 SpeciesId) const;
+	FString FindPredictedPlantedDateForSpecies(int32 SpeciesId, const FString& BloomDate) const;
+	FString GetCurrentGardenTimelineDate() const;
 	bool HasPredictedPlantingDates() const;
 	bool TryDateToDayIndex(const FString& DateText, int32& OutDayIndex) const;
 	void HideGardenDateSlider() const;
 	bool IsGardenDateSliderVisible() const;
 	void MoveGardenToBloomDate() const;
-	void ApplyPlacementSchedule(APlant* PlantActor, const FString& PlantedDate) const;
+	void ApplyPlacementSchedule(APlant* PlantActor, const FString& PlantedDate, const FString& BloomDate) const;
 public:
 	UFUNCTION(BlueprintCallable)
 	bool SpawnPlant(APlant*& Plant);
@@ -206,6 +209,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetGardenEditMode(EGardenEditMode NewMode);
+
+	UFUNCTION(BlueprintCallable)
+	void SetPredictedPlacementSchedulesEnabled(bool bEnabled);
 
 	UFUNCTION(BlueprintCallable)
 	void SetPaintLayerByName(FName LayerName);

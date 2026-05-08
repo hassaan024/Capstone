@@ -650,6 +650,7 @@ bool FBackendJsonUtils::ParseGardenDetail(const FString& JsonString, FBackendGar
 		PlantObj->TryGetStringField(TEXT("healthStatus"), PlantInstance.HealthStatus);
 		PlantObj->TryGetStringField(TEXT("lastWatered"), PlantInstance.LastWatered);
 		PlantObj->TryGetStringField(TEXT("plantedDate"), PlantInstance.PlantedDate);
+		PlantObj->TryGetStringField(TEXT("bloomDate"), PlantInstance.BloomDate);
 		PlantObj->TryGetStringField(TEXT("notes"), PlantInstance.Notes);
 
 		const TSharedPtr<FJsonObject>* SpeciesObj = nullptr;
@@ -711,6 +712,7 @@ bool FBackendJsonUtils::ParseGardenTimeline(const FString& JsonString, FBackendG
 		PlantObj->TryGetBoolField(TEXT("feasible"), Plant.bFeasible);
 		PlantObj->TryGetStringField(TEXT("feasibilityNote"), Plant.FeasibilityNote);
 		PlantObj->TryGetStringField(TEXT("plantedDate"), Plant.PlantedDate);
+		PlantObj->TryGetStringField(TEXT("bloomDate"), Plant.BloomDate);
 
 		if (PlantObj->TryGetNumberField(TEXT("daysToMature"), NumberValue))
 		{

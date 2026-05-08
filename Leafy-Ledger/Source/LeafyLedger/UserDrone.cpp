@@ -102,7 +102,10 @@ void AUserDrone::SetSelectedPlantData(UPlantObject* InPlantData)
 	}
 
 	SelectedPlantData = InPlantData;
-	CurrentEditMode = EGardenEditMode::Plant;
+	if (CurrentEditMode == EGardenEditMode::Plant || !HasPredictedPlantingDates())
+	{
+		CurrentEditMode = EGardenEditMode::Plant;
+	}
 	bLeftPaintHeld = false;
 }
 
@@ -1154,7 +1157,8 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 	if (!Plant) return false;
 
 	Plant->InitializeFromPlantData(SelectedPlantData);
-	const FString PredictedPlantedDate = FindPredictedPlantedDateForSpecies(Plant->SpeciesId);
+	const FString BloomDate = GetCurrentGardenTimelineDate();
+	const FString PredictedPlantedDate = FindPredictedPlantedDateForSpecies(Plant->SpeciesId, BloomDate);
 
 	TArray<AActor*> Found;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGardenTimeManager::StaticClass(), Found);
@@ -1165,10 +1169,24 @@ bool AUserDrone::SpawnPlant(APlant*& Plant)
 		{
 			if (!PredictedPlantedDate.IsEmpty())
 			{
-				ApplyPlacementSchedule(Plant, PredictedPlantedDate);
+				ApplyPlacementSchedule(Plant, PredictedPlantedDate, BloomDate);
 			}
 			else
 			{
+				if (!BloomDate.IsEmpty())
+				{
+					int32 BloomDayIndex = -1;
+					if (TryDateToDayIndex(BloomDate, BloomDayIndex))
+					{
+						Plant->BloomDayIndex = BloomDayIndex;
+						Plant->DaysToWither = APlant::CalculateDaysToWitherFromBloom(Plant->DaysToBloom);
+						Plant->WitherDayIndex = BloomDayIndex + Plant->DaysToWither;
+					}
+				}
+				if (!bPredictedPlacementSchedulesEnabled)
+				{
+					Plant->SetForceBloomedMesh(true);
+				}
 				Plant->UpdatePlantingDateText();
 				Plant->SetPlantingDateTextVisible(IsGardenDateSliderVisible());
 			}
@@ -1205,8 +1223,8 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 	}
 
 	const int32 SoilId = 1;
-	const FString PredictedPlantedDate = FindPredictedPlantedDateForSpecies(PlantActor->SpeciesId);
-	const bool bPredictionWasRun = HasPredictedPlantingDates();
+	const FString BloomDate = GetCurrentGardenTimelineDate();
+	const FString PredictedPlantedDate = FindPredictedPlantedDateForSpecies(PlantActor->SpeciesId, BloomDate);
 
 	PlantActor->HeightCm = 0.f;
 	PlantActor->AgeDays = 0;
@@ -1234,7 +1252,8 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 		TEXT(""),
 		PlantActor->Category,
 		PlantActor->Notes,
-		PredictedPlantedDate
+		PredictedPlantedDate,
+		BloomDate
 	);
 
 	const FEditableGardenState& Draft = GardenSession->GetDraft();
@@ -1251,13 +1270,7 @@ void AUserDrone::TrackPlacedPlant(APlant* PlantActor)
 
 	if (!PredictedPlantedDate.IsEmpty())
 	{
-		ApplyPlacementSchedule(PlantActor, PredictedPlantedDate);
-	}
-	else if (bPredictionWasRun)
-	{
-		MoveGardenToBloomDate();
-		HideGardenDateSlider();
-		UE_LOG(LogTemp, Log, TEXT("Placed species %d without an existing prediction. Date slider hidden until predictions are rerun."), PlantActor->SpeciesId);
+		ApplyPlacementSchedule(PlantActor, PredictedPlantedDate, BloomDate);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("Tracked placed plant. LocalId=%s PerenualId=%d"), *LocalId.ToString(), PlantActor->PerenualId);
@@ -1330,6 +1343,11 @@ void AUserDrone::SetGardenEditMode(EGardenEditMode NewMode)
 	bLeftPaintHeld = false;
 }
 
+void AUserDrone::SetPredictedPlacementSchedulesEnabled(bool bEnabled)
+{
+	bPredictedPlacementSchedulesEnabled = bEnabled;
+}
+
 void AUserDrone::SetPaintLayerByName(FName LayerName)
 {
 	EnsureDefaultPaintLayersLoaded();
@@ -1359,9 +1377,10 @@ void AUserDrone::SetPaintBrushRadius(float NewRadius)
 	PaintBrushRadius = FMath::Clamp(NewRadius, 25.f, 1200.f);
 }
 
-FString AUserDrone::FindPredictedPlantedDateForSpecies(int32 SpeciesId) const
+FString AUserDrone::FindPredictedPlantedDateForSpecies(int32 SpeciesId, const FString& BloomDate) const
 {
-	if (SpeciesId <= 0 || !GetGameInstance())
+	const FString NormalizedBloomDate = FBloomDateUtils::NormalizeBackendDateString(BloomDate);
+	if (!bPredictedPlacementSchedulesEnabled || SpeciesId <= 0 || NormalizedBloomDate.IsEmpty() || !GetGameInstance())
 	{
 		return TEXT("");
 	}
@@ -1376,6 +1395,7 @@ FString AUserDrone::FindPredictedPlantedDateForSpecies(int32 SpeciesId) const
 	{
 		if (!Plant.bPendingDelete
 			&& Plant.SpeciesId == SpeciesId
+			&& FBloomDateUtils::NormalizeBackendDateString(Plant.BloomDate) == NormalizedBloomDate
 			&& !Plant.PlantedDate.IsEmpty())
 		{
 			return Plant.PlantedDate;
@@ -1383,6 +1403,51 @@ FString AUserDrone::FindPredictedPlantedDateForSpecies(int32 SpeciesId) const
 	}
 
 	return TEXT("");
+}
+
+FString AUserDrone::GetCurrentGardenTimelineDate() const
+{
+	if (!GetWorld())
+	{
+		return TEXT("");
+	}
+
+	TArray<AActor*> Found;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AGardenTimeManager::StaticClass(), Found);
+	if (Found.Num() <= 0)
+	{
+		return TEXT("");
+	}
+
+	const AGardenTimeManager* TimeManager = Cast<AGardenTimeManager>(Found[0]);
+	if (!TimeManager)
+	{
+		return TEXT("");
+	}
+
+	const int32 CurrentDayIndex = TimeManager->GetCurrentDayIndex();
+	const int32 FinalBloomDayIndex = TimeManager->GlobalBloomDate;
+	if (CurrentDayIndex <= 0)
+	{
+		if (const UGardenSessionSubsystem* GardenSession = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>() : nullptr)
+		{
+			if (GardenSession->HasActiveDraft())
+			{
+				return GardenSession->GetDraft().BloomDate;
+			}
+		}
+	}
+
+	if (FinalBloomDayIndex > 0 && CurrentDayIndex > FinalBloomDayIndex)
+	{
+		return FBloomDateUtils::DayIndexToBackendDate(FinalBloomDayIndex);
+	}
+	if (FinalBloomDayIndex > 0 && CurrentDayIndex < FinalBloomDayIndex - 365)
+	{
+		return FBloomDateUtils::DayIndexToBackendDate(FinalBloomDayIndex - 365);
+	}
+
+	return FBloomDateUtils::DayIndexToBackendDate(CurrentDayIndex);
 }
 
 bool AUserDrone::HasPredictedPlantingDates() const
@@ -1487,7 +1552,7 @@ void AUserDrone::MoveGardenToBloomDate() const
 	}
 }
 
-void AUserDrone::ApplyPlacementSchedule(APlant* PlantActor, const FString& PlantedDate) const
+void AUserDrone::ApplyPlacementSchedule(APlant* PlantActor, const FString& PlantedDate, const FString& BloomDate) const
 {
 	if (!PlantActor || !GetWorld())
 	{
@@ -1508,17 +1573,27 @@ void AUserDrone::ApplyPlacementSchedule(APlant* PlantActor, const FString& Plant
 	}
 
 	int32 PlantingDayIndex = -1;
-	if (!TryDateToDayIndex(PlantedDate, PlantingDayIndex) || PlantingDayIndex > TimeManager->GlobalBloomDate)
+	int32 BloomDayIndex = TimeManager->GlobalBloomDate;
+	if (!BloomDate.IsEmpty())
+	{
+		int32 ParsedBloomDayIndex = -1;
+		if (TryDateToDayIndex(BloomDate, ParsedBloomDayIndex))
+		{
+			BloomDayIndex = ParsedBloomDayIndex;
+		}
+	}
+
+	if (!TryDateToDayIndex(PlantedDate, PlantingDayIndex) || PlantingDayIndex > BloomDayIndex)
 	{
 		return;
 	}
 
 	PlantActor->PlantingDayIndex = PlantingDayIndex;
-	PlantActor->BloomDayIndex = TimeManager->GlobalBloomDate;
+	PlantActor->SetForceBloomedMesh(false);
+	PlantActor->BloomDayIndex = FMath::Clamp(BloomDayIndex, PlantingDayIndex, TimeManager->GlobalBloomDate);
 	PlantActor->DaysToBloom = FMath::Max(1, PlantActor->BloomDayIndex - PlantActor->PlantingDayIndex);
-	PlantActor->WitherDayIndex = PlantActor->DaysToWither > 0
-		? PlantActor->BloomDayIndex + PlantActor->DaysToWither
-		: MAX_int32;
+	PlantActor->DaysToWither = APlant::CalculateDaysToWitherFromBloom(PlantActor->DaysToBloom);
+	PlantActor->WitherDayIndex = PlantActor->BloomDayIndex + PlantActor->DaysToWither;
 	PlantActor->UpdateForDay(TimeManager->GetCurrentDayIndex());
 	PlantActor->SetPlantingDateTextVisible(IsGardenDateSliderVisible());
 }

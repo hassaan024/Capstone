@@ -70,6 +70,11 @@ export class CreatePlantInstanceDto {
   @IsOptional()
   @IsDate()
   @Type(() => Date)
+  bloomDate?: Date;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
   currentGameDate?: Date;  // defaults to now() if not provided
 
   @IsOptional()

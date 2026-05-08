@@ -49,6 +49,7 @@ export class PlantInstanceService {
           bloomState: createPlantInstanceDto.bloomState ?? false,
           lastWatered: createPlantInstanceDto.lastWatered ?? null,
           plantedDate: createPlantInstanceDto.plantedDate ?? new Date(),
+          bloomDate: createPlantInstanceDto.bloomDate ?? null,
           currentGameDate: createPlantInstanceDto.currentGameDate ?? new Date(),
           notes: createPlantInstanceDto.notes ?? null,
         },

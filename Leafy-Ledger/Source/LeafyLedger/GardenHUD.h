@@ -117,10 +117,15 @@ private:
 
 	void SavePendingPlants(int32 GardenId, const FString& BloomDate, bool bRefreshPlantedDates, const TArray<FEditablePlantPlacement>& Plants, int32 StartIndex = 0);
 	void RestoreDateSliderFromDraft();
+	void ConfigurePrePredictionDateSlider(const FString& BloomDate);
 	void ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Timeline);
 	void UpdateSliderDateText(float Value);
 	void ApplySliderDay(float Value);
 	void SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const;
+	void SetAllPlantActorsForceBloomed(bool bForce) const;
+	void SetPredictedPlacementSchedulesEnabled(bool bEnabled) const;
+	bool DraftHasPredictedPlantingDates() const;
+	int32 RemovePlantsBloomingAfterDate(const FString& BloomDate);
 	void SetGardenMode(EGardenEditMode NewMode);
 	void BuildPaintLayerControls();
 	void BuildPaintBrushControls();
@@ -175,6 +180,7 @@ private:
 	bool bSuppressSliderCallbacks = false;
 	bool bPredictionInFlight = false;
 	bool bRunPredictionAfterSave = false;
+	bool bPredictionTimelineActive = false;
 	FName SelectedPaintLayerName = TEXT("Dirt");
 	FDateTime SliderStartDate = FDateTime::MinValue();
 	FDateTime SliderBloomDate = FDateTime::MinValue();

@@ -51,30 +51,31 @@ namespace
 		return true;
 	}
 
-	int32 GetDaysToBloomForCategory(const FString& Category)
+	FDateTime GetTodayDate()
 	{
-		if (Category.Equals(TEXT("flower"), ESearchCase::IgnoreCase))
-		{
-			return 20;
-		}
-
-		if (Category.Equals(TEXT("tree"), ESearchCase::IgnoreCase))
-		{
-			return 50;
-		}
-
-		return 30;
+		const FDateTime Now = FDateTime::Now();
+		return FDateTime(Now.GetYear(), Now.GetMonth(), Now.GetDay());
 	}
 
-	FString CalculatePlantedDate(const FString& BloomDate, const FString& Category)
+	bool TryGetTimelineFinalBloomDate(const FBackendGardenTimelineDto& Timeline, FDateTime& OutFinalBloomDate)
 	{
-		FDateTime ParsedBloomDate;
-		if (!TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(BloomDate), ParsedBloomDate))
+		bool bHasFinalBloomDate = TryParseNormalizedBackendDate(
+			FBloomDateUtils::NormalizeBackendDateString(Timeline.BloomDate),
+			OutFinalBloomDate
+		);
+
+		for (const FBackendGardenTimelinePlantDto& Plant : Timeline.Plants)
 		{
-			return TEXT("");
+			FDateTime ParsedPlantBloomDate;
+			if (TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(Plant.BloomDate), ParsedPlantBloomDate)
+				&& (!bHasFinalBloomDate || ParsedPlantBloomDate > OutFinalBloomDate))
+			{
+				OutFinalBloomDate = ParsedPlantBloomDate;
+				bHasFinalBloomDate = true;
+			}
 		}
 
-		return FBloomDateUtils::FormatForBackend(ParsedBloomDate - FTimespan::FromDays(GetDaysToBloomForCategory(Category)));
+		return bHasFinalBloomDate;
 	}
 
 	AGardenTimeManager* FindGardenTimeManager(UWorld* World)
@@ -403,8 +404,9 @@ void UGardenHUD::OnPressPredict()
 				}
 
 				FDateTime EarliestPlantDate;
+				FDateTime FinalBloomDate;
 				bool bHasEarliestPlantDate = false;
-				int32 LongestTimeToBloom = 0;
+				const bool bHasFinalBloomDate = TryGetTimelineFinalBloomDate(Timeline, FinalBloomDate);
 
 				for (const FBackendGardenTimelinePlantDto& Plant : Timeline.Plants)
 				{
@@ -417,24 +419,27 @@ void UGardenHUD::OnPressPredict()
 							EarliestPlantDate = ParsedPlantDate;
 							bHasEarliestPlantDate = true;
 						}
-
-						LongestTimeToBloom = FMath::Max(LongestTimeToBloom, Plant.DaysToMature);
 					}
 				}
 
-				if (!bHasEarliestPlantDate || LongestTimeToBloom <= 0)
+				if (!bHasEarliestPlantDate || !bHasFinalBloomDate || EarliestPlantDate > FinalBloomDate)
 				{
-					UE_LOG(LogTemp, Error, TEXT("GenerateGardenTimeline returned no usable planted dates"));
+					UE_LOG(LogTemp, Error, TEXT("GenerateGardenTimeline returned no usable planted/bloom dates"));
 					HUD->HideDateSlider();
 					return;
 				}
 
+				const int32 TimelineSpanDays = static_cast<int32>((FinalBloomDate - EarliestPlantDate).GetDays());
+				HUD->SetAllPlantActorsForceBloomed(false);
+				HUD->SetPredictedPlacementSchedulesEnabled(true);
 				HUD->ApplyTimelineToPlantActors(Timeline);
 				HUD->ConfigureDateSlider(
 					FBloomDateUtils::FormatForBackend(EarliestPlantDate),
-					Timeline.BloomDate,
-					LongestTimeToBloom
+					FBloomDateUtils::FormatForBackend(FinalBloomDate),
+					TimelineSpanDays
 				);
+				HUD->bPredictionTimelineActive = true;
+				HUD->SetGardenMode(EGardenEditMode::None);
 			}
 		)
 	);
@@ -511,7 +516,8 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 		}
 
 		TWeakObjectPtr<UGardenHUD> WeakThis(this);
-		const FString PlantedDate = CalculatePlantedDate(BloomDate, Plant.SpeciesModelCategory);
+		const FString PlantedDate = Plant.PlantedDate;
+		const FString PlantBloomDate = !Plant.BloomDate.IsEmpty() ? Plant.BloomDate : BloomDate;
 		const bool bShouldUpdateExistingPlant = Plant.bPendingUpdate || (bRefreshPlantedDates && Plant.BackendPlantInstanceId > 0);
 
 		if (bShouldUpdateExistingPlant && Plant.BackendPlantInstanceId > 0)
@@ -535,6 +541,7 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 				Plant.HealthStatus,
 				Plant.LastWateredIso8601,
 				PlantedDate,
+				PlantBloomDate,
 				Plant.Notes,
 				FBackendPlantInstanceResponse::CreateLambda(
 					[WeakThis, GardenSession, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
@@ -553,7 +560,7 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 							PlantInstance.Id
 						);
 
-						GardenSession->MarkPlantSaved(Plant.LocalId, PlantInstance.Id, PlantInstance.PlantedDate);
+						GardenSession->MarkPlantSaved(Plant.LocalId, PlantInstance.Id, PlantInstance.PlantedDate, PlantInstance.BloomDate);
 
 						if (WeakThis.IsValid())
 						{
@@ -577,14 +584,14 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 		const int32 AgeValue = Plant.AgeDays;
 		const FString HealthValue = Plant.HealthStatus;
 		const FString LastWateredValue = Plant.LastWateredIso8601;
-		const FString PlantedDateValue = !Plant.PlantedDate.IsEmpty()
-			? Plant.PlantedDate
-			: CalculatePlantedDate(BloomDate, Plant.SpeciesModelCategory);
+		const FString PlantedDateValue = Plant.PlantedDate;
+		const FString BloomDateValue = !Plant.BloomDate.IsEmpty() ? Plant.BloomDate : BloomDate;
 		const float* HeightPtr = &HeightValue;
 		const int32* AgePtr = &AgeValue;
 		const FString* HealthPtr = &HealthValue;
 		const FString* LastWateredPtr = &LastWateredValue;
 		const FString* PlantedDatePtr = &PlantedDateValue;
+		const FString* BloomDatePtr = &BloomDateValue;
 
 		BackendApi->CreatePlantInstance(
 			GardenId,
@@ -598,6 +605,7 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 			HealthPtr,
 			LastWateredPtr,
 			PlantedDatePtr,
+			BloomDatePtr,
 			Plant.Notes,
 			FBackendPlantInstanceResponse::CreateLambda(
 				[WeakThis, GardenSession, Plants, GardenId, BloomDate, bRefreshPlantedDates, i, Plant](bool bSuccess, const FString& Message, const FBackendPlantInstanceDto& PlantInstance)
@@ -612,7 +620,7 @@ void UGardenHUD::SavePendingPlants(int32 GardenId, const FString& BloomDate, boo
 						*Plant.LocalId.ToString(),
 						PlantInstance.Id);
 
-					GardenSession->MarkPlantSaved(Plant.LocalId, PlantInstance.Id, PlantInstance.PlantedDate);
+					GardenSession->MarkPlantSaved(Plant.LocalId, PlantInstance.Id, PlantInstance.PlantedDate, PlantInstance.BloomDate);
 
 					if (WeakThis.IsValid())
 					{
@@ -735,7 +743,29 @@ void UGardenHUD::ValidateBloomDateText(bool bBroadcastOnSuccess)
 	{
 		if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
 		{
+			const bool bBloomDateChanged = !GardenSession->HasActiveDraft()
+				|| FBloomDateUtils::NormalizeBackendDateString(GardenSession->GetDraft().BloomDate) != LastValidBloomDateBackend;
+			const bool bShouldInvalidatePrediction = bBloomDateChanged
+				&& (bPredictionTimelineActive || DraftHasPredictedPlantingDates());
+
 			GardenSession->SetBloomDate(LastValidBloomDateBackend);
+			const int32 RemovedPlantCount = RemovePlantsBloomingAfterDate(LastValidBloomDateBackend);
+			if (RemovedPlantCount > 0)
+			{
+				UE_LOG(LogTemp, Log, TEXT("Removed %d plant(s) with bloom dates after %s"), RemovedPlantCount, *LastValidBloomDateBackend);
+			}
+
+			if (!IsPredictionRunning())
+			{
+				if (bShouldInvalidatePrediction)
+				{
+					SetAllPlantActorsForceBloomed(true);
+					SetPredictedPlacementSchedulesEnabled(false);
+				}
+
+				bPredictionTimelineActive = false;
+				ConfigurePrePredictionDateSlider(LastValidBloomDateBackend);
+			}
 		}
 	}
 }
@@ -812,7 +842,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 
 	FDateTime ParsedFirstPlantDate;
 	FDateTime ParsedBloomDate;
-	if (LongestTimeToBloom <= 0
+	if (LongestTimeToBloom < 0
 		|| !TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(FirstPlantDate), ParsedFirstPlantDate)
 		|| !TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(BloomDate), ParsedBloomDate)
 		|| ParsedFirstPlantDate > ParsedBloomDate)
@@ -838,7 +868,7 @@ void UGardenHUD::ConfigureDateSlider(const FString& FirstPlantDate, const FStrin
 	bDateSliderReady = true;
 	//bSliderWidthSet = false;
 
-	SLDR_Date->SetStepSize(1.0f / static_cast<float>(SliderLongestTimeToBloom));
+	SLDR_Date->SetStepSize(SliderLongestTimeToBloom > 0 ? 1.0f / static_cast<float>(SliderLongestTimeToBloom) : 1.0f);
 	SLDR_Date->SetIsEnabled(true);
 	SLDR_Date->SetVisibility(ESlateVisibility::Visible);
 
@@ -938,6 +968,8 @@ void UGardenHUD::RestoreDateSliderFromDraft()
 	FDateTime EarliestPlantDate;
 	bool bHasEarliestPlantDate = false;
 	int32 LongestTimeToBloom = 0;
+	bool bAllActivePlantsHavePredictedDates = true;
+	FDateTime FinalBloomDate = ParsedBloomDate;
 
 	for (const FEditablePlantPlacement& Plant : Draft.Plants)
 	{
@@ -946,14 +978,22 @@ void UGardenHUD::RestoreDateSliderFromDraft()
 			continue;
 		}
 
+		FDateTime ParsedPlantBloomDate;
+		if (TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(Plant.BloomDate), ParsedPlantBloomDate)
+			&& ParsedPlantBloomDate > FinalBloomDate)
+		{
+			FinalBloomDate = ParsedPlantBloomDate;
+		}
+
 		if (Plant.PlantedDate.IsEmpty())
 		{
-			return;
+			bAllActivePlantsHavePredictedDates = false;
+			continue;
 		}
 
 		FDateTime ParsedPlantDate;
 		if (!TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(Plant.PlantedDate), ParsedPlantDate)
-			|| ParsedPlantDate > ParsedBloomDate)
+			|| ParsedPlantDate > FinalBloomDate)
 		{
 			continue;
 		}
@@ -964,19 +1004,54 @@ void UGardenHUD::RestoreDateSliderFromDraft()
 			bHasEarliestPlantDate = true;
 		}
 
-		LongestTimeToBloom = FMath::Max(LongestTimeToBloom, static_cast<int32>((ParsedBloomDate - ParsedPlantDate).GetDays()));
+		LongestTimeToBloom = FMath::Max(LongestTimeToBloom, static_cast<int32>((FinalBloomDate - ParsedPlantDate).GetDays()));
 	}
 
-	if (!bHasEarliestPlantDate || LongestTimeToBloom <= 0)
+	if (!bAllActivePlantsHavePredictedDates || !bHasEarliestPlantDate || LongestTimeToBloom <= 0)
 	{
+		ConfigurePrePredictionDateSlider(Draft.BloomDate);
 		return;
 	}
 
 	ConfigureDateSlider(
 		FBloomDateUtils::FormatForBackend(EarliestPlantDate),
-		FBloomDateUtils::FormatForBackend(ParsedBloomDate),
+		FBloomDateUtils::FormatForBackend(FinalBloomDate),
 		LongestTimeToBloom
 	);
+}
+
+void UGardenHUD::ConfigurePrePredictionDateSlider(const FString& BloomDate)
+{
+	FDateTime ParsedBloomDate;
+	if (!TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(BloomDate), ParsedBloomDate))
+	{
+		HideDateSlider();
+		return;
+	}
+
+	const FDateTime OneYearBeforeBloomDate = ParsedBloomDate - FTimespan::FromDays(365);
+	FDateTime StartDate = GetTodayDate() > OneYearBeforeBloomDate ? GetTodayDate() : OneYearBeforeBloomDate;
+	if (StartDate > ParsedBloomDate)
+	{
+		StartDate = ParsedBloomDate;
+	}
+
+	const int32 SpanDays = static_cast<int32>((ParsedBloomDate - StartDate).GetDays());
+	ConfigureDateSlider(
+		FBloomDateUtils::FormatForBackend(StartDate),
+		FBloomDateUtils::FormatForBackend(ParsedBloomDate),
+		SpanDays
+	);
+
+	if (bDateSliderReady && SLDR_Date)
+	{
+		bSuppressSliderCallbacks = true;
+		SLDR_Date->SetValue(1.0f);
+		bSuppressSliderCallbacks = false;
+
+		ApplySliderDay(1.0f);
+		UpdateSliderDateText(1.0f);
+	}
 }
 
 void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Timeline)
@@ -987,7 +1062,7 @@ void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Tim
 	}
 
 	FDateTime ParsedBloomDate;
-	if (!TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(Timeline.BloomDate), ParsedBloomDate))
+	if (!TryGetTimelineFinalBloomDate(Timeline, ParsedBloomDate))
 	{
 		return;
 	}
@@ -1014,6 +1089,7 @@ void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Tim
 		}
 
 		GardenSession->SetPlantPlantedDateByBackendId(TimelinePlant.PlantInstanceId, TimelinePlant.PlantedDate);
+		GardenSession->SetPlantBloomDateByBackendId(TimelinePlant.PlantInstanceId, TimelinePlant.BloomDate);
 	}
 
 	const FEditableGardenState Draft = GardenSession->GetDraftCopy();
@@ -1039,6 +1115,8 @@ void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Tim
 			continue;
 		}
 
+		PlantActor->SetForceBloomedMesh(false);
+
 		const FBackendGardenTimelinePlantDto* TimelinePlant = TimelineByLocalId.Find(PlantActor->LocalPlantId);
 		if (!TimelinePlant)
 		{
@@ -1058,11 +1136,13 @@ void UGardenHUD::ApplyTimelineToPlantActors(const FBackendGardenTimelineDto& Tim
 		}
 
 		PlantActor->PlantingDayIndex = PlantingDayIndex;
-		PlantActor->BloomDayIndex = BloomDayIndex;
-		PlantActor->DaysToBloom = FMath::Max(1, BloomDayIndex - PlantingDayIndex);
-		PlantActor->WitherDayIndex = PlantActor->DaysToWither > 0
-			? BloomDayIndex + PlantActor->DaysToWither
-			: MAX_int32;
+		FDateTime ParsedPlantBloomDate = ParsedBloomDate;
+		TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(TimelinePlant->BloomDate), ParsedPlantBloomDate);
+		const int32 PlantBloomDayIndex = static_cast<int32>((ParsedPlantBloomDate - EpochDate).GetDays());
+		PlantActor->BloomDayIndex = FMath::Clamp(PlantBloomDayIndex, PlantingDayIndex, BloomDayIndex);
+		PlantActor->DaysToBloom = FMath::Max(1, PlantActor->BloomDayIndex - PlantingDayIndex);
+		PlantActor->DaysToWither = APlant::CalculateDaysToWitherFromBloom(PlantActor->DaysToBloom);
+		PlantActor->WitherDayIndex = PlantActor->BloomDayIndex + PlantActor->DaysToWither;
 		PlantActor->PlantingDate = FBloomDateUtils::DayIndexToDisplayDate(PlantingDayIndex);
 		PlantActor->UpdatePlantingDateText();
 	}
@@ -1084,6 +1164,116 @@ void UGardenHUD::SetPlantingDateTextVisibilityForAllPlants(bool bVisible) const
 			PlantActor->SetPlantingDateTextVisible(bVisible);
 		}
 	}
+}
+
+void UGardenHUD::SetAllPlantActorsForceBloomed(bool bForce) const
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	TArray<AActor*> FoundPlants;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+	for (AActor* Actor : FoundPlants)
+	{
+		if (APlant* PlantActor = Cast<APlant>(Actor))
+		{
+			PlantActor->SetForceBloomedMesh(bForce);
+		}
+	}
+}
+
+void UGardenHUD::SetPredictedPlacementSchedulesEnabled(bool bEnabled) const
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	if (AUserDrone* Drone = Cast<AUserDrone>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0)))
+	{
+		Drone->SetPredictedPlacementSchedulesEnabled(bEnabled);
+	}
+}
+
+bool UGardenHUD::DraftHasPredictedPlantingDates() const
+{
+	if (!GetGameInstance())
+	{
+		return false;
+	}
+
+	const UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+	if (!GardenSession || !GardenSession->HasActiveDraft())
+	{
+		return false;
+	}
+
+	for (const FEditablePlantPlacement& Plant : GardenSession->GetDraft().Plants)
+	{
+		if (!Plant.bPendingDelete && !Plant.PlantedDate.IsEmpty())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int32 UGardenHUD::RemovePlantsBloomingAfterDate(const FString& BloomDate)
+{
+	FDateTime ParsedBloomDate;
+	if (!TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(BloomDate), ParsedBloomDate)
+		|| !GetGameInstance())
+	{
+		return 0;
+	}
+
+	UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>();
+	if (!GardenSession || !GardenSession->HasActiveDraft())
+	{
+		return 0;
+	}
+
+	const FEditableGardenState Draft = GardenSession->GetDraftCopy();
+	TSet<FGuid> LocalIdsToRemove;
+	for (const FEditablePlantPlacement& Plant : Draft.Plants)
+	{
+		if (Plant.bPendingDelete)
+		{
+			continue;
+		}
+
+		const FString PlantBloomDateText = !Plant.BloomDate.IsEmpty() ? Plant.BloomDate : Draft.BloomDate;
+		FDateTime ParsedPlantBloomDate;
+		if (TryParseNormalizedBackendDate(FBloomDateUtils::NormalizeBackendDateString(PlantBloomDateText), ParsedPlantBloomDate)
+			&& ParsedPlantBloomDate > ParsedBloomDate)
+		{
+			LocalIdsToRemove.Add(Plant.LocalId);
+		}
+	}
+
+	for (const FGuid& LocalId : LocalIdsToRemove)
+	{
+		GardenSession->RemovePlantPlacement(LocalId);
+	}
+
+	if (GetWorld() && LocalIdsToRemove.Num() > 0)
+	{
+		TArray<AActor*> FoundPlants;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlant::StaticClass(), FoundPlants);
+		for (AActor* Actor : FoundPlants)
+		{
+			APlant* PlantActor = Cast<APlant>(Actor);
+			if (PlantActor && LocalIdsToRemove.Contains(PlantActor->LocalPlantId))
+			{
+				PlantActor->Destroy();
+			}
+		}
+	}
+
+	return LocalIdsToRemove.Num();
 }
 
 void UGardenHUD::UpdateSliderDateText(float Value)
@@ -1116,6 +1306,23 @@ void UGardenHUD::ApplySliderDay(float Value)
 
 void UGardenHUD::OnPressPlantMode()
 {
+	if (bPredictionTimelineActive && GetGameInstance())
+	{
+		SetAllPlantActorsForceBloomed(true);
+		SetPredictedPlacementSchedulesEnabled(false);
+
+		if (UGardenSessionSubsystem* GardenSession = GetGameInstance()->GetSubsystem<UGardenSessionSubsystem>())
+		{
+			if (GardenSession->HasActiveDraft())
+			{
+				const FEditableGardenState& Draft = GardenSession->GetDraft();
+				ConfigurePrePredictionDateSlider(Draft.BloomDate);
+			}
+		}
+
+		bPredictionTimelineActive = false;
+	}
+
 	SetGardenMode(EGardenEditMode::Plant);
 }
 
@@ -1478,7 +1685,7 @@ EGardenEditMode UGardenHUD::GetCurrentGardenMode() const
 		}
 	}
 
-	return EGardenEditMode::Plant;
+	return EGardenEditMode::None;
 }
 
 void UGardenHUD::CancelActiveGardenModification() const

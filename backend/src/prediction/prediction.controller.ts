@@ -16,8 +16,9 @@ export class PredictionController {
 
   /**
    * Generates the full growth timeline for every plant in a garden.
-   * Expects a bloomDate (the in-game date when all plants should be fully grown).
-   * Calculates each plant's planted date, runs stepped ML predictions at
+   * Expects a bloomDate (the garden's final bloom date).
+   * Uses each plant instance's bloomDate as its own endpoint, calculates
+   * planted dates, runs stepped ML predictions at
    * 7-day intervals, stores each snapshot in PlantHistory, and returns the
    * complete timeline for Unreal's slider.
    */
