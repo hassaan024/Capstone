@@ -43,9 +43,15 @@ void USavedPlants::NativeConstruct()
 		return;
 	}
 
-	if (BTN_Back)
+	if (UButton* BackButton = ResolveMenuButton(BTN_Back))
 	{
-		BTN_Back->OnClicked.AddDynamic(this, &USavedPlants::OnPressBack);
+		BackButton->OnClicked.RemoveDynamic(this, &USavedPlants::OnPressBack);
+		BackButton->OnClicked.AddDynamic(this, &USavedPlants::OnPressBack);
+		UE_LOG(LogTemp, Log, TEXT("SavedPlants: bound BTN_Back to inner button %s"), *BackButton->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SavedPlants: failed to resolve BTN_Back as a clickable menu button"));
 	}
 
 	if (WB_Gardens)
@@ -56,6 +62,41 @@ void USavedPlants::NativeConstruct()
 	TV_PlantCards->OnEntryWidgetGenerated().AddUObject(this, &USavedPlants::HandleEntryGenerated);
 	FetchGardens();
 	RefreshCurrentSource();
+}
+
+UButton* USavedPlants::ResolveMenuButton(UWidget* MenuButtonWidget) const
+{
+	if (!MenuButtonWidget)
+	{
+		return nullptr;
+	}
+
+	if (UButton* DirectButton = Cast<UButton>(MenuButtonWidget))
+	{
+		return DirectButton;
+	}
+
+	const UUserWidget* MenuButtonUserWidget = Cast<UUserWidget>(MenuButtonWidget);
+	if (!MenuButtonUserWidget || !MenuButtonUserWidget->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UButton* ResolvedButton = nullptr;
+	MenuButtonUserWidget->WidgetTree->ForEachWidget([&ResolvedButton](UWidget* Widget)
+	{
+		if (!ResolvedButton)
+		{
+			ResolvedButton = Cast<UButton>(Widget);
+		}
+	});
+
+	if (!ResolvedButton)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SavedPlants: no inner UButton found in %s"), *MenuButtonWidget->GetName());
+	}
+
+	return ResolvedButton;
 }
 
 void USavedPlants::HandleEntryGenerated(UUserWidget& EntryWidget)

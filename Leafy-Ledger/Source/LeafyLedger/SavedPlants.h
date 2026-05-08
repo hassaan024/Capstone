@@ -15,6 +15,7 @@
 class UPlantObject;
 class UTextBlock;
 class UUserWidget;
+class UWidget;
 class USavedPlants;
 
 UCLASS()
@@ -67,7 +68,7 @@ public:
 	UWrapBox* WB_Gardens;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Back;
+	UWidget* BTN_Back;
 
 	AMenuController* MenuController;
 
@@ -75,6 +76,7 @@ protected:
 	virtual void NativeConstruct() override;
 
 private:
+	UButton* ResolveMenuButton(UWidget* MenuButtonWidget) const;
 	void RefreshCurrentSource();
 	void FetchGlobalSavedSpecies();
 	void FetchGardenSavedSpecies(int32 GardenId);
