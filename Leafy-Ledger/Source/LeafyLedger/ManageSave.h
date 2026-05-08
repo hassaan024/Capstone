@@ -8,12 +8,9 @@
 #include "ManageSave.generated.h"
 
 class UButton;
-class UOverlay;
 class UScrollBox;
-class USizeBox;
-class USpacer;
 class UTextBlock;
-class UVerticalBox;
+class UWidget;
 class UCreateGardenPopup;
 class USaveDestinationEntry;
 
@@ -54,24 +51,42 @@ protected:
 	UButton* BTN_CloseCard = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* BTN_Changes = nullptr;
+	UWidget* BTN_Changes = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UTextBlock* TXT_Changes;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_Changes = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UWidget* BTN_CreateGarden = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UScrollBox* SB_SaveDestinations = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_PlantName = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_GardenSection = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+	UTextBlock* TXT_StatusMessage = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<UCreateGardenPopup> CreateGardenPopupClass;
 
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<USaveDestinationEntry> SaveDestinationEntryClass;
+
 private:
+	UButton* ResolveButton(UWidget* ButtonWidget) const;
+	void SetButtonLabel(UWidget* ButtonWidget, const FString& Label) const;
+	USaveDestinationEntry* CreateDestinationEntry(const FName& EntryName) const;
 	void ResolveWidgetReferences();
 	void ConfigureModalLayout();
-	void RebuildOverlayLayout();
 	void UpdatePlantNameText() const;
 	void RefreshDestinationList();
 	void PopulateDestinationList();
-	void AddCreateGardenRow();
 	void AddMessageRow(const FString& Message);
-	void AddBottomScrollSpacer();
 	void HandleGlobalStateResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants);
 	void HandleGardenListResponse(bool bSuccess, const FString& Message, const TArray<FBackendGardenSummaryDto>& Gardens);
 	void RequestGardenStateAtIndex(int32 GardenIndex);
@@ -82,18 +97,6 @@ private:
 
 	UPROPERTY()
 	UScrollBox* SaveOptionsScrollBox = nullptr;
-
-	UPROPERTY()
-	USizeBox* RootSizeBox = nullptr;
-
-	UPROPERTY()
-	UOverlay* RootOverlay = nullptr;
-
-	UPROPERTY()
-	UVerticalBox* HeaderBox = nullptr;
-
-	UPROPERTY()
-	UTextBlock* CommonNameText = nullptr;
 
 	UPROPERTY()
 	TArray<FBackendGardenSummaryDto> Gardens;
@@ -109,9 +112,6 @@ private:
 
 	UPROPERTY()
 	USaveDestinationEntry* GlobalRow = nullptr;
-
-	UPROPERTY()
-	UButton* CreateGardenButton = nullptr;
 
 	UPROPERTY()
 	UCreateGardenPopup* CreateGardenPopupInstance = nullptr;

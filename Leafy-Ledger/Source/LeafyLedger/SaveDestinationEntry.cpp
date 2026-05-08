@@ -28,7 +28,10 @@ void USaveDestinationEntry::SetChecked(bool bInIsChecked)
 void USaveDestinationEntry::NativeConstruct()
 {
 	Super::NativeConstruct();
-	BuildWidgetTreeIfNeeded();
+	if (!RootBorder || !TXT_Title || !TXT_Description || !TXT_Check)
+	{
+		BuildWidgetTreeIfNeeded();
+	}
 	RefreshVisuals();
 }
 
@@ -54,8 +57,8 @@ void USaveDestinationEntry::BuildWidgetTreeIfNeeded()
 	RootBorder->SetContent(RowBox);
 	RootBorder->SetPadding(FMargin(16.0f, 12.0f));
 
-	CheckText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CheckText"));
-	if (UHorizontalBoxSlot* CheckSlot = RowBox->AddChildToHorizontalBox(CheckText))
+	TXT_Check = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TXT_Check"));
+	if (UHorizontalBoxSlot* CheckSlot = RowBox->AddChildToHorizontalBox(TXT_Check))
 	{
 		CheckSlot->SetPadding(FMargin(0.0f, 0.0f, 12.0f, 0.0f));
 		CheckSlot->SetVerticalAlignment(VAlign_Center);
@@ -68,41 +71,41 @@ void USaveDestinationEntry::BuildWidgetTreeIfNeeded()
 		TextSlot->SetVerticalAlignment(VAlign_Center);
 	}
 
-	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-	TextBox->AddChildToVerticalBox(TitleText);
+	TXT_Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TXT_Title"));
+	TextBox->AddChildToVerticalBox(TXT_Title);
 
-	DescriptionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DescriptionText"));
-	TextBox->AddChildToVerticalBox(DescriptionText);
+	TXT_Description = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TXT_Description"));
+	TextBox->AddChildToVerticalBox(TXT_Description);
 }
 
 void USaveDestinationEntry::RefreshVisuals()
 {
 	if (!WidgetTree) return;
 
-	if (!RootBorder || !TitleText || !DescriptionText || !CheckText)
+	if (!RootBorder || !TXT_Title || !TXT_Description || !TXT_Check)
 	{
 		BuildWidgetTreeIfNeeded();
 	}
 
-	if (!RootBorder || !TitleText || !DescriptionText || !CheckText) return;
+	if (!RootBorder || !TXT_Title || !TXT_Description || !TXT_Check) return;
 
-	CheckText->SetText(FText::FromString(bIsChecked ? TEXT("[x]") : TEXT("[ ]")));
-	CheckText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.95f, 0.90f, 1.0f)));
-	FSlateFontInfo CheckFont = CheckText->Font;
+	TXT_Check->SetText(FText::FromString(bIsChecked ? TEXT("[x]") : TEXT("[ ]")));
+	TXT_Check->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.95f, 0.90f, 1.0f)));
+	FSlateFontInfo CheckFont = TXT_Check->Font;
 	CheckFont.Size = 18;
-	CheckText->SetFont(CheckFont);
+	TXT_Check->SetFont(CheckFont);
 
-	TitleText->SetText(FText::FromString(Title));
-	TitleText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-	FSlateFontInfo TitleFont = TitleText->Font;
+	TXT_Title->SetText(FText::FromString(Title));
+	TXT_Title->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+	FSlateFontInfo TitleFont = TXT_Title->Font;
 	TitleFont.Size = 22; //bIsGlobalDestination ? 22 : 22;
-	TitleText->SetFont(TitleFont);
+	TXT_Title->SetFont(TitleFont);
 
-	DescriptionText->SetText(FText::FromString(Description));
-	DescriptionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.70f, 0.76f, 0.84f, 1.0f)));
-	FSlateFontInfo DescriptionFont = DescriptionText->Font;
+	TXT_Description->SetText(FText::FromString(Description));
+	TXT_Description->SetColorAndOpacity(FSlateColor(FLinearColor(0.70f, 0.76f, 0.84f, 1.0f)));
+	FSlateFontInfo DescriptionFont = TXT_Description->Font;
 	DescriptionFont.Size = 14; //bIsGlobalDestination ? 14 : 14;
-	DescriptionText->SetFont(DescriptionFont);
+	TXT_Description->SetFont(DescriptionFont);
 
 	const FLinearColor BackgroundColor = bIsChecked
 		? FLinearColor(0.10f, 0.25f, 0.22f, 0.96f)

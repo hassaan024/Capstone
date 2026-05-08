@@ -30,20 +30,20 @@ private:
 	void BuildWidgetTreeIfNeeded();
 	void RefreshVisuals();
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"))
 	UBorder* RootBorder = nullptr;
 
 	UPROPERTY()
 	UHorizontalBox* RowBox = nullptr;
 
-	UPROPERTY()
-	UTextBlock* CheckText = nullptr;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"))
+	UTextBlock* TXT_Check = nullptr;
 
-	UPROPERTY()
-	UTextBlock* TitleText = nullptr;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"))
+	UTextBlock* TXT_Title = nullptr;
 
-	UPROPERTY()
-	UTextBlock* DescriptionText = nullptr;
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"))
+	UTextBlock* TXT_Description = nullptr;
 
 	bool bIsGlobalDestination = false;
 	int32 GardenId = 0;

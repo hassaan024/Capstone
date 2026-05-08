@@ -4,15 +4,9 @@
 #include "BackendApiSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
-#include "Components/Overlay.h"
-#include "Components/OverlaySlot.h"
 #include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
-#include "Components/SizeBox.h"
-#include "Components/Spacer.h"
 #include "Components/TextBlock.h"
-#include "Components/VerticalBox.h"
-#include "Components/VerticalBoxSlot.h"
 #include "CreateGardenPopup.h"
 #include "SaveDestinationEntry.h"
 
@@ -25,9 +19,14 @@ bool UManageSave::Initialize()
 		BTN_CloseCard->OnClicked.AddDynamic(this, &UManageSave::OnPressClose);
 	}
 	
-	if (BTN_Changes)
+	if (UButton* ChangesResolvedButton = ResolveButton(BTN_Changes))
 	{
-		BTN_Changes->OnClicked.AddDynamic(this, &UManageSave::OnPressApplyChanges);
+		ChangesResolvedButton->OnClicked.AddDynamic(this, &UManageSave::OnPressApplyChanges);
+	}
+
+	if (UButton* CreateGardenResolvedButton = ResolveButton(BTN_CreateGarden))
+	{
+		CreateGardenResolvedButton->OnClicked.AddDynamic(this, &UManageSave::OnPressCreateGarden);
 	}
 
 	return true;
@@ -39,7 +38,19 @@ void UManageSave::NativeConstruct()
 
 	ResolveWidgetReferences();
 	ConfigureModalLayout();
-	RebuildOverlayLayout();
+
+	if (UButton* ChangesResolvedButton = ResolveButton(BTN_Changes))
+	{
+		ChangesResolvedButton->OnClicked.RemoveDynamic(this, &UManageSave::OnPressApplyChanges);
+		ChangesResolvedButton->OnClicked.AddDynamic(this, &UManageSave::OnPressApplyChanges);
+	}
+
+	if (UButton* CreateGardenResolvedButton = ResolveButton(BTN_CreateGarden))
+	{
+		CreateGardenResolvedButton->OnClicked.RemoveDynamic(this, &UManageSave::OnPressCreateGarden);
+		CreateGardenResolvedButton->OnClicked.AddDynamic(this, &UManageSave::OnPressCreateGarden);
+	}
+
 	UpdatePlantNameText();
 	UpdateChangesText();
 	RefreshDestinationList();
@@ -212,36 +223,121 @@ void UManageSave::HandleGardenCreated()
 	RefreshDestinationList();
 }
 
+UButton* UManageSave::ResolveButton(UWidget* ButtonWidget) const
+{
+	if (!ButtonWidget)
+	{
+		return nullptr;
+	}
+
+	if (UButton* DirectButton = Cast<UButton>(ButtonWidget))
+	{
+		return DirectButton;
+	}
+
+	const UUserWidget* ButtonUserWidget = Cast<UUserWidget>(ButtonWidget);
+	if (!ButtonUserWidget || !ButtonUserWidget->WidgetTree)
+	{
+		return nullptr;
+	}
+
+	UButton* ResolvedButton = nullptr;
+	ButtonUserWidget->WidgetTree->ForEachWidget([&ResolvedButton](UWidget* Widget)
+	{
+		if (!ResolvedButton)
+		{
+			ResolvedButton = Cast<UButton>(Widget);
+		}
+	});
+
+	return ResolvedButton;
+}
+
+void UManageSave::SetButtonLabel(UWidget* ButtonWidget, const FString& Label) const
+{
+	if (!ButtonWidget)
+	{
+		return;
+	}
+
+	if (UButton* DirectButton = Cast<UButton>(ButtonWidget))
+	{
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(DirectButton->GetContent()))
+		{
+			TextBlock->SetText(FText::FromString(Label));
+		}
+		return;
+	}
+
+	const UUserWidget* ButtonUserWidget = Cast<UUserWidget>(ButtonWidget);
+	if (!ButtonUserWidget || !ButtonUserWidget->WidgetTree)
+	{
+		return;
+	}
+
+	UTextBlock* ResolvedText = nullptr;
+	ButtonUserWidget->WidgetTree->ForEachWidget([&ResolvedText](UWidget* Widget)
+	{
+		if (ResolvedText)
+		{
+			return;
+		}
+
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
+		{
+			if (TextBlock->GetName().Contains(TEXT("TXT_ButtonText")) || TextBlock->GetName().Contains(TEXT("ButtonText")))
+			{
+				ResolvedText = TextBlock;
+			}
+		}
+	});
+
+	if (ResolvedText)
+	{
+		ResolvedText->SetText(FText::FromString(Label));
+	}
+}
+
+USaveDestinationEntry* UManageSave::CreateDestinationEntry(const FName& EntryName) const
+{
+	TSubclassOf<USaveDestinationEntry> EntryClass = SaveDestinationEntryClass;
+	if (!EntryClass)
+	{
+		EntryClass = LoadClass<USaveDestinationEntry>(nullptr, TEXT("/Game/UI/WB_SaveDestinationEntry.WB_SaveDestinationEntry_C"));
+	}
+
+	if (!EntryClass)
+	{
+		EntryClass = USaveDestinationEntry::StaticClass();
+	}
+
+	return CreateWidget<USaveDestinationEntry>(GetOwningPlayer(), EntryClass, EntryName);
+}
+
 void UManageSave::ResolveWidgetReferences()
 {
 	if (!WidgetTree) return;
 
+	if (!SaveOptionsScrollBox)
+	{
+		SaveOptionsScrollBox = SB_SaveDestinations;
+	}
+
 	WidgetTree->ForEachWidget([this](UWidget* Widget)
 	{
-		if (!RootSizeBox)
-		{
-			RootSizeBox = Cast<USizeBox>(Widget);
-		}
-
-		if (!RootOverlay)
-		{
-			RootOverlay = Cast<UOverlay>(Widget);
-		}
-
 		if (!SaveOptionsScrollBox)
 		{
 			SaveOptionsScrollBox = Cast<UScrollBox>(Widget);
 		}
 
-		if (!CommonNameText)
+		if (!TXT_PlantName)
 		{
 			if (UTextBlock* TextBlock = Cast<UTextBlock>(Widget))
 			{
 				const FString CurrentText = TextBlock->GetText().ToString();
 				if (CurrentText.Contains(TEXT("common_name")) || CurrentText.StartsWith(TEXT("<")))
 				{
-					CommonNameText = TextBlock;
-					HeaderBox = Cast<UVerticalBox>(TextBlock->GetParent());
+					TXT_PlantName = TextBlock;
 				}
 			}
 		}
@@ -250,12 +346,6 @@ void UManageSave::ResolveWidgetReferences()
 
 void UManageSave::ConfigureModalLayout()
 {
-	if (RootSizeBox)
-	{
-		RootSizeBox->SetWidthOverride(430.0f);
-		RootSizeBox->SetHeightOverride(560.0f);
-	}
-
 	if (SaveOptionsScrollBox)
 	{
 		SaveOptionsScrollBox->SetAnimateWheelScrolling(true);
@@ -264,86 +354,11 @@ void UManageSave::ConfigureModalLayout()
 	}
 }
 
-void UManageSave::RebuildOverlayLayout()
-{
-	if (!WidgetTree || !RootOverlay || !HeaderBox || !SaveOptionsScrollBox || !BTN_Changes)
-	{
-		return;
-	}
-
-	if (SaveOptionsScrollBox->GetParent() == BTN_Changes->GetParent() && BTN_Changes->GetParent() != RootOverlay)
-	{
-		return;
-	}
-
-	UVerticalBox* ModalLayout = nullptr;
-	for (int32 ChildIndex = 0; ChildIndex < RootOverlay->GetChildrenCount(); ++ChildIndex)
-	{
-		if (UWidget* Widget = RootOverlay->GetChildAt(ChildIndex))
-		{
-			ModalLayout = Cast<UVerticalBox>(Widget);
-			if (ModalLayout)
-			{
-				break;
-			}
-		}
-	}
-
-	if (!ModalLayout || ModalLayout == HeaderBox)
-	{
-		ModalLayout = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ModalLayout"));
-		if (!ModalLayout)
-		{
-			return;
-		}
-
-		if (UOverlaySlot* LayoutSlot = RootOverlay->AddChildToOverlay(ModalLayout))
-		{
-			LayoutSlot->SetHorizontalAlignment(HAlign_Fill);
-			LayoutSlot->SetVerticalAlignment(VAlign_Fill);
-			LayoutSlot->SetPadding(FMargin(24.0f, 24.0f, 24.0f, 24.0f));
-		}
-	}
-
-	auto MoveToModalLayout = [ModalLayout](UWidget* Widget, const FMargin& SlotPadding, EHorizontalAlignment HorizontalAlignment, EVerticalAlignment VerticalAlignment, float FillHeight)
-	{
-		if (!Widget || !ModalLayout)
-		{
-			return;
-		}
-
-		if (UPanelWidget* CurrentParent = Widget->GetParent())
-		{
-			CurrentParent->RemoveChild(Widget);
-		}
-
-		if (UVerticalBoxSlot* Slot = ModalLayout->AddChildToVerticalBox(Widget))
-		{
-			Slot->SetPadding(SlotPadding);
-			Slot->SetHorizontalAlignment(HorizontalAlignment);
-			Slot->SetVerticalAlignment(VerticalAlignment);
-			if (FillHeight > 0.0f)
-			{
-				Slot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-				Slot->Size.Value = FillHeight;
-			}
-			else
-			{
-				Slot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-			}
-		}
-	};
-
-	MoveToModalLayout(HeaderBox, FMargin(0.0f, 0.0f, 0.0f, 16.0f), HAlign_Fill, VAlign_Top, 0.0f);
-	MoveToModalLayout(SaveOptionsScrollBox, FMargin(0.0f, 0.0f, 0.0f, 16.0f), HAlign_Fill, VAlign_Fill, 1.0f);
-	MoveToModalLayout(BTN_Changes, FMargin(0.0f), HAlign_Right, VAlign_Bottom, 0.0f);
-}
-
 void UManageSave::UpdatePlantNameText() const
 {
-	if (CommonNameText)
+	if (TXT_PlantName)
 	{
-		CommonNameText->SetText(FText::FromString(CommonName.IsEmpty() ? TEXT("<common_name>") : CommonName));
+		TXT_PlantName->SetText(FText::FromString(CommonName.IsEmpty() ? TEXT("<common_name>") : CommonName));
 	}
 }
 
@@ -384,7 +399,18 @@ void UManageSave::PopulateDestinationList()
 	SaveOptionsScrollBox->ClearChildren();
 	GardenRows.Reset();
 
-	GlobalRow = CreateWidget<USaveDestinationEntry>(GetOwningPlayer(), USaveDestinationEntry::StaticClass());
+	if (TXT_StatusMessage)
+	{
+		TXT_StatusMessage->SetText(FText::GetEmpty());
+		TXT_StatusMessage->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	if (TXT_GardenSection)
+	{
+		TXT_GardenSection->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	GlobalRow = CreateDestinationEntry(TEXT("GlobalSaveDestination"));
 	if (GlobalRow)
 	{
 		GlobalRow->Configure(true, 0, TEXT("Save Globally"), TEXT("Available across all gardens in the app"), bIsGloballySaved);
@@ -392,27 +418,31 @@ void UManageSave::PopulateDestinationList()
 		SaveOptionsScrollBox->AddChild(GlobalRow);
 	}
 
-	AddCreateGardenRow();
-
 	if (!bHasLoadedGardens)
 	{
 		AddMessageRow(TEXT("Loading your gardens..."));
-		AddBottomScrollSpacer();
 		return;
 	}
 
 	if (Gardens.Num() == 0)
 	{
 		AddMessageRow(TEXT("No gardens yet. Create one in Unreal to save plants to a specific garden."));
-		AddBottomScrollSpacer();
 		return;
 	}
 
-	AddMessageRow(TEXT("YOUR GARDENS"));
+	if (TXT_GardenSection)
+	{
+		TXT_GardenSection->SetText(FText::FromString(TEXT("Your Gardens")));
+		TXT_GardenSection->SetVisibility(ESlateVisibility::Visible);
+	}
+	else
+	{
+		AddMessageRow(TEXT("Your Gardens"));
+	}
 
 	for (const FBackendGardenSummaryDto& Garden : Gardens)
 	{
-		USaveDestinationEntry* GardenRow = CreateWidget<USaveDestinationEntry>(GetOwningPlayer(), USaveDestinationEntry::StaticClass());
+		USaveDestinationEntry* GardenRow = CreateDestinationEntry(*FString::Printf(TEXT("GardenSaveDestination_%d"), Garden.Id));
 		if (!GardenRow) continue;
 
 		GardenRow->Configure(false, Garden.Id, Garden.Name, TEXT("Save to this garden"), PendingGardenSaveStates.FindRef(Garden.Id));
@@ -420,31 +450,17 @@ void UManageSave::PopulateDestinationList()
 		SaveOptionsScrollBox->AddChild(GardenRow);
 		GardenRows.Add(Garden.Id, GardenRow);
 	}
-
-	AddBottomScrollSpacer();
-}
-
-void UManageSave::AddCreateGardenRow()
-{
-	if (!SaveOptionsScrollBox || !WidgetTree) return;
-
-	CreateGardenButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BTN_CreateGardenDestination"));
-	UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TXT_CreateGardenDestination"));
-	if (!CreateGardenButton || !ButtonText)
-	{
-		CreateGardenButton = nullptr;
-		return;
-	}
-
-	ButtonText->SetText(FText::FromString(TEXT("+ Create Garden")));
-	ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-	CreateGardenButton->SetContent(ButtonText);
-	CreateGardenButton->OnClicked.AddDynamic(this, &UManageSave::OnPressCreateGarden);
-	SaveOptionsScrollBox->AddChild(CreateGardenButton);
 }
 
 void UManageSave::AddMessageRow(const FString& Message)
 {
+	if (TXT_StatusMessage)
+	{
+		TXT_StatusMessage->SetText(FText::FromString(Message));
+		TXT_StatusMessage->SetVisibility(Message.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		return;
+	}
+
 	if (!SaveOptionsScrollBox || !WidgetTree) return;
 
 	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
@@ -453,23 +469,6 @@ void UManageSave::AddMessageRow(const FString& Message)
 	TextBlock->SetText(FText::FromString(Message));
 	TextBlock->SetColorAndOpacity(FSlateColor(FLinearColor(0.72f, 0.76f, 0.84f, 1.0f)));
 	SaveOptionsScrollBox->AddChild(TextBlock);
-}
-
-void UManageSave::AddBottomScrollSpacer()
-{
-	if (!SaveOptionsScrollBox || !WidgetTree)
-	{
-		return;
-	}
-
-	USpacer* Spacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
-	if (!Spacer)
-	{
-		return;
-	}
-
-	Spacer->SetSize(FVector2D(1.0f, 96.0f));
-	SaveOptionsScrollBox->AddChild(Spacer);
 }
 
 void UManageSave::HandleGlobalStateResponse(bool bSuccess, const FString& Message, const TArray<FBackendPlantDto>& Plants)
@@ -592,9 +591,13 @@ bool UManageSave::HasPendingChanges() const
 
 void UManageSave::UpdateChangesText()
 {
+	const FString ChangesLabel = HasPendingChanges() ? TEXT("Save changes") : TEXT("No changes");
+
+	SetButtonLabel(BTN_Changes, ChangesLabel);
+
 	if (TXT_Changes)
 	{
-		TXT_Changes->SetText(FText::FromString(HasPendingChanges() ? TEXT("Save Changes") : TEXT("No Changes")));
+		TXT_Changes->SetText(FText::FromString(ChangesLabel));
 	}
 }
 
