@@ -74,7 +74,12 @@ void AMenuController::ShowMainMenu()
         Auth->OpenWebsite = false;
     }
 
-    SetRootWidget(MainMenuWidgetClass);
+    TSubclassOf<UUserWidget> NewMainMenuWidgetClass = LoadClass<UUserWidget>(
+        nullptr,
+        TEXT("/Game/UI/WB_NewMainMenu.WB_NewMainMenu_C")
+    );
+
+    SetRootWidget(NewMainMenuWidgetClass ? NewMainMenuWidgetClass : MainMenuWidgetClass);
 }
 
 void AMenuController::ShowDisplayName() 
